@@ -1,0 +1,1026 @@
+\# Gestion des courriers — V3
+
+
+
+Tu dois faire évoluer le module \*\*Gestion des courriers\*\* du SIM.
+
+
+
+Avant toute modification du code, tu dois impérativement analyser :
+
+
+
+1\. Le fichier \*\*`guide user courriers SIM webdev.docx`\*\*, qui décrit le fonctionnement attendu du module Courriers ;
+
+2\. L'implémentation actuelle du module Courriers dans le projet ;
+
+3\. Le modèle de données et les relations utilisées ;
+
+4\. Les différents profils, rôles et droits existants ;
+
+5\. Le fonctionnement actuel des courriers entrants, sortants et internes ;
+
+6\. Les workflows déjà implémentés ;
+
+7\. Les interfaces existantes ;
+
+8\. La configuration actuelle du module Administration.
+
+
+
+Le document Word constitue une \*\*référence fonctionnelle importante\*\* pour comprendre ce que nous entendons par le module Courriers dans le SIM.
+
+
+
+\---
+
+
+
+\# 1. RÈGLE IMPORTANTE : NE PAS MODIFIER LE CODE IMMÉDIATEMENT
+
+
+
+Dans un premier temps, \*\*ne modifie aucun fichier\*\*.
+
+
+
+Je souhaite d'abord que tu réalises une analyse complète de l'existant et que tu me présentes tes recommandations.
+
+
+
+Ton analyse doit notamment identifier :
+
+
+
+\* ce qui existe déjà ;
+
+\* ce qui fonctionne correctement ;
+
+\* ce qui ne correspond pas au besoin ;
+
+\* ce qui est actuellement codé en dur ;
+
+\* ce qui doit devenir paramétrable ;
+
+\* les incohérences fonctionnelles ;
+
+\* les éventuels problèmes d'ergonomie ;
+
+\* les modifications nécessaires au modèle de données ;
+
+\* les impacts sur le workflow ;
+
+\* les impacts sur la GED ;
+
+\* les impacts sur les profils et permissions ;
+
+\* les risques de régression.
+
+
+
+Ensuite, propose-moi un \*\*plan d'évolution V3\*\*, organisé par priorité.
+
+
+
+\*\*Ne commence l'implémentation qu'après validation de mes recommandations.\*\*
+
+
+
+\---
+
+
+
+\# 2. ENREGISTREMENT D'UN COURRIER D'ARRIVÉE
+
+
+
+L'enregistrement d'un courrier d'arrivée doit être réalisé à travers une interface simple, moderne et structurée en plusieurs étapes.
+
+
+
+L'objectif est que l'utilisateur puisse enregistrer complètement le courrier dans un parcours unique.
+
+
+
+\## Étape 1 — Informations du courrier
+
+
+
+L'utilisateur saisit les informations nécessaires concernant le courrier.
+
+
+
+Exemples :
+
+
+
+\* référence du courrier ;
+
+\* date du courrier ;
+
+\* date de réception ;
+
+\* expéditeur ;
+
+\* objet ;
+
+\* type de courrier ;
+
+\* niveau de priorité ;
+
+\* niveau de confidentialité ;
+
+\* autres métadonnées nécessaires.
+
+
+
+Analyse le document Word pour déterminer les champs réellement nécessaires et ceux qui existent déjà dans l'application.
+
+
+
+\### IMPORTANT
+
+
+
+Lors de l'enregistrement initial du courrier d'arrivée, \*\*il ne faut pas demander à l'utilisateur de sélectionner :\*\*
+
+
+
+\* l'entité chargée du traitement ;
+
+\* le service chargé du traitement ;
+
+\* le bureau chargé du traitement ;
+
+\* l'agent destinataire.
+
+
+
+Ces informations ne doivent pas faire partie de la saisie initiale.
+
+
+
+L'imputation et l'affectation doivent intervenir \*\*après l'enregistrement\*\*, conformément au workflow configuré.
+
+
+
+\---
+
+
+
+\# 3. Étape 2 — Ajout des pièces jointes
+
+
+
+La deuxième étape doit permettre d'ajouter les documents associés au courrier.
+
+
+
+Prévoir notamment :
+
+
+
+\* document principal ;
+
+\* pièces jointes ;
+
+\* plusieurs fichiers ;
+
+\* possibilité de visualiser les fichiers ;
+
+\* suppression/remplacement avant validation ;
+
+\* métadonnées des documents si nécessaire.
+
+
+
+Cette fonctionnalité doit être cohérente avec le fonctionnement de la \*\*GED du SIM\*\*.
+
+
+
+Analyse l'existant avant de créer un nouveau mécanisme de gestion documentaire.
+
+
+
+\---
+
+
+
+\# 4. Étape 3 — Récapitulatif et validation
+
+
+
+Avant l'enregistrement définitif, afficher une page de synthèse permettant à l'utilisateur de vérifier :
+
+
+
+\* les informations du courrier ;
+
+\* les pièces jointes ;
+
+\* les métadonnées ;
+
+\* les éventuelles informations complémentaires.
+
+
+
+L'utilisateur doit pouvoir revenir aux étapes précédentes pour effectuer une correction.
+
+
+
+Cette étape doit comporter une action claire :
+
+
+
+\*\*Valider l'enregistrement\*\*
+
+
+
+\---
+
+
+
+\# 5. Étape 4 — Confirmation de l'enregistrement
+
+
+
+Après validation :
+
+
+
+\* enregistrer définitivement le courrier ;
+
+\* générer son numéro/référence conformément aux règles définies ;
+
+\* créer l'historique ;
+
+\* déclencher le workflow configuré ;
+
+\* déclencher les notifications nécessaires ;
+
+\* afficher une confirmation à l'utilisateur.
+
+
+
+Après confirmation, proposer :
+
+
+
+\*\*Imprimer la fiche d'exploitation du courrier\*\*
+
+
+
+La fiche d'exploitation doit également être accessible ultérieurement depuis le dossier du courrier.
+
+
+
+Analyse le document Word afin de déterminer le contenu attendu de cette fiche.
+
+
+
+\---
+
+
+
+\# 6. DESTINATAIRE DES COURRIERS D'ARRIVÉE — PARAMÉTRAGE
+
+
+
+Actuellement, tout courrier arrivé est directement envoyé au \*\*DG\*\*.
+
+
+
+Ce comportement ne doit plus être codé en dur.
+
+
+
+Il doit devenir un \*\*paramètre du module Administration\*\*.
+
+
+
+L'administrateur doit pouvoir définir l'entité qui reçoit automatiquement les courriers après leur enregistrement.
+
+
+
+Exemples :
+
+
+
+\* Direction Générale ;
+
+\* Secrétariat Général ;
+
+\* Cabinet ;
+
+\* Bureau Courrier ;
+
+\* autre entité de l'organisation.
+
+
+
+Le système doit donc permettre de configurer :
+
+
+
+> \*\*Entité destinataire initiale des courriers d'arrivée\*\*
+
+
+
+Cette configuration doit être modifiable sans intervention dans le code.
+
+
+
+\### Attention
+
+
+
+Le destinataire initial doit être une configuration organisationnelle.
+
+
+
+Il ne faut pas obligatoirement associer un courrier à un agent lors de son enregistrement.
+
+
+
+\---
+
+
+
+\# 7. LISTE DES COURRIERS ET BANNETTES
+
+
+
+La liste actuelle des courriers doit être analysée.
+
+
+
+Je souhaite progressivement faire évoluer l'affichage vers un système de \*\*bannettes personnalisées selon le profil de l'utilisateur\*\*.
+
+
+
+Les onglets génériques :
+
+
+
+\* Entrant ;
+
+\* Sortant ;
+
+\* Interne ;
+
+
+
+ne doivent plus être considérés comme l'organisation finale de l'interface.
+
+
+
+Le document :
+
+
+
+\*\*`guide user courriers SIM webdev.docx`\*\*
+
+
+
+doit être analysé pour comprendre le concept de bannettes attendu.
+
+
+
+\### IMPORTANT
+
+
+
+Pour cette V3, ne développe pas encore toutes les règles complexes des bannettes si elles nécessitent une nouvelle conception.
+
+
+
+Analyse d'abord le fonctionnement actuel et propose une architecture permettant d'introduire progressivement les bannettes.
+
+
+
+Nous reviendrons ensuite en détail sur les règles de chaque bannette.
+
+
+
+\---
+
+
+
+\# 8. NUMÉROTATION DES COURRIERS SORTANTS
+
+
+
+Pour les courriers sortants, le numéro doit être généré automatiquement selon l'organisation et l'entité qui traite le courrier.
+
+
+
+Exemple :
+
+
+
+\*\*2026/DGDDI/DG/DIM/00002\*\*
+
+
+
+Dans cet exemple :
+
+
+
+\* `2026` = année ;
+
+\* `DGDDI` = organisation ;
+
+\* `DG` = niveau/entité concernée ;
+
+\* `DIM` = entité ayant traité le courrier ;
+
+\* `00002` = numéro séquentiel.
+
+
+
+La partie correspondant à l'entité traitante doit donc être \*\*dynamique\*\*.
+
+
+
+Elle ne doit pas être saisie manuellement par l'utilisateur.
+
+
+
+Le système doit déterminer automatiquement le code de l'entité en fonction de l'entité ayant effectivement traité/validé le courrier selon le workflow.
+
+
+
+\### À analyser
+
+
+
+Détermine :
+
+
+
+\* comment les codes des entités sont actuellement gérés ;
+
+\* comment récupérer automatiquement le code de l'entité ;
+
+\* comment gérer la séquence annuelle ;
+
+\* comment éviter les doublons ;
+
+\* comment gérer plusieurs entités ;
+
+\* comment gérer les changements d'organisation ;
+
+\* comment garantir l'intégrité de la numérotation.
+
+
+
+Propose une architecture robuste avant implémentation.
+
+
+
+\---
+
+
+
+\# 9. ENREGISTREMENT D'UN COURRIER SORTANT
+
+
+
+L'enregistrement d'un courrier sortant doit également être réalisé à travers un parcours simple en plusieurs étapes.
+
+
+
+\## Étape 1 — Informations du courrier
+
+
+
+L'utilisateur saisit les informations nécessaires :
+
+
+
+\* objet ;
+
+\* référence éventuelle ;
+
+\* date ;
+
+\* type de courrier ;
+
+\* autres métadonnées nécessaires.
+
+
+
+Analyse le document Word et l'existant afin de déterminer les champs pertinents.
+
+
+
+\---
+
+
+
+\## Étape 2 — Pièces jointes
+
+
+
+Permettre de sélectionner ou ajouter les documents associés au courrier.
+
+
+
+Le fonctionnement doit être cohérent avec la GED existante.
+
+
+
+\---
+
+
+
+\## Étape 3 — Destinataires
+
+
+
+Cette étape doit permettre de définir les destinataires.
+
+
+
+\### Destinataire principal
+
+
+
+L'utilisateur doit pouvoir :
+
+
+
+\* sélectionner un destinataire parmi les contacts existants ;
+
+\* rechercher un contact ;
+
+\* créer un nouveau contact si nécessaire.
+
+
+
+\### Autres destinataires
+
+
+
+Prévoir également :
+
+
+
+\* ampliataires externes ;
+
+\* ampliataires internes.
+
+
+
+Le système doit clairement distinguer :
+
+
+
+\* destinataire principal ;
+
+\* ampliataires internes ;
+
+\* ampliataires externes.
+
+
+
+Analyse le modèle de données existant avant de créer de nouvelles structures.
+
+
+
+\---
+
+
+
+\# 10. Étape 4 — Récapitulatif et validation
+
+
+
+Afficher un résumé complet :
+
+
+
+\* informations du courrier ;
+
+\* destinataire principal ;
+
+\* ampliataires ;
+
+\* pièces jointes ;
+
+\* autres métadonnées.
+
+
+
+L'utilisateur doit pouvoir corriger les informations avant validation définitive.
+
+
+
+\---
+
+
+
+\# 11. Étape 5 — Génération du numéro et impression
+
+
+
+Après validation :
+
+
+
+\* générer automatiquement le numéro du courrier ;
+
+\* afficher le numéro ;
+
+\* enregistrer le courrier ;
+
+\* enregistrer l'historique ;
+
+\* déclencher le workflow approprié ;
+
+\* proposer l'impression de la fiche du courrier sortant.
+
+
+
+Le numéro doit être généré selon les règles de numérotation définies précédemment.
+
+
+
+\---
+
+
+
+\# 12. CONFIGURATION DES BANNETTES
+
+
+
+À terme, le système doit pouvoir gérer les bannettes suivantes :
+
+
+
+1\. \*\*COURRIERS À TRAITER\*\*
+
+2\. \*\*COURRIERS EN COURS\*\*
+
+3\. \*\*COURRIERS EN RETARD\*\*
+
+4\. \*\*COURRIERS SORTANTS\*\*
+
+5\. \*\*COURRIERS TRAITÉS\*\*
+
+6\. \*\*COURRIERS ARCHIVÉS\*\*
+
+
+
+Cependant, ces bannettes doivent être conçues comme un mécanisme \*\*dynamique et paramétrable\*\*, et non simplement comme six onglets statiques.
+
+
+
+Le système devra être capable de déterminer automatiquement quels courriers apparaissent dans chaque bannette selon :
+
+
+
+\* le profil de l'utilisateur ;
+
+\* son rôle ;
+
+\* son entité ;
+
+\* son niveau hiérarchique ;
+
+\* le workflow ;
+
+\* le statut du courrier ;
+
+\* les délais ;
+
+\* les responsabilités ;
+
+\* les droits d'accès.
+
+
+
+\### Exemple
+
+
+
+Un agent doit voir dans :
+
+
+
+\*\*COURRIERS À TRAITER\*\*
+
+
+
+uniquement les courriers qui nécessitent effectivement une action de sa part.
+
+
+
+Un responsable doit pouvoir voir les courriers nécessitant son intervention ou sa validation.
+
+
+
+Un courrier dont le délai est dépassé doit automatiquement apparaître dans :
+
+
+
+\*\*COURRIERS EN RETARD\*\*
+
+
+
+Un courrier terminé doit apparaître dans :
+
+
+
+\*\*COURRIERS TRAITÉS\*\*
+
+
+
+Et un courrier clôturé et archivé dans :
+
+
+
+\*\*COURRIERS ARCHIVÉS\*\*
+
+
+
+\---
+
+
+
+\# 13. ANALYSE DU WORKFLOW EXISTANT
+
+
+
+Avant toute modification, analyse particulièrement le moteur de workflow actuel.
+
+
+
+Je souhaite savoir :
+
+
+
+\* comment les étapes sont stockées ;
+
+\* comment les transitions sont gérées ;
+
+\* comment les utilisateurs sont affectés ;
+
+\* comment les entités sont affectées ;
+
+\* comment les validations sont gérées ;
+
+\* comment les retours sont gérés ;
+
+\* comment les notifications sont déclenchées ;
+
+\* comment les délais sont calculés ;
+
+\* comment les statuts sont déterminés ;
+
+\* comment l'historique est enregistré.
+
+
+
+Identifie également ce qui doit être modifié pour supporter correctement les nouvelles exigences de la V3.
+
+
+
+\---
+
+
+
+\# 14. PRINCIPES D'ARCHITECTURE
+
+
+
+La V3 doit respecter les principes suivants :
+
+
+
+\### Pas de logique métier codée en dur lorsque celle-ci doit être configurable.
+
+
+
+Par exemple :
+
+
+
+❌ Mauvais :
+
+
+
+> Après enregistrement → toujours DG.
+
+
+
+✅ Correct :
+
+
+
+> Après enregistrement → entité définie dans la configuration du module.
+
+
+
+\---
+
+
+
+\### Séparation claire entre :
+
+
+
+\* organisation ;
+
+\* utilisateurs ;
+
+\* rôles ;
+
+\* profils ;
+
+\* entités ;
+
+\* workflow ;
+
+\* courrier ;
+
+\* bannettes ;
+
+\* GED ;
+
+\* notifications ;
+
+\* historique.
+
+
+
+\---
+
+
+
+\# 15. CE QUE J'ATTENDS DE TOI AVANT DE CODER
+
+
+
+Après lecture du document Word et analyse du projet existant, présente-moi un rapport structuré contenant obligatoirement :
+
+
+
+\### A. Compréhension fonctionnelle
+
+
+
+Explique ce que tu comprends du module Courriers à partir du document Word et du code existant.
+
+
+
+\### B. État actuel
+
+
+
+Présente les fonctionnalités actuellement disponibles.
+
+
+
+\### C. Écarts avec la V3
+
+
+
+Présente clairement les fonctionnalités qui doivent être modifiées, ajoutées ou supprimées.
+
+
+
+\### D. Analyse technique
+
+
+
+Présente :
+
+
+
+\* fichiers concernés ;
+
+\* composants concernés ;
+
+\* tables concernées ;
+
+\* API/services concernés ;
+
+\* workflows concernés ;
+
+\* risques éventuels.
+
+
+
+\### E. Architecture cible
+
+
+
+Propose l'architecture fonctionnelle et technique cible pour la V3.
+
+
+
+\### F. Modèle de données
+
+
+
+Présente les éventuelles modifications nécessaires au modèle de données.
+
+
+
+\### G. Workflow
+
+
+
+Explique comment le workflow doit évoluer pour supporter les nouveaux besoins.
+
+
+
+\### H. Bannettes
+
+
+
+Propose une architecture pour les bannettes dynamiques et personnalisées par profil.
+
+
+
+\### I. Numérotation
+
+
+
+Propose une architecture robuste pour la génération automatique des numéros de courriers sortants.
+
+
+
+\### J. Plan d'implémentation
+
+
+
+Propose un plan de développement par étapes, par exemple :
+
+
+
+1\. Préparation ;
+
+2\. Enregistrement courrier entrant ;
+
+3\. Enregistrement courrier sortant ;
+
+4\. Paramétrage du destinataire initial ;
+
+5\. Numérotation ;
+
+6\. Bannettes ;
+
+7\. Workflow ;
+
+8\. Notifications ;
+
+9\. Tests ;
+
+10\. Régression.
+
+
+
+\---
+
+
+
+\# 16. RÈGLE FINALE
+
+
+
+\*\*NE MODIFIE PAS LE CODE POUR LE MOMENT.\*\*
+
+
+
+Commence uniquement par :
+
+
+
+1\. Lire `guide user courriers SIM webdev.docx` ;
+
+2\. Explorer le projet ;
+
+3\. Comprendre l'architecture existante ;
+
+4\. Analyser le fonctionnement actuel ;
+
+5\. Comparer l'existant avec les exigences V3 ;
+
+6\. Identifier les impacts ;
+
+7\. Proposer les actions à réaliser ;
+
+8\. Attendre ma validation.
+
+
+
+Je veux d'abord valider \*\*l'analyse et l'architecture cible\*\* avant que tu commences l'implémentation.
+
+
+
+L'objectif n'est pas simplement de modifier quelques écrans, mais de faire évoluer le module Courriers vers une solution \*\*professionnelle, cohérente, paramétrable, maintenable et adaptée à une organisation administrative telle que la DGDDI\*\*.
+
+
+

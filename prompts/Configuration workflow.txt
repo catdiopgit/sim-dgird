@@ -1,0 +1,438 @@
+## Évolution du module Workflow des courriers – V2
+
+Tu as déjà développé une première version du module **Gestion des courriers / Workflow**.
+
+Je souhaite maintenant faire évoluer cette première version afin que le workflow des courriers soit **réellement paramétrable et générique**, et non basé sur un circuit fixe codé en dur.
+
+### 1. Commence par analyser l'existant
+
+Avant toute modification :
+
+* Analyse l'architecture actuelle du module Courriers.
+* Analyse le modèle de données existant.
+* Analyse le fonctionnement actuel du workflow.
+* Identifie les différents statuts, étapes, rôles et transitions déjà implémentés.
+* Identifie ce qui est actuellement codé en dur.
+* Vérifie comment sont gérés les utilisateurs, rôles, directions, services, bureaux et autres entités organisationnelles.
+* Vérifie la gestion des notifications, de l'historique et de la traçabilité.
+* Identifie les fonctionnalités existantes qui doivent impérativement être conservées.
+
+**Ne supprime aucune fonctionnalité existante sans justification.**
+
+L'objectif est de faire évoluer la V1 vers une architecture plus générique et paramétrable.
+
+---
+
+# 2. Objectif de la V2
+
+Le système doit permettre à une organisation de **définir elle-même son workflow de courrier**, sans modification du code source.
+
+Le workflow doit pouvoir être configuré depuis une interface d'administration.
+
+Il ne faut donc pas avoir un workflow du type :
+
+> Enregistrement → DG → Secrétaire → Direction → Service → DG → Archivage
+
+directement codé dans l'application.
+
+Le système doit plutôt disposer d'un **moteur de workflow configurable** capable de construire différents circuits selon les règles de l'organisation.
+
+---
+
+# 3. Workflow des courriers d'arrivée
+
+Le système doit permettre de définir un workflow complet pour les courriers d'arrivée, depuis leur enregistrement jusqu'à leur clôture et leur archivage.
+
+À titre d'exemple, une organisation peut définir le workflow suivant :
+
+### Étape 1 – Enregistrement
+
+L'agent du Bureau Courrier réceptionne et enregistre le courrier.
+
+Informations possibles :
+
+* référence ;
+* expéditeur ;
+* objet ;
+* date du courrier ;
+* date de réception ;
+* type de courrier ;
+* priorité ;
+* confidentialité ;
+* pièces jointes ;
+* document numérisé.
+
+### Étape 2 – Transmission à la Direction Générale
+
+Après enregistrement, le système transmet automatiquement le courrier au DG.
+
+Le Secrétaire du DG peut également disposer des mêmes droits ou de droits délégués permettant de gérer le courrier au nom du DG.
+
+Cette notion doit être **paramétrable**.
+
+Le système ne doit pas supposer qu'un Secrétaire existe obligatoirement.
+
+---
+
+### Étape 3 – Imputation
+
+Le DG ou son Secrétaire peut imputer le courrier à :
+
+* une Direction ;
+* un Service ;
+* un Bureau ;
+* une Unité ;
+* un responsable ;
+* un agent ;
+* plusieurs destinataires.
+
+L'imputation peut comporter :
+
+* une instruction ;
+* une priorité ;
+* une échéance ;
+* une consigne de traitement.
+
+---
+
+### Étape 4 – Réception par le responsable
+
+Le responsable de la structure destinataire reçoit le courrier.
+
+Il peut :
+
+* traiter directement le courrier ;
+* l'affecter à un service ;
+* l'affecter à un bureau ;
+* l'affecter à un agent ;
+* l'affecter à plusieurs agents ;
+* demander des informations complémentaires ;
+* retourner le courrier ;
+* réorienter le courrier.
+
+---
+
+### Étape 5 – Traitement
+
+L'agent ou le service désigné traite le courrier.
+
+Il peut :
+
+* ajouter une réponse ;
+* rédiger une proposition ;
+* joindre des documents ;
+* ajouter une note ;
+* ajouter des commentaires ;
+* demander des informations complémentaires ;
+* terminer son traitement.
+
+---
+
+### Étape 6 – Validation hiérarchique
+
+Après traitement, le dossier revient au responsable hiérarchique.
+
+Le responsable peut :
+
+* valider ;
+* rejeter ;
+* demander une correction ;
+* demander un complément ;
+* réaffecter le dossier.
+
+---
+
+### Étape 7 – Validation finale
+
+Selon la configuration de l'organisation, le dossier peut ensuite être transmis au DG pour validation finale.
+
+Le DG peut :
+
+* valider ;
+* rejeter ;
+* demander une modification ;
+* retourner à la Direction ;
+* réaffecter ;
+* clôturer.
+
+Cette étape doit être **optionnelle et configurable**.
+
+---
+
+### Étape 8 – Clôture et archivage
+
+Après validation finale, le courrier est clôturé.
+
+Le système doit permettre son archivage dans la GED avec l'ensemble des documents et informations associés.
+
+---
+
+# 4. Attention : cet exemple n'est PAS le workflow à coder en dur
+
+Cet exemple sert uniquement à illustrer les possibilités attendues.
+
+Le système doit permettre à une autre organisation de définir, par exemple :
+
+### Organisation A
+
+Enregistrement → DG → Secrétaire → Direction → Service → Directeur → DG → Archivage
+
+### Organisation B
+
+Enregistrement → Directeur Général → Directeur → Agent → Directeur → Archivage
+
+### Organisation C
+
+Enregistrement → Secrétariat → Direction → Service → Archivage
+
+### Organisation D
+
+Enregistrement → Responsable → Agent → Responsable → Directeur Général → Archivage
+
+Ces workflows doivent pouvoir être créés **sans modification du code source**.
+
+---
+
+# 5. Administration du workflow
+
+Ajouter ou améliorer l'interface d'administration permettant de construire un workflow.
+
+L'administrateur doit pouvoir définir :
+
+### Les étapes
+
+Exemples :
+
+* Enregistrement
+* Contrôle
+* Validation
+* Imputation
+* Affectation
+* Traitement
+* Révision
+* Validation hiérarchique
+* Validation finale
+* Rejet
+* Retour
+* Clôture
+* Archivage
+
+### Les acteurs
+
+Le workflow doit pouvoir cibler :
+
+* utilisateur ;
+* rôle ;
+* fonction ;
+* direction ;
+* service ;
+* bureau ;
+* unité organisationnelle ;
+* responsable hiérarchique ;
+* supérieur hiérarchique ;
+* groupe d'utilisateurs.
+
+### Les transitions
+
+L'administrateur doit pouvoir définir :
+
+> Étape A → Étape B
+
+avec éventuellement des conditions.
+
+Exemple :
+
+> Traitement terminé → Validation du Directeur
+
+ou :
+
+> Si montant > X → Validation DG
+
+---
+
+# 6. Actions disponibles
+
+À chaque étape, les actions doivent pouvoir être configurées.
+
+Exemples :
+
+* Valider ;
+* Rejeter ;
+* Retourner ;
+* Imputer ;
+* Affecter ;
+* Réaffecter ;
+* Transmettre ;
+* Déléguer ;
+* Demander complément ;
+* Ajouter commentaire ;
+* Ajouter document ;
+* Terminer traitement ;
+* Clôturer.
+
+---
+
+# 7. Gestion des délais
+
+Le moteur doit permettre de définir un délai pour une étape.
+
+Exemple :
+
+> Traitement du courrier : 3 jours
+
+Le système doit pouvoir gérer :
+
+* date limite ;
+* retard ;
+* alerte ;
+* notification ;
+* relance ;
+* escalade vers le responsable hiérarchique.
+
+---
+
+# 8. Traçabilité
+
+Chaque action doit être enregistrée dans l'historique.
+
+L'historique doit permettre de connaître :
+
+* utilisateur ;
+* rôle ;
+* date ;
+* heure ;
+* action ;
+* étape précédente ;
+* étape suivante ;
+* commentaire ;
+* instruction ;
+* documents ajoutés ;
+* délai ;
+* statut.
+
+L'utilisateur doit pouvoir visualiser la **timeline complète du courrier**.
+
+---
+
+# 9. Gestion des délégations
+
+Le système doit permettre à un utilisateur de déléguer temporairement ses droits à un autre utilisateur.
+
+Exemple :
+
+> DG absent → Secrétaire autorisée à traiter les courriers du DG.
+
+Cette délégation doit être :
+
+* limitée dans le temps ;
+* traçable ;
+* configurable ;
+* révocable.
+
+---
+
+# 10. Workflow courrier d'arrivée et courrier de départ
+
+L'architecture doit être conçue pour supporter plusieurs types de workflows :
+
+* Courrier d'arrivée ;
+* Courrier de départ ;
+* Courrier interne ;
+* Note ;
+* Correspondance administrative ;
+* Documents soumis à validation ;
+* Autres processus métier.
+
+Le moteur doit être générique.
+
+---
+
+# 11. Modèle de données
+
+Analyse le modèle de données existant et propose les modifications nécessaires pour supporter ce fonctionnement.
+
+Évite de créer inutilement de nouvelles tables si une structure existante peut être correctement étendue.
+
+Le modèle doit notamment permettre de représenter :
+
+* workflow ;
+* version du workflow ;
+* étapes ;
+* transitions ;
+* règles ;
+* acteurs ;
+* actions ;
+* instances de workflow ;
+* historique ;
+* délégations ;
+* délais ;
+* notifications.
+
+---
+
+# 12. Interface utilisateur
+
+L'interface d'administration doit être moderne et intuitive.
+
+Je souhaite idéalement une représentation graphique du workflow permettant de visualiser :
+
+```text
+[Enregistrement]
+       ↓
+[DG / Secrétaire]
+       ↓
+[Imputation]
+       ↓
+[Direction]
+       ↓
+[Service / Agent]
+       ↓
+[Traitement]
+       ↓
+[Validation Directeur]
+       ↓
+[Validation DG]
+       ↓
+[Archivage]
+```
+
+L'administrateur doit pouvoir créer et modifier les étapes et les transitions.
+
+---
+
+# 13. Règles importantes
+
+Avant de coder :
+
+1. Analyse l'implémentation actuelle.
+2. Explique clairement les limitations de la V1.
+3. Propose l'architecture cible V2.
+4. Identifie les fichiers à modifier.
+5. Identifie les tables à modifier ou créer.
+6. Vérifie l'impact sur les fonctionnalités existantes.
+7. Ne casse pas les fonctionnalités déjà opérationnelles.
+8. Évite les duplications.
+9. Réutilise les composants existants lorsque cela est pertinent.
+10. Implémente progressivement.
+
+### Important
+
+Ne commence pas directement par modifier le code.
+
+Commence par me présenter :
+
+**A. Analyse de l'existant**
+
+**B. Limites de la V1**
+
+**C. Architecture proposée pour le moteur de workflow**
+
+**D. Modèle de données proposé**
+
+**E. Fonctionnalités à ajouter**
+
+**F. Plan d'implémentation par étapes**
+
+Après validation de cette analyse, tu pourras commencer les modifications du code.
+
+L'objectif est d'obtenir un **véritable moteur de workflow métier générique**, réutilisable pour la gestion des courriers et potentiellement pour les autres processus du SIM.

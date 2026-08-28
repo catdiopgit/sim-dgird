@@ -1,0 +1,173 @@
+# Gestion de projet V3 — Évolutions fonctionnelles
+
+Mettre à jour le module **Gestion de projet** en appliquant les modifications suivantes. L’objectif est de simplifier la gestion d’un projet autour d’un principe central : **un projet est constitué de livrables, et son état d’avancement est calculé automatiquement à partir de la réalisation de ces livrables.**
+
+## 1. Fiche projet
+
+Sur la fiche d’un projet :
+
+* Supprimer le champ **« État d’avancement »**.
+* L’état d’avancement ne doit plus être saisi manuellement.
+* Il doit être **calculé automatiquement** à partir du niveau de réalisation des livrables.
+* Ajouter les informations suivantes :
+
+  * **Organisme / structure chargée de l’exécution**
+  * **Responsable / chargé de l’exécution**
+* L’organisme chargé d’exécuter le projet peut être :
+
+  * l’organisation elle-même ;
+  * un consultant ;
+  * une entreprise ;
+  * tout autre organisme externe autorisé.
+
+## 2. Gestion des livrables
+
+Un projet est désormais composé **uniquement de livrables**.
+
+Pour chaque livrable :
+
+* Supprimer le champ **« État d’avancement »** saisi manuellement.
+* Ajouter un champ **« Quote-part »** ou **« Poids du livrable »**, exprimé en pourcentage.
+* Cette quote-part représente le poids du livrable dans la réalisation globale du projet.
+* La somme des quote-parts de tous les livrables d’un projet doit être égale à **100 %**.
+* Le niveau d’avancement du projet doit être calculé automatiquement à partir de la réalisation des livrables et de leur poids.
+
+Exemple :
+
+* Livrable 1 : 20 %
+* Livrable 2 : 30 %
+* Livrable 3 : 50 %
+
+Si les livrables 1 et 2 sont réalisés et le livrable 3 non réalisé, l’avancement global du projet est automatiquement de **50 %**.
+
+Le système doit donc assurer une cohérence entre les livrables et l’avancement global du projet.
+
+## 3. Suppression du suivi par phases et activités
+
+Supprimer complètement :
+
+* l’onglet **« Suivi / Avancement »** ;
+* la notion de **phases** ;
+* la notion d’**activités**.
+
+Ne pas conserver ces éléments dans l'interface ni dans la logique fonctionnelle du module.
+
+Le modèle de gestion devient :
+
+**Projet → Livrables → Réalisation des livrables**
+
+## 4. Responsables des livrables
+
+Pour chaque livrable, prévoir un **responsable du livrable**.
+
+Le responsable peut être uniquement :
+
+* un **membre du projet** ;
+* ou une personne appartenant à **l’organisme chargé d’exécuter le projet**.
+
+Le système doit donc empêcher l’affectation d’une personne qui ne fait partie d’aucun de ces deux groupes.
+
+## 5. Gestion des décaissements
+
+Ajouter une nouvelle fonctionnalité de **gestion des décaissements** au niveau du projet.
+
+Pour chaque décaissement, enregistrer au minimum :
+
+* **Pourcentage** du décaissement ;
+* **Date du décaissement** ;
+* **Montant** ;
+* **Justificatif**.
+
+Le justificatif doit pouvoir être joint sous forme de document.
+
+Le système doit également permettre de consulter l’historique des décaissements du projet.
+
+Prévoir des contrôles de cohérence, notamment :
+
+* le cumul des pourcentages des décaissements ;
+* le cumul des montants décaissés ;
+* la comparaison entre le montant total du projet et les montants déjà décaissés.
+
+## 6. Calcul automatique de l’avancement
+
+Mettre en place un calcul automatique de l’avancement du projet à partir des livrables.
+
+Le calcul doit tenir compte du **poids de chaque livrable**.
+
+Principe :
+
+**Avancement du projet = somme des poids des livrables réalisés**
+
+Si le système permet plusieurs niveaux de réalisation d’un livrable, adapter le calcul afin de prendre en compte son taux de réalisation.
+
+L’objectif est qu’aucun utilisateur n’ait à saisir manuellement l’avancement global du projet.
+
+## 7. Mise à jour de l’onglet « Vue d’ensemble »
+
+Après avoir appliqué toutes les modifications fonctionnelles ci-dessus, revoir complètement l’onglet **« Vue d’ensemble »** afin qu’il soit réellement utile au pilotage du projet.
+
+Afficher notamment les informations pertinentes telles que :
+
+* avancement global du projet ;
+* nombre total de livrables ;
+* nombre de livrables réalisés ;
+* nombre de livrables en cours ;
+* nombre de livrables non réalisés ;
+* progression des livrables ;
+* poids des livrables ;
+* montant total du projet ;
+* montant total décaissé ;
+* pourcentage financier décaissé ;
+* solde restant à décaisser ;
+* dernier décaissement ;
+* responsable du projet ;
+* organisme chargé de l’exécution ;
+* dates clés du projet ;
+* alertes ou points nécessitant une attention particulière.
+
+La vue d’ensemble doit privilégier une présentation **visuelle, claire et institutionnelle**, avec des indicateurs, cartes statistiques, barres de progression et tableaux synthétiques lorsque cela est pertinent.
+
+## 8. Mise à jour de la partie « Informations »
+
+Revoir également la section **« Informations »** de la fiche projet afin qu’elle corresponde au nouveau modèle de données.
+
+Afficher de manière structurée les informations essentielles :
+
+* référence du projet ;
+* intitulé ;
+* description ;
+* organisme chargé de l’exécution ;
+* responsable / chargé de l’exécution ;
+* responsable du projet ;
+* dates de début et de fin ;
+* budget / montant du projet ;
+* état global calculé automatiquement ;
+* informations complémentaires ;
+* documents associés au projet.
+
+Supprimer de cette partie toutes les informations devenues obsolètes, notamment celles liées aux **phases, activités et à l’état d’avancement manuel**.
+
+## 9. Règles importantes
+
+* **Ne pas modifier les fonctionnalités déjà validées qui ne sont pas concernées par cette évolution.**
+* Respecter le design institutionnel déjà défini pour l’application.
+* Maintenir la cohérence entre la base de données, le backend et l’interface utilisateur.
+* Mettre à jour les modèles, relations et validations nécessaires.
+* Vérifier que les anciennes notions de **phases, activités et avancement manuel** ne sont plus utilisées dans les écrans concernés.
+* Après développement, vérifier l’ensemble des calculs d’avancement et de décaissement avec plusieurs cas de test.
+* Ne pas créer de nouvelles fonctionnalités non demandées sans les signaler au préalable.
+
+### Modèle fonctionnel cible
+
+Le nouveau modèle de gestion doit être basé sur :
+
+**Projet**
+→ Informations générales
+→ Organisme chargé de l’exécution
+→ Membres du projet
+→ **Livrables**
+→ **Décaissements**
+→ Documents associés
+→ Vue d’ensemble / indicateurs
+
+L’élément central du projet est désormais le **livrable**. L’avancement du projet doit être une donnée **calculée automatiquement**, et non une donnée saisie par l'utilisateur.

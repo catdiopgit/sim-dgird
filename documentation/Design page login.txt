@@ -1,0 +1,85 @@
+# Refonte de la page de connexion
+
+Je souhaite que nous repensions complètement le **design de la page de connexion** afin de lui donner une apparence plus moderne, professionnelle et institutionnelle.
+
+## 1. Design général
+
+* Concevoir une interface **moderne, élégante et épurée**.
+* Utiliser le **bleu comme couleur principale**, avec une palette cohérente et professionnelle.
+* Le design doit être adapté à une **institution / organisation professionnelle**.
+* Améliorer la présentation du formulaire de connexion tout en conservant les fonctionnalités existantes.
+* Prévoir une interface responsive.
+
+## 2. Identité de l’organisation
+
+La page de connexion doit mettre clairement en avant l’identité de l’organisation.
+
+Afficher notamment :
+
+* **Le logo de l’organisation** ;
+* **Le nom intégral de l’organisation** ;
+* **Le drapeau du pays de l’organisation** ;
+* **Le nom du pays** ;
+* **La devise du pays**.
+
+Ces éléments doivent être présentés de manière élégante et cohérente avec le design institutionnel de la page.
+
+## 3. Logo de l’organisation
+
+Le logo de l’organisation doit être **indépendant de la base de données**.
+
+* Ne plus récupérer le logo depuis la base de données.
+* Le logo sera fourni sous forme de **fichier image placé directement dans le dossier du projet**.
+* Prévoir un emplacement clairement identifié dans le projet pour ce fichier.
+* La page de connexion doit charger directement ce fichier local.
+* Le remplacement du logo doit pouvoir être effectué simplement en remplaçant le fichier, sans modification de la base de données.
+
+## 4. Sécurité
+
+Supprimer toute dépendance inutile entre les éléments graphiques de la page de connexion et la base de données.
+
+En particulier :
+
+* Le logo ne doit pas être récupéré depuis la base de données.
+* Les éléments purement graphiques et institutionnels doivent être gérés par les ressources du projet.
+* La page de connexion doit charger uniquement les données strictement nécessaires à l’authentification.
+
+## 5. Formulaire de connexion
+
+Repenser l’expérience utilisateur avec :
+
+* Champ **Identifiant** ;
+* Champ **Mot de passe** ;
+* Possibilité d’afficher/masquer le mot de passe ;
+* Bouton **Se connecter** clairement visible ;
+* Messages d’erreur explicites et professionnels ;
+* Nom de l’application clairement affiché.
+
+## 6. Présentation institutionnelle
+
+La page doit donner une image **officielle, moderne et professionnelle** dès le premier accès.
+
+Prévoir une composition visuelle mettant en valeur :
+
+**Logo de l’organisation**
+**Nom intégral de l’organisation**
+**Nom du pays**
+**Drapeau du pays**
+**Devise du pays**
+
+puis le formulaire de connexion.
+
+L’ensemble doit rester sobre, élégant et ne pas surcharger l’écran.
+
+## 7. Contraintes
+
+* Ne modifier aucune fonctionnalité métier existante.
+* Modifier uniquement le design et les éléments concernés par cette évolution.
+* Ne pas créer de dépendance supplémentaire avec la base de données pour les éléments visuels.
+* Respecter la charte graphique institutionnelle de l’application.
+* Prévoir un affichage responsive.
+* Vérifier le rendu sur différentes résolutions d’écran.
+
+### Résultat attendu
+
+Une page de connexion **moderne, élégante, institutionnelle et sécurisée**, avec le bleu comme couleur dominante, le logo chargé depuis un fichier local, et une identité institutionnelle clairement visible à travers **le logo, le nom intégral de l’organisation, le drapeau, le nom du pays et la devise nationale**.

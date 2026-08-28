@@ -1,0 +1,942 @@
+# Prompt de développement — Application SIM complète avec React JS, Supabase et PostgreSQL
+
+Je souhaite développer une **application web complète, professionnelle, moderne et fonctionnelle de type SIM (Système d’Information Managérial)** en utilisant **React JS** pour le frontend et **Supabase / PostgreSQL** pour la base de données.
+
+L’objectif n’est pas de créer une simple maquette ou une démonstration, mais une **application réellement fonctionnelle**, avec une architecture propre, évolutive, sécurisée et facilement maintenable.
+
+## 1. Objectif général
+
+Développer un SIM permettant de centraliser et gérer plusieurs processus métiers d’une organisation :
+
+* Gestion des courriers
+* GED — Gestion Électronique des Documents
+* Gestion des projets
+* Gestion des missions
+* Gestion des utilisateurs et des droits
+* Paramétrage général de l’application
+* Tableau de bord et reporting
+
+L’application doit être conçue de manière **modulaire**, afin de permettre l’activation, la désactivation et le paramétrage des différents modules selon les besoins de chaque organisation.
+
+---
+
+# 2. Technologies imposées
+
+Utiliser les technologies suivantes :
+
+### Frontend
+
+* React JS
+* TypeScript
+* Vite
+* React Router
+* Une bibliothèque UI moderne et professionnelle, par exemple Material UI, Ant Design ou équivalent
+* React Query / TanStack Query pour la gestion des données distantes
+* Formulaires avec validation robuste
+* Architecture composants réutilisables
+
+### Backend / Base de données
+
+Utiliser :
+
+* Supabase
+* PostgreSQL
+* Supabase Auth pour l'authentification
+* Supabase Storage pour le stockage des documents
+* Row Level Security (RLS) pour sécuriser les données
+* Supabase Edge Functions lorsque cela est nécessaire
+
+Ne pas créer un backend inutilement complexe si les fonctionnalités de Supabase permettent de répondre au besoin.
+
+---
+
+# 3. Architecture du projet
+
+Le projet doit être créé dans un **dossier local dédié** et avoir une structure professionnelle.
+
+Exemple de structure :
+
+```text
+SIM/
+├── src/
+│   ├── components/
+│   ├── layouts/
+│   ├── pages/
+│   ├── modules/
+│   │   ├── courrier/
+│   │   ├── ged/
+│   │   ├── projets/
+│   │   ├── missions/
+│   │   ├── utilisateurs/
+│   │   └── administration/
+│   ├── services/
+│   ├── hooks/
+│   ├── contexts/
+│   ├── types/
+│   ├── utils/
+│   ├── config/
+│   └── routes/
+│
+├── supabase/
+│   ├── migrations/
+│   ├── functions/
+│   └── seed/
+│
+├── public/
+├── docs/
+├── tests/
+├── .env.example
+├── package.json
+└── README.md
+```
+
+La structure peut être adaptée si une meilleure architecture est proposée, mais elle doit rester **modulaire, claire et évolutive**.
+
+---
+
+# 4. Gestion des courriers
+
+Le module Courriers doit être un module complet de gestion du courrier entrant, sortant et interne.
+
+Il doit notamment permettre :
+
+### Courrier entrant
+
+* Enregistrement d'un courrier
+* Numéro de courrier
+* Date de réception
+* Expéditeur
+* Objet
+* Type de courrier
+* Priorité
+* Confidentialité
+* Entité destinataire
+* Agent destinataire
+* Pièces jointes
+* Scan du courrier
+* Observations
+* Statut
+* Historique
+
+### Courrier sortant
+
+Permettre :
+
+* Création du courrier
+* Numérotation automatique
+* Destinataire
+* Objet
+* Rédacteur
+* Entité émettrice
+* Validation
+* Signature
+* Envoi
+* Archivage
+* Pièces jointes
+
+### Courrier interne
+
+Permettre la circulation des courriers entre les différentes entités.
+
+---
+
+# 5. Workflow des courriers
+
+Le module courrier doit fonctionner selon un **workflow configurable**.
+
+Le workflow doit permettre par exemple :
+
+```text
+Création
+   ↓
+Enregistrement
+   ↓
+Affectation
+   ↓
+Traitement
+   ↓
+Validation
+   ↓
+Signature
+   ↓
+Transmission
+   ↓
+Clôture
+   ↓
+Archivage
+```
+
+Cependant, ce workflow ne doit pas être codé en dur.
+
+Il doit être **paramétrable par l'administrateur**.
+
+L'administrateur doit pouvoir définir :
+
+* Les étapes
+* Les statuts
+* Les transitions
+* Les acteurs
+* Les rôles autorisés
+* Les délais
+* Les notifications
+* Les règles d'affectation
+
+Chaque action doit être historisée.
+
+---
+
+# 6. Paramétrage du module Courriers
+
+Le module Courriers doit être suffisamment générique pour être utilisé par plusieurs organisations.
+
+Prévoir un module de paramétrage permettant de gérer :
+
+* Types de courriers
+* Catégories
+* Priorités
+* Niveaux de confidentialité
+* Statuts
+* Workflow
+* Types de destinataires
+* Types d'expéditeurs
+* Modes de transmission
+* Modèles de courrier
+* Règles de numérotation
+* Délais de traitement
+* Notifications
+
+Le système doit éviter autant que possible les valeurs codées en dur.
+
+---
+
+# 7. Module GED
+
+Développer une **GED professionnelle** intégrée au SIM.
+
+La GED doit permettre :
+
+* Création de dossiers
+* Sous-dossiers
+* Catégories documentaires
+* Classement hiérarchique
+* Versement de documents
+* Versioning
+* Métadonnées
+* Recherche
+* Prévisualisation
+* Téléchargement
+* Historique
+* Gestion des droits
+* Archivage
+* Traçabilité
+
+---
+
+# 8. Workflow de versement GED
+
+Le versement d'un document doit être initié par les différentes entités de l'organisation.
+
+Exemple :
+
+```text
+Entité
+   ↓
+Versement du document
+   ↓
+Contrôle
+   ↓
+Validation par l'Archiviste
+   ↓
+Classement documentaire
+   ↓
+Archivage
+```
+
+L'entité doit pouvoir :
+
+* Déposer un document
+* Renseigner ses métadonnées
+* Proposer une catégorie
+* Proposer un dossier
+* Ajouter une description
+* Soumettre le document
+
+L'Archiviste doit pouvoir :
+
+* Contrôler le document
+* Refuser le versement
+* Demander une correction
+* Valider le document
+* Modifier les métadonnées
+* Choisir le classement définitif
+* Affecter une durée de conservation
+* Classer le document
+
+Le workflow GED doit également être paramétrable.
+
+---
+
+# 9. Fonctionnalités avancées GED
+
+Prévoir également :
+
+* Gestion des versions
+* Version majeure / mineure
+* Historique des modifications
+* Empreinte/hash du document
+* Gestion des droits par dossier
+* Gestion des droits par document
+* Recherche plein texte si possible
+* Recherche par métadonnées
+* Filtres avancés
+* Prévisualisation PDF
+* Téléchargement sécurisé
+* Corbeille
+* Archivage
+* Traçabilité complète
+
+Utiliser **Supabase Storage** pour le stockage physique des fichiers.
+
+Les métadonnées doivent être stockées dans PostgreSQL.
+
+---
+
+# 10. Module Gestion des projets
+
+Créer un module complet permettant de gérer les projets de l'organisation.
+
+Chaque projet doit comporter notamment :
+
+* Code projet
+* Nom
+* Description
+* Responsable
+* Sponsor
+* Entité
+* Date de début
+* Date de fin prévue
+* Date de fin réelle
+* Budget
+* Statut
+* Priorité
+* Niveau d'avancement
+* Membres de l'équipe
+
+Le module doit permettre de suivre :
+
+* Les phases
+* Les activités
+* Les tâches
+* Les responsables
+* Les échéances
+* Les livrables
+* Les documents
+* Les risques
+* Les problèmes
+* Les décisions
+* Les réunions
+* Les indicateurs
+
+---
+
+# 11. Suivi des livrables
+
+Chaque projet doit permettre de gérer ses livrables.
+
+Exemple :
+
+```text
+Projet
+ ├── Phase 1
+ │    ├── Activité
+ │    └── Livrable
+ │
+ ├── Phase 2
+ │    ├── Activité
+ │    └── Livrable
+ │
+ └── Phase 3
+      ├── Activité
+      └── Livrable
+```
+
+Pour chaque livrable :
+
+* Nom
+* Description
+* Responsable
+* Date prévue
+* Date de remise
+* Statut
+* Pourcentage d'avancement
+* Document associé
+* Validation
+* Commentaires
+
+Prévoir un tableau de bord permettant de visualiser les projets et leur avancement.
+
+---
+
+# 12. Module Missions
+
+Créer un module complet de gestion des missions.
+
+Le module doit permettre de gérer :
+
+* Création d'une mission
+* Objet
+* Référence
+* Responsable
+* Participants
+* Entité
+* Lieu
+* Date de départ
+* Date de retour
+* Objectifs
+* Activités prévues
+* Ordre de mission
+* Documents
+* Budget
+* État d'avancement
+* Compte rendu
+* Procès-verbal
+* Recommandations
+* Actions de suivi
+
+Prévoir le workflow :
+
+```text
+Création
+   ↓
+Soumission
+   ↓
+Validation
+   ↓
+Préparation
+   ↓
+Mission en cours
+   ↓
+Retour
+   ↓
+Rapport / PV
+   ↓
+Validation
+   ↓
+Clôture
+```
+
+Le module doit permettre de suivre les différentes missions sous forme de liste, calendrier et tableau de bord.
+
+---
+
+# 13. Gestion des utilisateurs et des rôles
+
+Créer une gestion complète des utilisateurs.
+
+Prévoir notamment :
+
+* Utilisateurs
+* Profils
+* Rôles
+* Permissions
+* Entités
+* Directions
+* Services
+* Fonctions
+
+Exemples de rôles :
+
+* Administrateur
+* Directeur
+* Responsable
+* Agent
+* Secrétaire
+* Archiviste
+* Chef de projet
+* Membre projet
+* Validateur
+
+Les permissions doivent pouvoir être définies par module et par fonctionnalité.
+
+Exemple :
+
+```text
+COURRIERS
+ ├── Consulter
+ ├── Créer
+ ├── Modifier
+ ├── Supprimer
+ ├── Affecter
+ ├── Valider
+ └── Archiver
+```
+
+Même principe pour la GED, les projets et les missions.
+
+---
+
+# 14. Organisation et structure administrative
+
+Le système doit permettre de configurer l'organisation :
+
+```text
+Organisation
+   └── Direction
+        └── Département
+             └── Service
+                  └── Bureau
+                       └── Utilisateurs
+```
+
+Cette structure doit être paramétrable.
+
+Il ne faut pas coder une organisation spécifique directement dans l'application.
+
+---
+
+# 15. Tableau de bord
+
+Créer un tableau de bord moderne avec notamment :
+
+### Courriers
+
+* Courriers reçus
+* Courriers sortants
+* Courriers en attente
+* Courriers en retard
+* Courriers clôturés
+
+### GED
+
+* Documents versés
+* Documents en attente de validation
+* Documents validés
+* Documents rejetés
+* Documents archivés
+
+### Projets
+
+* Nombre de projets
+* Projets en cours
+* Projets terminés
+* Projets en retard
+* Avancement moyen
+
+### Missions
+
+* Missions planifiées
+* Missions en cours
+* Missions terminées
+* Rapports en attente
+
+Les indicateurs doivent être interactifs.
+
+---
+
+# 16. Notifications
+
+Mettre en place un système de notifications.
+
+Les utilisateurs doivent être informés lorsqu'une action leur est attribuée.
+
+Exemples :
+
+* Nouveau courrier affecté
+* Document à valider
+* Mission à valider
+* Projet en retard
+* Livrable à échéance
+* Demande de correction
+* Workflow en attente
+
+Prévoir une architecture permettant éventuellement d'ajouter ultérieurement :
+
+* Email
+* SMS
+* Notifications push
+
+---
+
+# 17. Recherche globale
+
+Mettre en place une recherche globale permettant de rechercher :
+
+* Courriers
+* Documents
+* Projets
+* Missions
+* Utilisateurs
+
+Prévoir également des filtres avancés.
+
+---
+
+# 18. Traçabilité et audit
+
+Toutes les actions importantes doivent être enregistrées.
+
+Créer un journal d'audit permettant de connaître :
+
+* Utilisateur
+* Date
+* Heure
+* Module
+* Action
+* Objet concerné
+* Ancienne valeur
+* Nouvelle valeur
+* Adresse IP si disponible
+
+Exemple :
+
+```text
+08/08/2026 14:32
+Utilisateur : Administrateur
+Module : Courrier
+Action : Validation
+Objet : Courrier N°2026/00452
+```
+
+---
+
+# 19. Sécurité
+
+La sécurité doit être prise en compte dès la conception.
+
+Utiliser notamment :
+
+* Supabase Auth
+* Row Level Security
+* Gestion fine des permissions
+* Protection des routes
+* Validation des données
+* Gestion sécurisée des fichiers
+* Variables d'environnement
+* Journalisation
+* Contrôle des accès
+
+Ne jamais mettre les clés secrètes directement dans le code source.
+
+Créer un fichier :
+
+```text
+.env.example
+```
+
+avec les variables nécessaires.
+
+---
+
+# 20. Base de données
+
+Concevoir une base PostgreSQL correctement normalisée.
+
+Créer les tables nécessaires pour :
+
+* Organisations
+* Entités
+* Utilisateurs
+* Rôles
+* Permissions
+* Courriers
+* Types de courriers
+* Workflows
+* Étapes
+* Transitions
+* Documents
+* Dossiers GED
+* Catégories documentaires
+* Versions documents
+* Projets
+* Phases
+* Activités
+* Tâches
+* Livrables
+* Missions
+* Participants
+* Notifications
+* Journal d'audit
+* Paramétrage
+
+Créer les relations, contraintes, index et politiques RLS nécessaires.
+
+Les migrations PostgreSQL doivent être présentes dans :
+
+```text
+supabase/migrations/
+```
+
+Prévoir également un jeu de données de démonstration.
+
+---
+
+# 21. Interface utilisateur
+
+L'interface doit être :
+
+* Moderne
+* Professionnelle
+* Responsive
+* Ergonomique
+* Rapide
+* Compatible desktop, tablette et mobile
+
+Prévoir une interface avec :
+
+```text
+┌─────────────────────────────────────────────┐
+│ Logo │ Recherche │ Notifications │ Profil │
+├──────────────┬──────────────────────────────┤
+│              │                              │
+│ Tableau      │                              │
+│ de bord      │       CONTENU                │
+│              │                              │
+│ Courriers    │                              │
+│ GED          │                              │
+│ Projets      │                              │
+│ Missions     │                              │
+│              │                              │
+│ Administration│                             │
+└──────────────┴──────────────────────────────┘
+```
+
+Prévoir :
+
+* Sidebar
+* Breadcrumb
+* Menus dynamiques
+* Tables professionnelles
+* Pagination
+* Filtres
+* Modales
+* Formulaires
+* Notifications toast
+* Badges de statut
+* Graphiques
+* Calendrier
+* Timeline des workflows
+
+---
+
+# 22. Architecture fonctionnelle
+
+L'application doit être organisée autour des modules suivants :
+
+```text
+SIM
+│
+├── Tableau de bord
+│
+├── Courriers
+│   ├── Entrants
+│   ├── Sortants
+│   ├── Internes
+│   ├── Affectations
+│   └── Workflows
+│
+├── GED
+│   ├── Documents
+│   ├── Dossiers
+│   ├── Versements
+│   ├── Validation
+│   └── Archivage
+│
+├── Projets
+│   ├── Projets
+│   ├── Phases
+│   ├── Activités
+│   ├── Tâches
+│   └── Livrables
+│
+├── Missions
+│   ├── Missions
+│   ├── Participants
+│   ├── Planning
+│   ├── Rapports
+│   └── PV
+│
+└── Administration
+    ├── Utilisateurs
+    ├── Rôles
+    ├── Permissions
+    ├── Organisation
+    ├── Workflows
+    └── Paramétrage
+```
+
+---
+
+# 23. Règles importantes de développement
+
+Je ne veux pas d'une simple interface statique.
+
+Chaque fonctionnalité présentée dans l'interface doit être réellement connectée à Supabase/PostgreSQL.
+
+Il faut notamment :
+
+* Créer les tables
+* Créer les relations
+* Créer les API/data access nécessaires
+* Implémenter les CRUD
+* Implémenter les workflows
+* Implémenter l'authentification
+* Implémenter les permissions
+* Implémenter les RLS
+* Implémenter le stockage des documents
+* Implémenter les notifications
+* Implémenter les historiques
+* Implémenter les validations
+* Implémenter les recherches
+* Implémenter les tableaux de bord
+
+Éviter les données fictives codées directement dans les composants React.
+
+Les données de démonstration doivent provenir de PostgreSQL/Supabase.
+
+---
+
+# 24. Documentation
+
+Créer également une documentation dans :
+
+```text
+docs/
+```
+
+avec notamment :
+
+```text
+docs/
+├── architecture.md
+├── installation.md
+├── database.md
+├── security.md
+├── workflows.md
+├── modules/
+│   ├── courrier.md
+│   ├── ged.md
+│   ├── projets.md
+│   └── missions.md
+└── deployment.md
+```
+
+Créer également un `README.md` expliquant :
+
+* Le projet
+* Les technologies
+* L'architecture
+* L'installation
+* La configuration Supabase
+* Les variables d'environnement
+* Le lancement en développement
+* La création de la base
+* Le déploiement
+
+---
+
+# 25. Méthode de développement
+
+Ne pas essayer de générer toute l'application en une seule étape.
+
+Commencer par :
+
+### Phase 1 — Initialisation
+
+* Création du projet React + TypeScript + Vite
+* Configuration de Supabase
+* Configuration de l'architecture
+* Configuration UI
+* Authentification
+
+### Phase 2 — Base de données
+
+* Modèle de données
+* Migrations
+* Relations
+* RLS
+* Données initiales
+
+### Phase 3 — Administration
+
+* Organisation
+* Utilisateurs
+* Rôles
+* Permissions
+* Paramétrage
+
+### Phase 4 — Courriers
+
+Développer entièrement le module Courriers et son workflow.
+
+### Phase 5 — GED
+
+Développer entièrement le module GED et le workflow de versement/validation/classement.
+
+### Phase 6 — Projets
+
+Développer le suivi complet des projets et livrables.
+
+### Phase 7 — Missions
+
+Développer le module Missions avec le workflow défini précédemment.
+
+### Phase 8 — Dashboard
+
+Créer les tableaux de bord et indicateurs.
+
+### Phase 9 — Sécurité et audit
+
+Finaliser les RLS, permissions et journaux d'audit.
+
+### Phase 10 — Tests et finalisation
+
+Tester toutes les fonctionnalités, corriger les erreurs et préparer le déploiement.
+
+---
+
+# 26. Règle essentielle
+
+À chaque étape, vérifier que le code fonctionne réellement avant de passer à l'étape suivante.
+
+Ne pas simplement générer du code sans vérifier :
+
+* Les erreurs TypeScript
+* Les erreurs React
+* Les erreurs SQL
+* Les erreurs Supabase
+* Les erreurs de permissions
+* Les erreurs RLS
+* Les erreurs de navigation
+* Les erreurs d'upload
+* Les erreurs de workflow
+
+Le projet doit pouvoir être lancé localement avec une commande du type :
+
+```bash
+npm install
+npm run dev
+```
+
+et fonctionner avec une base Supabase configurée.
+
+---
+
+# 27. Résultat attendu
+
+À la fin du développement, je dois disposer d'une **véritable application SIM professionnelle**, fonctionnelle et évolutive, et non d'une simple maquette.
+
+L'application doit être suffisamment générique pour pouvoir être adaptée à différentes organisations simplement par le paramétrage de :
+
+* L'organisation
+* Les entités
+* Les utilisateurs
+* Les rôles
+* Les permissions
+* Les workflows
+* Les types de courriers
+* Les catégories GED
+* Les paramètres métiers
+
+Le code doit être propre, documenté, modulaire et maintenable.
+
+**Commence par analyser le besoin, proposer l'architecture technique et fonctionnelle ainsi que le modèle de données PostgreSQL. Ne commence pas immédiatement à générer tous les modules. Après validation de l'architecture, nous développerons le projet étape par étape.**

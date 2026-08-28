@@ -1,0 +1,181 @@
+Refonte de la page « Archives »
+
+La page **Archives** actuelle est trop basique. Je souhaite une refonte complète de l’interface afin d’obtenir une expérience moderne, professionnelle et intuitive, **inspirée de Google Drive**, tout en respectant la charte graphique et le design général de l’application.
+
+### 1. Organisation générale de l’interface
+
+Mettre en place une interface en **deux zones principales** :
+
+* **Panneau gauche** : afficher le **plan de classement** de la GED sous forme d’arborescence.
+* **Zone principale à droite** : afficher le contenu du dossier ou de la catégorie sélectionnée.
+
+Le panneau gauche doit permettre de naviguer facilement dans les différentes catégories et sous-catégories du plan de classement.
+
+L’arborescence doit être interactive :
+
+* ouverture/fermeture des catégories ;
+* affichage des sous-dossiers ;
+* indication visuelle claire de l’élément sélectionné ;
+* navigation sans rechargement inutile de la page.
+
+### 2. Affichage du contenu
+
+Lorsqu’une catégorie ou un dossier est sélectionné, afficher dans la zone principale :
+
+* les **sous-dossiers** qu’il contient ;
+* les **documents/fichiers** archivés dans ce dossier.
+
+L’affichage doit être moderne, propre et proche de l’expérience Google Drive.
+
+Prévoir idéalement une **vue en grille (cards)** pour les documents et dossiers.
+
+### 3. Affichage des dossiers
+
+Pour chaque dossier :
+
+* afficher une **icône de dossier** clairement identifiable ;
+* afficher le **nom du dossier** ;
+* afficher le **nombre de documents/fichiers qu’il contient** ;
+* permettre de cliquer sur le dossier pour accéder à son contenu.
+
+Exemple :
+
+**📁 Marchés publics**
+`24 fichiers`
+
+### 4. Affichage des documents
+
+Pour chaque document :
+
+* afficher une **icône correspondant au type de fichier** :
+
+  * PDF ;
+  * Word ;
+  * Excel ;
+  * PowerPoint ;
+  * image ;
+  * autres formats ;
+* afficher le **nom du document** ;
+* afficher la **date d’archivage** ;
+* afficher la **taille du fichier**.
+
+Exemple :
+
+**[Icône PDF]**
+`Rapport annuel 2026.pdf`
+`22/08/2026 · 4,8 Mo`
+
+L’icône doit être automatiquement déterminée à partir de l’extension/type MIME du fichier.
+
+### 5. Navigation dans les dossiers
+
+Lorsqu’un utilisateur clique sur un dossier :
+
+* ouvrir son contenu dans la zone principale ;
+* afficher les sous-dossiers et documents qu’il contient ;
+* mettre à jour le chemin de navigation (**breadcrumb**) en haut de la zone principale.
+
+Exemple :
+
+`Archives > Direction Générale > Marchés Publics > 2026`
+
+Le breadcrumb doit permettre de revenir facilement aux niveaux précédents.
+
+### 6. Consultation des documents
+
+Permettre à l’utilisateur de **visualiser un document directement depuis l’application**, lorsque le format le permet.
+
+Prévoir une interface de consultation adaptée :
+
+* PDF → visionneuse PDF intégrée ;
+* images → aperçu dans une fenêtre/modale ;
+* documents Office → si une prévisualisation est techniquement possible, l’utiliser ;
+* autres formats → afficher les informations du fichier et proposer le téléchargement.
+
+La consultation doit idéalement s’ouvrir dans une **modal/overlay** sans quitter la page Archives.
+
+### 7. Téléchargement
+
+Permettre le **téléchargement des documents** directement depuis l’interface.
+
+Chaque document doit disposer d'une action permettant :
+
+* de visualiser ;
+* de télécharger.
+
+Prévoir un menu d’actions contextuel accessible via une icône `⋮` ou un clic droit si cela correspond au design existant.
+
+### 8. Barre d’outils
+
+Ajouter en haut de la zone principale une barre d’outils moderne comprenant notamment :
+
+* nom du dossier/catégorie actuellement sélectionné ;
+* recherche dans les archives ;
+* bouton de changement de vue **Grille / Liste** ;
+* éventuellement tri par :
+
+  * nom ;
+  * date d’archivage ;
+  * taille ;
+  * type de document.
+
+### 9. Recherche
+
+La recherche doit permettre de retrouver rapidement un document dans les archives.
+
+Prévoir une recherche permettant au minimum de rechercher par :
+
+* nom du document ;
+* type de fichier ;
+* dossier/catégorie.
+
+Si l’architecture actuelle de la GED le permet, préparer l’interface pour permettre ultérieurement une recherche plein texte dans le contenu des documents.
+
+### 10. Expérience utilisateur
+
+L’objectif est d’obtenir une interface qui donne immédiatement l’impression d'utiliser un **véritable espace documentaire professionnel**, et non une simple liste de fichiers.
+
+Le design doit être :
+
+* moderne ;
+* épuré ;
+* professionnel ;
+* responsive ;
+* intuitif ;
+* cohérent avec le reste de l’application ;
+* inspiré des principes UX de Google Drive, **sans copier son interface à l’identique**.
+
+Prévoir également :
+
+* états de chargement ;
+* état « dossier vide » ;
+* messages d’erreur propres ;
+* affichage cohérent lorsqu'aucun document n'est disponible ;
+* tooltips sur les actions ;
+* gestion des noms de fichiers longs ;
+* pagination ou chargement progressif si le volume de documents est important.
+
+### 11. Contraintes importantes
+
+Avant de modifier le code :
+
+1. **Analyse d'abord l'implémentation actuelle du module Archives/GED.**
+2. Identifie les composants existants, les API utilisées, les modèles de données et les mécanismes actuels de récupération des documents.
+3. **Ne recrée pas inutilement les fonctionnalités déjà existantes.**
+4. Conserve les fonctionnalités métier déjà opérationnelles.
+5. Améliore principalement l’UX/UI et complète les fonctionnalités manquantes.
+6. Respecte l’architecture technique existante du projet.
+7. Ne casse aucune fonctionnalité existante.
+8. Utilise les composants UI déjà présents dans le projet lorsque cela est pertinent.
+9. Vérifie que la solution fonctionne correctement avec des volumes importants de documents.
+10. Après l’implémentation, teste la navigation dans l’arborescence, l’ouverture des dossiers, la consultation et le téléchargement des documents.
+
+### 12. Résultat attendu
+
+Je veux que la page **Archives** ressemble à un véritable **explorateur documentaire moderne**, avec :
+
+**Plan de classement à gauche → navigation dans l’arborescence → contenu à droite → dossiers et documents sous forme de cartes → prévisualisation → téléchargement.**
+
+L’expérience utilisateur doit être fluide et professionnelle, avec une logique proche de Google Drive, mais adaptée à notre **GED et à notre application métier**.
+
+**Important :** commence par analyser le code existant et l’architecture actuelle de la GED avant de proposer ou d’implémenter les modifications. Ne te contente pas de modifier visuellement la page : assure-toi que toutes les interactions (navigation, ouverture des dossiers, consultation et téléchargement) sont réellement fonctionnelles.

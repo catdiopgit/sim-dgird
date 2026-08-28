@@ -1,0 +1,416 @@
+# Refonte V2 – Module Gestion des Projets
+
+Tu dois maintenant réaliser une **refonte complète du module Gestion des Projets – Version 2**, en conservant les fonctionnalités existantes qui sont déjà validées et en améliorant la structure fonctionnelle, les workflows, les droits d’accès et l’expérience utilisateur.
+
+## 1. Consignes générales
+
+Avant toute modification :
+
+* Analyse attentivement le code existant du module Projet.
+* Identifie les fonctionnalités déjà développées et validées.
+* Ne supprime aucune fonctionnalité existante sans raison.
+* Réutilise autant que possible l’architecture, les composants et les conventions déjà présentes dans le projet.
+* Vérifie la cohérence avec les autres modules de l’application, notamment la gestion des utilisateurs, des entités, des rôles et des documents.
+* Ne crée pas une nouvelle architecture parallèle si les mécanismes existants peuvent être réutilisés.
+* Après chaque modification importante, vérifie que les fonctionnalités existantes continuent de fonctionner.
+
+L'objectif est d'obtenir un **module Projet robuste, institutionnel, traçable et orienté pilotage**, et non simplement une fiche CRUD de projets.
+
+---
+
+# 2. Refonte de la fiche Projet
+
+La fiche projet doit être repensée autour du **suivi des livrables**.
+
+Un projet doit principalement être constitué d'un ensemble de livrables qui peuvent être planifiés, suivis et clôturés.
+
+### Informations principales à prévoir
+
+Ajouter ou vérifier les champs suivants :
+
+* Référence du projet
+* Intitulé du projet
+* Description
+* Entité porteuse
+* Responsable du projet
+* Coordonnateur du projet
+* Lieu d'exécution
+* Date de début
+* Date de fin prévisionnelle
+* Statut du projet
+* Niveau d'avancement
+* Budget / montant
+* Membres du projet
+* Portée / visibilité du projet
+
+La fiche doit également permettre d'associer les principaux documents contractuels :
+
+* TDR
+* Contrat
+* Ordre de service
+* Autres documents administratifs ou techniques
+
+Ces documents doivent être stockés dans l'espace documentaire du projet.
+
+---
+
+# 3. Gestion des livrables
+
+Le cœur du module doit être le **suivi des livrables**.
+
+Un projet doit pouvoir contenir plusieurs livrables.
+
+Pour chaque livrable, prévoir au minimum :
+
+* Référence
+* Intitulé
+* Description
+* Responsable
+* Date prévisionnelle de début
+* Date prévisionnelle de fin
+* Date réelle de réalisation
+* Statut
+* Pourcentage d'avancement
+* Observations
+* Documents justificatifs
+
+### Règles importantes
+
+Chaque livrable doit être planifié et suivi jusqu'à sa réalisation.
+
+Les statuts peuvent être par exemple :
+
+* À venir
+* En cours
+* En retard
+* Réalisé
+* Validé
+* Annulé
+
+**Règle obligatoire :**
+
+Un livrable ne peut pas être clôturé ou marqué comme réalisé sans qu'au moins un document justificatif soit fourni.
+
+Le système doit empêcher techniquement la clôture du livrable si aucun document n'est associé.
+
+---
+
+# 4. Gestion des membres du projet
+
+Prévoir une gestion claire des membres du projet.
+
+Un projet doit pouvoir avoir :
+
+* Un responsable de projet
+* Un coordonnateur
+* Plusieurs membres
+
+Les membres doivent être sélectionnés parmi les utilisateurs/agents existants dans le système.
+
+### Règle de sécurité
+
+Seuls les membres autorisés du projet peuvent effectuer des modifications sur le projet.
+
+Les utilisateurs qui ont uniquement un droit de consultation ne doivent pas pouvoir modifier :
+
+* les informations du projet ;
+* les livrables ;
+* les documents ;
+* les membres ;
+* les informations relatives aux avenants.
+
+Respecter toutefois les règles spécifiques de validation et de clôture définies ci-dessous.
+
+---
+
+# 5. Gestion de la visibilité du projet
+
+Ajouter une fonctionnalité permettant de définir la **portée de visibilité** du projet.
+
+Prévoir les niveaux suivants :
+
+### Option 1 – Membres du projet uniquement
+
+Seuls les membres du projet peuvent consulter le projet.
+
+### Option 2 – Agents d'une ou plusieurs entités
+
+Le projet est visible par les agents appartenant aux entités sélectionnées.
+
+### Option 3 – Agents spécifiques
+
+Le projet est visible uniquement par les agents explicitement sélectionnés.
+
+### Option 4 – Tout le monde
+
+Le projet est visible par tous les utilisateurs autorisés de l'application.
+
+Cette règle doit être appliquée à l'affichage du projet ainsi qu'à l'accès aux documents associés.
+
+Ne pas se limiter à masquer le projet dans l'interface : **les règles de visibilité doivent également être contrôlées côté backend/API**.
+
+---
+
+# 6. Gestion documentaire
+
+Chaque projet doit disposer d'un espace documentaire permettant d'ajouter et de consulter les documents associés.
+
+Prévoir notamment :
+
+* TDR
+* Contrat
+* Ordre de service
+* Avenants
+* Rapports
+* Procès-verbaux
+* Documents techniques
+* Documents administratifs
+* Documents liés aux livrables
+* Autres pièces justificatives
+
+Un document doit pouvoir être associé :
+
+* soit directement au projet ;
+* soit à un livrable ;
+* soit à un avenant.
+
+Prévoir les informations utiles :
+
+* Nom du document
+* Type
+* Date
+* Taille
+* Auteur / déposant
+* Date d'ajout
+* Livrable associé, si applicable
+* Avenant associé, si applicable
+
+---
+
+# 7. Gestion des avenants
+
+Ajouter une véritable fonctionnalité de **gestion des avenants du projet**.
+
+Un projet peut avoir plusieurs avenants.
+
+Pour chaque avenant, prévoir :
+
+* Référence / numéro
+* Date
+* Objet
+* Description détaillée
+* Motif de l'avenant
+* Montant
+* Durée initiale
+* Nouvelle durée
+* Date de début
+* Nouvelle date de fin
+* Observations
+* Documents justificatifs
+
+### Livrables liés à l'avenant
+
+Un avenant peut avoir un impact sur les livrables du projet.
+
+Prévoir la possibilité d'indiquer si l'avenant :
+
+* crée de nouveaux livrables ;
+* modifie des livrables existants ;
+* supprime certains livrables ;
+* modifie les échéances ;
+* modifie le contenu ou les objectifs d'un livrable.
+
+L'utilisateur doit donc pouvoir associer les livrables concernés à l'avenant.
+
+---
+
+# 8. Workflow de clôture du projet
+
+Mettre en place un workflow strict de clôture.
+
+### Étape 1 – Réalisation des livrables
+
+Avant de pouvoir clôturer le projet, le système doit vérifier que les livrables obligatoires sont réalisés et disposent de leurs documents justificatifs.
+
+### Étape 2 – Demande de clôture
+
+**Seul le responsable du projet** peut demander/engager la clôture du projet.
+
+### Étape 3 – Confirmation hiérarchique
+
+La clôture doit ensuite être soumise à validation.
+
+**Seul le responsable de l'entité porteuse du projet ou l'un de ses supérieurs hiérarchiques peut confirmer la clôture.**
+
+### Étape 4 – Clôture définitive
+
+Après confirmation :
+
+* le projet passe au statut « Clôturé » ;
+* les modifications normales sont bloquées ;
+* l'historique du projet reste consultable ;
+* les documents restent accessibles selon les règles de visibilité ;
+* toutes les opérations sont tracées.
+
+---
+
+# 9. Contrôles avant clôture
+
+Avant de permettre la clôture, le système doit effectuer automatiquement plusieurs contrôles :
+
+* Tous les livrables obligatoires sont-ils réalisés ?
+* Chaque livrable réalisé possède-t-il un document justificatif ?
+* Les documents contractuels nécessaires sont-ils présents ?
+* Les éventuels avenants sont-ils correctement enregistrés ?
+* Le projet possède-t-il un responsable ?
+* Le projet possède-t-il une entité porteuse ?
+* Existe-t-il des livrables encore en retard ou en cours ?
+
+Si une condition obligatoire n'est pas respectée, empêcher la clôture et afficher clairement les éléments bloquants.
+
+---
+
+# 10. Traçabilité et historique
+
+Toutes les opérations importantes doivent être historisées.
+
+Tracer notamment :
+
+* Création du projet
+* Modification du projet
+* Ajout/modification/suppression d'un livrable
+* Ajout d'un document
+* Ajout/modification d'un avenant
+* Modification des membres
+* Modification de la visibilité
+* Demande de clôture
+* Validation de la clôture
+* Rejet éventuel de la clôture
+
+Pour chaque événement, conserver :
+
+* utilisateur ;
+* date et heure ;
+* action effectuée ;
+* ancienne valeur, lorsque pertinent ;
+* nouvelle valeur, lorsque pertinent.
+
+---
+
+# 11. Interface utilisateur
+
+Repenser l'interface afin d'avoir une présentation moderne, claire et institutionnelle.
+
+La fiche projet pourrait être organisée sous forme d'onglets :
+
+1. **Vue d'ensemble**
+2. **Informations du projet**
+3. **Livrables**
+4. **Membres**
+5. **Documents**
+6. **Avenants**
+7. **Suivi / Avancement**
+8. **Historique**
+9. **Clôture**
+
+Sur la vue d'ensemble, afficher un résumé du projet :
+
+* Statut
+* Avancement global
+* Responsable
+* Coordonnateur
+* Entité
+* Lieu
+* Dates
+* Nombre de livrables
+* Livrables réalisés
+* Livrables en cours
+* Livrables en retard
+* Nombre de documents
+* Nombre d'avenants
+
+L'objectif est de permettre à un responsable de comprendre rapidement la situation du projet.
+
+---
+
+# 12. Tableau de suivi des livrables
+
+Prévoir une présentation claire des livrables avec notamment :
+
+* Référence
+* Livrable
+* Responsable
+* Échéance
+* Avancement
+* Statut
+* Document justificatif
+* Actions
+
+Utiliser des indicateurs visuels permettant d'identifier rapidement :
+
+* les livrables réalisés ;
+* les livrables en cours ;
+* les livrables en retard ;
+* les livrables non démarrés.
+
+---
+
+# 13. Sécurité et autorisations
+
+Ne pas gérer les permissions uniquement dans l'interface.
+
+Les contrôles doivent être appliqués à tous les niveaux :
+
+* frontend ;
+* backend/API ;
+* base de données lorsque nécessaire.
+
+Vérifier notamment :
+
+* Qui peut consulter le projet ?
+* Qui peut modifier le projet ?
+* Qui peut ajouter un livrable ?
+* Qui peut clôturer un livrable ?
+* Qui peut ajouter un avenant ?
+* Qui peut modifier les membres ?
+* Qui peut modifier la visibilité ?
+* Qui peut demander la clôture ?
+* Qui peut confirmer la clôture ?
+
+Aucune opération sensible ne doit pouvoir être contournée en appelant directement une API.
+
+---
+
+# 14. Travail attendu
+
+Avant de coder :
+
+1. Analyse le module Projet existant.
+2. Identifie les tables, modèles, API, composants et pages concernés.
+3. Identifie les fonctionnalités déjà disponibles.
+4. Propose une architecture d'évolution compatible avec l'existant.
+5. Vérifie les dépendances avec les modules Utilisateurs, Entités, Documents/GED et Workflow.
+6. Identifie les éventuelles migrations de base de données nécessaires.
+
+Ensuite, implémente progressivement la **V2 du module Projet**.
+
+### Important
+
+Ne te contente pas de modifier l'interface.
+
+La refonte doit couvrir :
+
+* modèle de données ;
+* backend ;
+* API ;
+* règles métier ;
+* gestion des droits ;
+* workflows ;
+* interface utilisateur ;
+* traçabilité ;
+* gestion documentaire ;
+* gestion des avenants.
+
+À la fin, effectue une vérification complète du module et corrige les éventuels problèmes de cohérence, erreurs de permissions, régressions ou fonctionnalités incomplètes.
+
+**Objectif final : obtenir un module Gestion des Projets V2 complet, robuste et prêt pour une utilisation réelle dans un environnement institutionnel.**

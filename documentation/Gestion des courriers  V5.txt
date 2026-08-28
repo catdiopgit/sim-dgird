@@ -1,0 +1,554 @@
+# Gestion des courriers — V5
+
+Tu dois poursuivre l'évolution du module **Gestion des courriers du SIM**, actuellement développé jusqu'à la version V4.
+
+Cette V5 concerne principalement l'amélioration de l'enregistrement des **courriers arrivés** et le paramétrage de l'étape automatiquement appliquée après leur enregistrement.
+
+---
+
+# 1. CONSIGNE PRÉALABLE — ANALYSER L'EXISTANT
+
+Avant toute modification du code, analyse l'implémentation actuelle de la V4.
+
+Vérifie notamment :
+
+* l'écran d'enregistrement des courriers arrivés ;
+* les champs actuellement présents ;
+* le composant de gestion des contacts ;
+* la gestion des expéditeurs ;
+* la gestion des types d'expéditeurs ;
+* la gestion des dates ;
+* le workflow des courriers ;
+* les étapes du workflow ;
+* la page `Administration / Paramètres / Courrier` ;
+* la configuration actuelle du workflow ;
+* le modèle de données ;
+* les API/services concernés ;
+* les règles de validation ;
+* les notifications ;
+* les bannettes.
+
+**Ne recrée pas une fonctionnalité qui existe déjà.**
+
+Réutilise les composants, services, tables et mécanismes existants lorsque cela est pertinent.
+
+Avant de coder, identifie précisément les fichiers et composants qui devront être modifiés.
+
+---
+
+# 2. COURRIERS ARRIVÉS — FENÊTRE D'ENREGISTREMENT
+
+L'objectif est de simplifier et d'améliorer la saisie d'un courrier arrivé.
+
+## 2.1 Expéditeur — Utiliser les contacts
+
+Actuellement, le champ **Expéditeur** est un champ de saisie libre.
+
+Il doit être remplacé par une **liste déroulante / combo permettant de sélectionner un contact existant**.
+
+Le comportement attendu est :
+
+```text
+Expéditeur
+[ Rechercher / sélectionner un contact ▼ ]
+```
+
+La liste doit permettre de rechercher facilement un contact existant.
+
+Le contact sélectionné doit être enregistré comme expéditeur du courrier.
+
+---
+
+## 2.2 Création d'un nouveau contact
+
+À côté du champ de sélection de l'expéditeur, ajouter un bouton permettant de créer un nouveau contact si celui-ci n'existe pas.
+
+Exemple :
+
+```text
+Expéditeur
+[ Rechercher un contact ▼ ] [ + Nouveau contact ]
+```
+
+Lorsque l'utilisateur clique sur **Nouveau contact**, ouvrir le formulaire de création d'un contact.
+
+Après création :
+
+1. enregistrer le contact ;
+2. fermer le formulaire ;
+3. actualiser la liste des contacts ;
+4. sélectionner automatiquement le nouveau contact comme expéditeur du courrier.
+
+### Important
+
+Réutilise le module de gestion des contacts existant s'il existe déjà.
+
+Ne crée pas un deuxième système de contacts.
+
+---
+
+# 3. SUPPRESSION DU « TYPE D'EXPÉDITEUR »
+
+Dans le formulaire d'enregistrement du courrier arrivé, supprimer le champ :
+
+> **Type d'expéditeur**
+
+Ce champ ne doit plus être demandé à l'utilisateur.
+
+Vérifie toutefois avant suppression :
+
+* s'il est utilisé dans le modèle de données ;
+* s'il est utilisé dans les API ;
+* s'il est utilisé dans les recherches ;
+* s'il est utilisé dans les rapports ;
+* s'il est utilisé dans les workflows.
+
+Si ce champ est utilisé ailleurs, ne pas casser les fonctionnalités existantes.
+
+Propose la meilleure stratégie pour conserver la compatibilité tout en retirant ce champ de l'interface de saisie.
+
+---
+
+# 4. SUPPRESSION DU « STATUT À LA RÉCEPTION »
+
+Dans le formulaire d'enregistrement d'un courrier arrivé, supprimer le champ :
+
+> **Statut à la réception**
+
+Ce champ ne doit plus être saisi manuellement lors de l'enregistrement.
+
+Le statut du courrier doit désormais être déterminé par le **workflow et les règles métier**.
+
+Vérifie les dépendances existantes avant toute modification.
+
+---
+
+# 5. DATE ET HEURE DE RÉCEPTION
+
+Pour le champ :
+
+> **Date de réception**
+
+le système doit automatiquement afficher :
+
+* la date du jour ;
+* l'heure actuelle.
+
+Exemple :
+
+```text
+14/08/2026 07:45
+```
+
+### Règles
+
+La date et l'heure doivent être préremplies automatiquement lors de l'ouverture du formulaire.
+
+L'heure doit être affichée **sans les secondes**.
+
+Format attendu :
+
+```text
+JJ/MM/AAAA HH:MM
+```
+
+Exemple :
+
+```text
+14/08/2026 07:45
+```
+
+### Important
+
+Ne pas utiliser :
+
+```text
+07:45:32
+```
+
+mais :
+
+```text
+07:45
+```
+
+Vérifie également le comportement actuel du système concernant :
+
+* le fuseau horaire ;
+* la date serveur ;
+* la date client.
+
+Utilise le mécanisme de gestion des dates déjà prévu dans l'application afin d'éviter les incohérences.
+
+---
+
+# 6. PAS DE DÉCHARGE POUR LES COURRIERS ARRIVÉS
+
+Les **courriers arrivés ne doivent pas disposer d'une fonctionnalité de décharge**.
+
+La décharge concerne uniquement les **courriers de départ**, conformément aux règles définies dans les versions précédentes.
+
+Vérifie que :
+
+* aucune action « Ajouter une décharge » n'est proposée pour un courrier arrivé ;
+* aucun bouton de décharge n'apparaît dans le dossier d'un courrier arrivé ;
+* le workflow des courriers arrivés ne déclenche pas de mécanisme de décharge ;
+* les fonctionnalités existantes de décharge des courriers de départ restent inchangées.
+
+Il faut donc clairement distinguer les comportements :
+
+| Type de courrier   | Décharge            |
+| ------------------ | ------------------- |
+| Courrier arrivé    | Non                 |
+| Courrier de départ | Oui                 |
+| Courrier interne   | Selon configuration |
+
+---
+
+# 7. PARAMÉTRAGE DE L'ÉTAPE APRÈS ENREGISTREMENT
+
+Une nouvelle configuration doit être ajoutée dans :
+
+> **Administration → Paramètres → Courrier**
+
+Ajouter un champ :
+
+> **Étape associée après l'enregistrement du courrier d'arrivée**
+
+Ce champ doit être une **liste déroulante**.
+
+---
+
+# 8. CONTENU DE LA LISTE « ÉTAPE »
+
+La liste déroulante doit être alimentée automatiquement à partir des **étapes du workflow disponibles dans le système**.
+
+Exemple :
+
+```text
+Étape associée après l'enregistrement du courrier d'arrivée
+
+[ Sélectionner une étape ▼ ]
+
+    Enregistrement
+    Contrôle
+    Routage
+    Imputation
+    Traitement
+    Validation
+    ...
+```
+
+### Important
+
+Ne pas coder en dur la liste des étapes.
+
+Elle doit être récupérée depuis le moteur de workflow / les tables de configuration existantes.
+
+Si le système possède déjà une gestion des étapes de workflow, réutilise-la.
+
+---
+
+# 9. ENREGISTREMENT DE LA CONFIGURATION
+
+Lorsque l'administrateur sélectionne une étape et enregistre la configuration :
+
+```text
+Étape associée après l'enregistrement
+= Imputation
+```
+
+cette configuration devient la règle par défaut pour les nouveaux courriers arrivés.
+
+La configuration doit être :
+
+* persistante ;
+* modifiable ;
+* contrôlée par les droits d'administration ;
+* utilisée automatiquement lors de la création d'un courrier arrivé.
+
+---
+
+# 10. APPLICATION AUTOMATIQUE DU WORKFLOW
+
+Lorsqu'un utilisateur enregistre un nouveau courrier arrivé :
+
+### Étape 1
+
+Le courrier est enregistré avec les informations saisies.
+
+### Étape 2
+
+Le système récupère automatiquement la configuration :
+
+> **Étape associée après l'enregistrement du courrier d'arrivée**
+
+### Étape 3
+
+Le système positionne automatiquement le courrier sur cette étape.
+
+### Exemple
+
+Configuration :
+
+```text
+Étape après enregistrement = Imputation
+```
+
+Lorsqu'un courrier arrivé est enregistré :
+
+```text
+Enregistrement
+      ↓
+Imputation
+```
+
+Le courrier doit donc apparaître dans les bannettes et interfaces correspondant à l'étape **Imputation**, selon les règles de droits et de workflow.
+
+---
+
+# 11. COHÉRENCE AVEC LE MOTEUR DE WORKFLOW
+
+Cette fonctionnalité ne doit pas créer un deuxième système de workflow.
+
+Le paramètre :
+
+> **Étape associée après l'enregistrement du courrier d'arrivée**
+
+doit utiliser le moteur de workflow existant.
+
+Il faut donc vérifier :
+
+* comment les étapes sont actuellement définies ;
+* comment une instance de workflow est créée ;
+* comment une étape courante est enregistrée ;
+* comment les transitions sont effectuées ;
+* comment les bannettes sont alimentées ;
+* comment les notifications sont déclenchées.
+
+L'objectif est simplement de définir **l'étape initiale du workflow après l'enregistrement**, via la configuration d'administration.
+
+---
+
+# 12. CAS OÙ AUCUNE ÉTAPE N'EST CONFIGURÉE
+
+Prévoir un comportement sécurisé si aucune étape n'est configurée.
+
+Le système ne doit pas silencieusement créer un courrier sans workflow.
+
+Proposer et implémenter le comportement le plus cohérent avec l'architecture existante.
+
+Par exemple :
+
+* empêcher l'enregistrement et afficher un message à l'administrateur ;
+* ou utiliser une étape système par défaut si celle-ci existe déjà.
+
+Ne pas inventer une nouvelle étape sans vérifier le workflow existant.
+
+---
+
+# 13. AUDIT DE LA CONFIGURATION
+
+La modification de ce paramètre doit être journalisée.
+
+Lorsqu'un administrateur modifie :
+
+> Étape associée après l'enregistrement du courrier d'arrivée
+
+le système doit conserver :
+
+* utilisateur ;
+* date ;
+* heure ;
+* ancienne étape ;
+* nouvelle étape ;
+* action.
+
+Cette exigence doit utiliser le mécanisme d'audit existant de la V4 s'il est déjà disponible.
+
+---
+
+# 14. IMPACTS À VÉRIFIER
+
+Avant implémentation, analyse les impacts sur :
+
+### Interface
+
+* formulaire d'enregistrement ;
+* composant contacts ;
+* formulaire nouveau contact ;
+* Administration / Paramètres / Courrier.
+
+### Workflow
+
+* étape initiale ;
+* instance du workflow ;
+* transitions ;
+* statuts.
+
+### Bannettes
+
+Vérifier que le courrier apparaît automatiquement dans la bannette correspondant à l'étape configurée.
+
+### Notifications
+
+Vérifier si l'application doit automatiquement notifier les utilisateurs concernés par l'étape configurée.
+
+### GED
+
+Ne pas modifier inutilement le fonctionnement des pièces jointes et de la GED.
+
+### Décharge
+
+Garantir que la décharge reste exclusivement applicable aux courriers de départ.
+
+---
+
+# 15. TESTS À EFFECTUER
+
+Prévoir au minimum les scénarios suivants.
+
+### Test 1 — Contact existant
+
+Sélectionner un contact existant comme expéditeur et enregistrer un courrier.
+
+Résultat attendu :
+
+* le contact est correctement enregistré comme expéditeur ;
+* aucun champ « Type d'expéditeur » n'est demandé.
+
+### Test 2 — Nouveau contact
+
+Créer un nouveau contact depuis le formulaire courrier.
+
+Résultat attendu :
+
+* le contact est créé ;
+* il apparaît dans la liste ;
+* il est automatiquement sélectionné.
+
+### Test 3 — Date
+
+Ouvrir le formulaire.
+
+Résultat attendu :
+
+```text
+Date du jour + heure actuelle
+```
+
+avec l'heure au format :
+
+```text
+HH:MM
+```
+
+sans secondes.
+
+### Test 4 — Paramétrage du workflow
+
+Dans :
+
+> Administration → Paramètres → Courrier
+
+sélectionner :
+
+> Imputation
+
+Enregistrer.
+
+Créer ensuite un nouveau courrier arrivé.
+
+Résultat attendu :
+
+```text
+Enregistrement
+      ↓
+Imputation
+```
+
+### Test 5 — Modification du paramètre
+
+Modifier la configuration :
+
+```text
+Imputation
+```
+
+vers :
+
+```text
+Routage
+```
+
+Créer un nouveau courrier.
+
+Résultat attendu :
+
+```text
+Enregistrement
+      ↓
+Routage
+```
+
+Les anciens courriers ne doivent pas être modifiés par ce changement de configuration.
+
+### Test 6 — Décharge
+
+Ouvrir un courrier arrivé.
+
+Résultat attendu :
+
+> aucune fonctionnalité de décharge disponible.
+
+Ouvrir un courrier de départ.
+
+Résultat attendu :
+
+> la fonctionnalité de décharge reste disponible.
+
+---
+
+# 16. LIVRABLE AVANT MODIFICATION DU CODE
+
+Avant de commencer l'implémentation, présente-moi :
+
+### A. Analyse de l'existant
+
+Ce qui existe actuellement dans la V4.
+
+### B. Écarts V5
+
+Ce qui doit être supprimé, modifié ou ajouté.
+
+### C. Architecture
+
+Les composants, services et tables concernés.
+
+### D. Workflow
+
+Comment l'étape configurée sera appliquée après l'enregistrement.
+
+### E. Contacts
+
+Comment le composant existant de gestion des contacts sera réutilisé.
+
+### F. Risques
+
+Identifier les éventuels risques de régression.
+
+### G. Plan d'implémentation
+
+Présenter les étapes de développement dans l'ordre.
+
+---
+
+# RÈGLE FINALE
+
+**NE MODIFIE PAS LE CODE IMMÉDIATEMENT.**
+
+Commence par analyser la V4 existante et présente-moi ton analyse, les impacts et ton plan d'implémentation.
+
+**Attends ma validation avant de commencer les modifications.**
+
+L'objectif de la V5 est de simplifier l'enregistrement des courriers arrivés et de rendre le point de départ du workflow configurable depuis l'administration, tout en conservant la cohérence avec l'architecture existante du SIM.

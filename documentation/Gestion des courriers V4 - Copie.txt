@@ -1,0 +1,544 @@
+# Gestion des courriers — V4
+
+Tu dois poursuivre l'évolution du module **Gestion des courriers du SIM**, actuellement en version V3.
+
+Avant toute modification du code, analyse l'implémentation actuelle de la V3 afin de comprendre les fonctionnalités déjà développées et de garantir une évolution cohérente sans régression.
+
+Les nouvelles exigences V4 sont les suivantes.
+
+---
+
+# 1. COURRIERS ARRIVÉS — PERSONNE RÉCEPTRICE
+
+## 1.1 Suppression du champ « Agent destinataire »
+
+Dans la fenêtre d'enregistrement d'un **courrier arrivé**, le champ :
+
+> Agent destinataire
+
+n'est pas nécessaire et doit être supprimé de la saisie du courrier arrivé.
+
+Lors de l'enregistrement initial d'un courrier arrivé, l'utilisateur ne doit donc pas avoir à sélectionner manuellement un agent destinataire.
+
+---
+
+## 1.2 Personne réceptrice au niveau de l'entité
+
+La personne chargée de réceptionner les courriers doit être configurée au niveau de chaque **entité organisationnelle**.
+
+Dans le paramétrage des entités, ajouter un champ :
+
+> **Personne réceptrice des courriers**
+
+Cette personne constitue le point de réception des courriers de l'entité.
+
+### Exemple
+
+```text
+Direction Générale
+└── Personne réceptrice : Secrétaire du DG
+
+Direction des Affaires Administratives
+└── Personne réceptrice : Secrétaire de Direction
+
+Direction de l'Informatique
+└── Personne réceptrice : Assistant(e) de Direction
+```
+
+Lorsqu'un courrier arrivé est imputé à une entité, **la personne réceptrice configurée pour cette entité doit automatiquement recevoir une copie/notification du courrier et pouvoir le consulter selon ses droits**.
+
+### Règle importante
+
+La personne réceptrice est une **propriété de l'entité** et non une information à saisir sur chaque courrier.
+
+Le système doit donc déterminer automatiquement la personne réceptrice à partir de l'entité à laquelle le courrier est imputé.
+
+Il ne faut pas demander à l'utilisateur de sélectionner manuellement cette personne lors de l'imputation.
+
+### Cas particulier
+
+Si aucune personne réceptrice n'est configurée pour une entité :
+
+* le système doit appliquer la règle de routage configurée dans l'administration ;
+* ou signaler qu'aucune personne réceptrice n'est définie ;
+* mais ne doit pas affecter arbitrairement le courrier à un agent.
+
+Cette configuration doit être **entièrement paramétrable dans le module Administration**.
+
+---
+
+# 2. ROUTAGE DES COURRIERS ARRIVÉS
+
+Lors du routage ou de la réception d'un courrier arrivé, ajouter un champ permettant d'indiquer :
+
+> **Statut du courrier à la réception**
+
+Le statut doit permettre de qualifier la situation du courrier lors de sa réception.
+
+Analyser les statuts déjà existants dans l'application et proposer une liste cohérente.
+
+Par exemple, selon les besoins :
+
+* Reçu ;
+* Reçu avec réserves ;
+* Incomplet ;
+* À vérifier ;
+* Urgent ;
+* Confidentiel.
+
+Ne pas créer arbitrairement des statuts supplémentaires si un mécanisme équivalent existe déjà dans le système.
+
+---
+
+# 3. JOURNALISATION ET AUDIT DE SÉCURITÉ
+
+Toutes les modifications effectuées sur un courrier doivent être journalisées.
+
+L'objectif est de disposer d'une **traçabilité complète et sécurisée**.
+
+Le système doit conserver notamment :
+
+* utilisateur ayant effectué la modification ;
+* date et heure ;
+* courrier concerné ;
+* champ modifié ;
+* ancienne valeur ;
+* nouvelle valeur ;
+* action effectuée ;
+* adresse IP si cette information est disponible dans l'architecture ;
+* origine de l'action si pertinent.
+
+Exemple :
+
+```text
+Utilisateur : A. DIOP
+Date : 13/08/2026 10:32
+Courrier : ARR-2026-00025
+Action : Modification
+Champ : Objet
+Ancienne valeur : Demande de réunion
+Nouvelle valeur : Demande de réunion urgente
+```
+
+Cette journalisation doit être exploitable depuis une interface d'administration ou d'audit.
+
+### Important
+
+Le journal d'audit ne doit pas être modifiable ou supprimable par les utilisateurs ordinaires.
+
+Il doit être conçu comme une fonctionnalité de sécurité et de traçabilité.
+
+---
+
+# 4. IMPUTATION DES COURRIERS
+
+L'imputation doit respecter strictement l'organigramme de l'organisation.
+
+## Règle
+
+Une personne ne peut imputer un courrier qu'à :
+
+* des services ;
+* des bureaux ;
+* des unités ;
+* des agents ;
+
+qui se trouvent **dans son périmètre de responsabilité hiérarchique**, conformément à l'organigramme configuré dans le système.
+
+### Exemple
+
+Si :
+
+```text
+DG
+│
+├── Direction A
+│   ├── Service A1
+│   └── Service A2
+│
+└── Direction B
+    ├── Service B1
+    └── Service B2
+```
+
+Le responsable de la **Direction A** peut imputer à :
+
+* Direction A ;
+* Service A1 ;
+* Service A2 ;
+* agents rattachés à ces structures.
+
+Il ne doit pas pouvoir imputer directement à :
+
+* Direction B ;
+* Service B1 ;
+* Service B2.
+
+Le DG, en revanche, peut avoir accès à l'ensemble des structures selon ses droits.
+
+### Important
+
+Cette règle ne doit pas être implémentée par une simple liste statique.
+
+Elle doit être déterminée dynamiquement à partir de :
+
+* l'organigramme ;
+* l'entité de rattachement ;
+* la position hiérarchique ;
+* les responsabilités ;
+* les rôles et permissions.
+
+Avant modification, analyse comment l'organigramme est actuellement modélisé dans le projet.
+
+---
+
+# 5. FICHE D'EXPLOITATION — COURRIER DE DÉPART
+
+La fiche d'exploitation d'un courrier de départ doit être améliorée.
+
+Elle doit notamment afficher :
+
+### En-tête
+
+* Logo de l'organisation ;
+* Nom de l'organisation.
+
+### Contenu
+
+Conserver les informations pertinentes du courrier selon le modèle actuellement utilisé.
+
+### QR Code
+
+Ajouter un **QR Code** permettant d'identifier rapidement le courrier.
+
+Le QR Code doit pointer vers un identifiant sécurisé du courrier ou vers le mécanisme de consultation prévu par l'application.
+
+Ne pas exposer d'informations sensibles directement dans le QR Code.
+
+Le QR Code doit permettre au système d'identifier le courrier de manière fiable.
+
+---
+
+# 6. FICHE D'EXPLOITATION — COURRIER D'ARRIVÉE
+
+Pour la fiche d'exploitation des courriers d'arrivée, utiliser comme référence le modèle présent dans le fichier fourni :
+
+> `"Fiche dexploitation courriers de depart.pdf"`
+
+Analyse précisément ce modèle avant de modifier la fiche actuelle.
+
+Identifier :
+
+* structure ;
+* en-tête ;
+* logo ;
+* informations administratives ;
+* informations relatives au courrier ;
+* informations de réception ;
+* imputation ;
+* traitement ;
+* références ;
+* signatures ;
+* emplacement des différentes informations.
+
+- La fiche générée dans la V4 doit être aussi proche que possible du modèle fonctionnel de référence, tout en restant cohérente avec l'interface et l'identité graphique du SIM.
+---
+
+# 7. NUMÉROTATION DES COURRIERS DE DÉPART — {CHEMIN_ENTITE}
+
+La variable :
+
+> `{CHEMIN_ENTITE}`
+
+utilisée dans le paramétrage de la numérotation doit être améliorée.
+
+Elle doit retourner le **chemin hiérarchique complet de l'entité depuis la racine de l'organisation jusqu'à l'entité qui traite le courrier**.
+
+Les codes/sigles des entités doivent être séparés par :
+
+```text
+/
+```
+
+### Exemple
+
+Si l'organigramme est :
+
+```text
+DGDDI
+  └── DG
+       └── DGA
+            └── DIM
+```
+
+et que le courrier est traité par `DIM`, alors :
+
+```text
+{CHEMIN_ENTITE}
+```
+
+doit retourner :
+
+```text
+DGDDI/DG/DGA/DIM
+```
+
+Si le courrier est traité directement par `DG` :
+
+```text
+DGDDI/DG
+```
+
+### Règles
+
+Le chemin doit être :
+
+* calculé dynamiquement ;
+* basé sur l'organigramme réel ;
+* indépendant du nombre de niveaux hiérarchiques ;
+* généré automatiquement ;
+* composé des sigles des entités ;
+* séparé par `/`.
+
+Ne pas coder en dur le nombre de niveaux.
+
+Le système doit fonctionner aussi bien avec :
+
+```text
+Racine → Direction
+```
+
+qu'avec :
+
+```text
+Racine → Direction → Sous-direction → Division → Service → Bureau
+```
+
+---
+
+# 8. CLASSEMENT AUTOMATIQUE DES COURRIERS DE DÉPART
+
+Après l'enregistrement d'un courrier de départ, celui-ci doit être automatiquement classé dans la bannette :
+
+> **COURRIERS DE DÉPART**
+
+de l'entité ou de la personne qui a effectivement traité le courrier.
+
+Cependant, le courrier doit également être visible par les responsables hiérarchiques jusqu'à la racine de l'organisation, conformément aux droits d'accès.
+
+### Exemple
+
+Si le courrier est traité par :
+
+```text
+DGDDI
+ └── DG
+      └── DIM
+           └── Service Informatique
+                └── Agent A
+```
+
+Le courrier doit être accessible dans les bannettes appropriées de :
+
+* Agent A ;
+* Service Informatique ;
+* DIM ;
+* DG ;
+* DGDDI ;
+
+selon les règles de visibilité et les droits définis dans le système.
+
+### Important
+
+Cette visibilité hiérarchique ne signifie pas que tous les utilisateurs peuvent modifier le courrier.
+
+Il faut distinguer :
+
+* visibilité ;
+* consultation ;
+* traitement ;
+* validation ;
+* modification ;
+* administration.
+
+Les droits doivent respecter le workflow et l'organigramme.
+
+---
+
+# 9. DÉCHARGE DU COURRIER DE DÉPART
+
+Après l'enregistrement d'un courrier de départ, le **Bureau Courrier** doit pouvoir ajouter une décharge.
+
+La décharge est considérée comme une **pièce justificative** du courrier.
+
+Le Bureau Courrier doit pouvoir :
+
+1. ouvrir le courrier ;
+2. accéder à l'action **Ajouter une décharge** ;
+3. joindre le document de décharge ;
+4. valider l'ajout ;
+5. enregistrer la date et l'heure de dépôt ;
+6. enregistrer l'utilisateur ayant ajouté la décharge.
+
+La décharge doit être intégrée au dossier documentaire du courrier.
+
+---
+
+# 10. VERROUILLAGE DU COURRIER APRÈS DÉCHARGE
+
+Une fois la décharge ajoutée et validée :
+
+> **Le courrier doit devenir définitivement immodifiable pour les utilisateurs.**
+
+Il ne doit plus être possible de modifier :
+
+* les informations principales ;
+* les destinataires ;
+* les ampliataires ;
+* les pièces jointes ;
+* les métadonnées ;
+* le contenu du courrier ;
+* les informations de traitement.
+
+Le courrier doit passer dans un état de type :
+
+> **Clôturé / Déchargé**
+
+ou un statut équivalent déjà présent dans l'application.
+
+### Exception éventuelle
+
+Si une modification exceptionnelle doit être possible pour un administrateur habilité, elle doit être explicitement définie comme une procédure exceptionnelle et être entièrement journalisée.
+
+Ne pas permettre une modification silencieuse.
+
+---
+
+# 11. INTÉGRITÉ ET TRAÇABILITÉ
+
+Le verrouillage après décharge doit être appliqué **au niveau métier**, et pas uniquement au niveau de l'interface.
+
+Il ne suffit donc pas de désactiver les boutons « Modifier ».
+
+Les API/services et toutes les opérations d'écriture doivent également vérifier que le courrier est verrouillé.
+
+Exemple :
+
+```text
+Si courrier.status = DECHARGE
+    → toute modification est refusée
+```
+
+Une tentative de modification doit être :
+
+* refusée ;
+* journalisée ;
+* identifiable dans l'audit.
+
+---
+
+# 12. COMPATIBILITÉ AVEC LES VERSIONS PRÉCÉDENTES
+
+La V4 doit conserver les fonctionnalités déjà développées dans les versions précédentes, notamment :
+
+* workflow des courriers ;
+* paramétrage des entités ;
+* gestion des profils ;
+* gestion de l'organigramme ;
+* bannettes ;
+* GED ;
+* notifications ;
+* historique ;
+* numérotation ;
+* fiches d'exploitation.
+
+Avant de créer une nouvelle table ou un nouveau mécanisme, vérifier si une structure existante peut être réutilisée.
+
+Éviter les doublons fonctionnels et techniques.
+
+---
+
+# 13. ANALYSE OBLIGATOIRE AVANT IMPLÉMENTATION
+
+Avant de modifier le code, analyse :
+
+### A. Modèle de données
+
+Vérifie notamment :
+
+* entités ;
+* organigramme ;
+* utilisateurs ;
+* profils ;
+* rôles ;
+* courriers ;
+* workflow ;
+* statuts ;
+* pièces jointes ;
+* GED ;
+* historique.
+
+### B. Architecture
+
+Identifie :
+
+* composants concernés ;
+* pages concernées ;
+* services/API ;
+* fonctions métier ;
+* composants de génération PDF ;
+* mécanisme QR Code existant ;
+* mécanisme de journalisation existant.
+
+### C. Impacts
+
+Identifie les impacts sur :
+
+* courrier entrant ;
+* courrier sortant ;
+* courrier interne ;
+* workflow ;
+* bannettes ;
+* GED ;
+* droits ;
+* notifications ;
+* numérotation.
+
+---
+
+# 14. LIVRABLE ATTENDU AVANT CODAGE
+
+**Ne commence pas directement l'implémentation.**
+
+Présente-moi d'abord une analyse structurée comprenant :
+
+1. **État actuel du système**
+2. **Fonctionnalités déjà disponibles**
+3. **Écarts avec les exigences V4**
+4. **Fichiers à modifier**
+5. **Tables à modifier ou créer**
+6. **Composants/API à modifier**
+7. **Architecture proposée**
+8. **Gestion des droits et de l'organigramme**
+9. **Gestion de la personne réceptrice**
+10. **Architecture de l'audit**
+11. **Architecture du verrouillage après décharge**
+12. **Architecture de la numérotation `{CHEMIN_ENTITE}`**
+13. **Architecture des bannettes hiérarchiques**
+14. **Gestion du QR Code**
+15. **Plan d'implémentation**
+16. **Plan de tests et de non-régression**
+
+Pour chaque modification proposée, indique clairement :
+
+* pourquoi elle est nécessaire ;
+* ce qui existe actuellement ;
+* ce qui doit être modifié ;
+* les éventuels risques ;
+* comment éviter les régressions.
+
+### Règle finale
+
+**NE MODIFIE AUCUN CODE AVANT MA VALIDATION DE TON ANALYSE ET DE TON PLAN D'IMPLÉMENTATION.**
+
+L'objectif de cette V4 est de rendre le module Courriers du SIM plus robuste, sécurisé, traçable et cohérent avec l'organigramme réel de l'organisation, tout en conservant l'architecture et les fonctionnalités existantes.

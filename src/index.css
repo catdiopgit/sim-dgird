@@ -1,0 +1,216 @@
+:root {
+  color-scheme: light;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-serif: 'Spectral', Georgia, 'Times New Roman', serif;
+  /* Couleur institutionnelle : valeur de repli, écrasée au runtime (voir ThemedApp
+     dans src/App.tsx) par la couleur configurée par l'organisation. */
+  --color-primary-700: #1e5a46;
+  --color-accent-gold: #b8863a;
+  --color-neutral-100: #f4f5f1;
+  --color-neutral-200: #e7e9e2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+}
+
+.ant-typography,
+.ant-typography-title,
+h1.ant-typography,
+h2.ant-typography,
+h3.ant-typography,
+h4.ant-typography,
+h5.ant-typography {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #d9dcd2;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #b9bfb2;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #d9dcd2 transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary-700);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: #bfd9cd;
+  color: var(--color-primary-700);
+}
+
+.ant-menu-item-selected::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--color-accent-gold);
+}
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+}
+
+.login-brand-panel {
+  position: relative;
+  flex: 0 0 58%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 64px;
+  overflow: hidden;
+}
+
+.login-brand-texture {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 18px 18px;
+  pointer-events: none;
+}
+
+.login-brand-texture::before,
+.login-brand-texture::after {
+  content: '';
+  position: absolute;
+  border: 1px solid rgba(184, 134, 58, 0.18);
+  border-radius: 50%;
+}
+
+.login-brand-texture::before {
+  width: 480px;
+  height: 480px;
+  right: -180px;
+  bottom: -220px;
+}
+
+.login-brand-texture::after {
+  width: 320px;
+  height: 320px;
+  right: 40px;
+  top: -140px;
+}
+
+.login-form-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-neutral-100);
+  padding: 32px;
+}
+
+@media (max-width: 1199px) {
+  .login-brand-panel {
+    flex-basis: 50%;
+  }
+}
+
+@media (max-width: 992px) {
+  .login-page {
+    flex-direction: column;
+    min-height: auto;
+  }
+
+  .login-brand-panel {
+    flex: 0 0 auto;
+    min-height: 200px;
+    padding: 32px;
+    justify-content: center;
+  }
+
+  .login-brand-panel .login-brand-details,
+  .login-brand-panel .login-brand-topbar,
+  .login-brand-panel .login-brand-orgname,
+  .login-brand-panel > span:last-child {
+    /* !important requis : .login-brand-details et .login-brand-topbar
+       portent un style inline (display: flex, voir styles.brandDetails et
+       styles.brandTopbar dans LoginPage.tsx) qui, sans cela, l'emporterait
+       sur cette règle malgré le media query. */
+    display: none !important;
+  }
+
+  .login-form-panel {
+    min-height: calc(100vh - 200px);
+  }
+}
+
+@media (max-width: 576px) {
+  .login-brand-panel {
+    min-height: 120px;
+    padding: 20px;
+  }
+
+  .login-form-panel {
+    padding: 20px;
+    min-height: calc(100vh - 120px);
+  }
+}
+
+#root {
+  min-height: 100svh;
+}
+
+/* Impression ciblée (fiche d'exploitation courrier, page Statistiques…) :
+   isole l'élément marqué .zone-imprimable lors de l'impression, quel que
+   soit l'endroit du DOM où il est monté (les Modal antd sont portés
+   directement sous <body>). */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .zone-imprimable,
+  .zone-imprimable * {
+    visibility: visible;
+  }
+  .zone-imprimable {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+  /* Repère (titre/période…) masqué à l'écran, visible seulement à
+     l'impression — l'en-tête interactif de la page reste hors de
+     .zone-imprimable donc invisible à l'impression. */
+  .titre-impression {
+    display: block !important;
+  }
+}

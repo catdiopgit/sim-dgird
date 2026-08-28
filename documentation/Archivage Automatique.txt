@@ -1,0 +1,567 @@
+# GED — Fonctionnalité d’archivage automatique des courriers, projets et missions
+
+## 1. Objectif
+
+Ajouter au module **GED** une fonctionnalité d’**archivage automatique** permettant aux archivistes de sélectionner, contrôler, classer et archiver les **courriers, projets et missions clôturés depuis au moins un an**.
+
+L’archivage doit être réalisé exclusivement sous le contrôle d’un **archiviste habilité**, qui dispose de l’autorité nécessaire pour déclencher l’opération et confirmer le classement définitif.
+
+L’objectif est de garantir un archivage structuré, traçable, sécurisé et conforme au plan de classement défini.
+
+---
+
+# 2. Principe général de l’archivage
+
+Le système doit identifier automatiquement les éléments pouvant être archivés selon leur :
+
+* type : courrier, projet ou mission ;
+* statut : **clôturé** ;
+* date de clôture ;
+* entité concernée.
+
+### Exemple
+
+Si nous sommes en **2026**, l’archiviste doit pouvoir lancer l'archivage de tous les éléments clôturés durant l'année **2025**, soit :
+
+**Du 01/01/2025 au 31/12/2025.**
+
+Le système doit proposer automatiquement cette période comme période d'archivage par défaut.
+
+L'archiviste peut toutefois consulter les éléments concernés avant de confirmer leur archivage.
+
+---
+
+# 3. Autorisation d'archivage
+
+L'opération d'archivage doit être réservée exclusivement aux utilisateurs disposant du rôle ou de la permission :
+
+**ARCHIVISTE**
+
+Les autres utilisateurs ne doivent pas pouvoir :
+
+* déclencher l'archivage ;
+* confirmer un classement ;
+* déplacer un élément vers les archives ;
+* modifier le classement archivistique définitif.
+
+### Principe
+
+L'archiviste doit disposer de deux niveaux de contrôle :
+
+1. **Préparer l'archivage**
+2. **Confirmer l'archivage et le classement**
+
+Aucun document ne doit être considéré comme définitivement archivé avant la confirmation de l'archiviste.
+
+---
+
+# 4. Interface d'archivage
+
+Ajouter dans la GED une page :
+
+**Administration → Archivage**
+
+ou, si cela correspond mieux à l'architecture existante :
+
+**GED → Archives → Archivage**
+
+La page doit présenter trois grandes cartes/actions :
+
+### 📁 Courriers à archiver
+
+Afficher le nombre de courriers clôturés pouvant être archivés.
+
+Bouton :
+
+**[ Archiver les courriers ]**
+
+### 📁 Projets à archiver
+
+Afficher le nombre de projets clôturés pouvant être archivés.
+
+Bouton :
+
+**[ Archiver les projets ]**
+
+### 📁 Missions à archiver
+
+Afficher le nombre de missions clôturées pouvant être archivées.
+
+Bouton :
+
+**[ Archiver les missions ]**
+
+Prévoir également une action globale :
+
+**[ Préparer l'archivage annuel ]**
+
+Cette action doit rechercher automatiquement tous les éléments éligibles.
+
+---
+
+# 5. Règle de sélection des éléments
+
+Un élément est éligible à l'archivage uniquement s'il respecte les conditions suivantes :
+
+* son statut est **Clôturé** ;
+* sa date de clôture appartient à la période sélectionnée ;
+* il n'est pas déjà archivé ;
+* il appartient à une entité identifiable ;
+* son classement archivistique peut être déterminé.
+
+### Exemple — année 2026
+
+Période proposée automatiquement :
+
+**01/01/2025 → 31/12/2025**
+
+Le système recherche :
+
+* les courriers clôturés en 2025 ;
+* les projets clôturés en 2025 ;
+* les missions clôturées en 2025.
+
+Les éléments clôturés en 2026 ne doivent pas être proposés dans cette opération.
+
+---
+
+# 6. Archivage des courriers
+
+Les courriers doivent être classés selon l'arborescence suivante :
+
+```text
+Archives
+└── Courriers
+    └── 2025
+        ├── Type courrier 1
+        │   ├── Entité 1
+        │   ├── Entité 2
+        │   └── Entité 3
+        │
+        ├── Type courrier 2
+        │   ├── Entité 1
+        │   └── Entité 2
+        │
+        └── Type courrier 3
+            └── Entité 1
+```
+
+### Règles
+
+Le système doit automatiquement déterminer :
+
+**Année → Type de courrier → Entité**
+
+Exemple :
+
+```text
+Archives
+└── Courriers
+    └── 2025
+        └── Courrier Arrivée
+            └── Direction Générale
+                └── Courrier N°001-2025
+```
+
+L'archiviste doit pouvoir contrôler et, si nécessaire, corriger le classement avant confirmation.
+
+---
+
+# 7. Archivage des projets
+
+Les projets doivent être classés selon l'arborescence :
+
+```text
+Archives
+└── Projets
+    └── 2025
+        ├── Entité 1
+        │   ├── Projet 1
+        │   ├── Projet 2
+        │   └── Projet 3
+        │
+        ├── Entité 2
+        │   ├── Projet 4
+        │   └── Projet 5
+        │
+        └── Entité 3
+            └── Projet 6
+```
+
+### Règles
+
+Le système doit automatiquement déterminer :
+
+**Année → Entité → Projet**
+
+Chaque projet archivé doit conserver l'ensemble de son contenu documentaire associé.
+
+Par exemple :
+
+```text
+Archives
+└── Projets
+    └── 2025
+        └── Direction des Opérations
+            └── Projet Digitalisation
+                ├── TDR
+                ├── Contrat
+                ├── Ordres de service
+                ├── Livrables
+                ├── Rapports
+                └── Documents associés
+```
+
+L'archivage ne doit donc pas uniquement déplacer la fiche du projet, mais préserver son **dossier documentaire complet**.
+
+---
+
+# 8. Archivage des missions
+
+Les missions doivent être classées selon :
+
+**Année → Entité → Mission**
+
+Exemple :
+
+```text
+Archives
+└── Missions
+    └── 2025
+        ├── Direction Générale
+        │   ├── Mission 1
+        │   └── Mission 2
+        │
+        └── Direction Technique
+            ├── Mission 3
+            └── Mission 4
+```
+
+Chaque mission archivée doit conserver l'ensemble de ses documents associés :
+
+```text
+Mission 1
+├── TDR
+├── Ordre de mission
+├── Autorisation
+├── Rapports
+├── PV
+├── Pièces justificatives
+└── Documents associés
+```
+
+---
+
+# 9. Écran de prévisualisation avant archivage
+
+Avant toute opération définitive, le système doit afficher une liste des éléments détectés.
+
+Exemple :
+
+| Type     | Référence   | Libellé        | Entité | Date clôture | Classement          |
+| -------- | ----------- | -------------- | ------ | ------------ | ------------------- |
+| Courrier | CR-2025-001 | Demande de...  | DG     | 15/02/2025   | 2025 / Arrivée / DG |
+| Projet   | PRJ-025     | Digitalisation | DSI    | 20/06/2025   | 2025 / DSI / Projet |
+| Mission  | MIS-025     | Mission Chad   | DG     | 10/10/2025   | 2025 / DG / Mission |
+
+Prévoir des cases à cocher permettant à l'archiviste de :
+
+* sélectionner/désélectionner un élément ;
+* consulter l'élément ;
+* consulter ses documents ;
+* vérifier son classement ;
+* modifier le classement si nécessaire.
+
+---
+
+# 10. Confirmation de l'archivage
+
+Après vérification, l'archiviste clique sur :
+
+**[ Confirmer l'archivage ]**
+
+Afficher obligatoirement une fenêtre de confirmation :
+
+> Vous êtes sur le point d'archiver X courriers, X projets et X missions pour la période du 01/01/2025 au 31/12/2025.
+>
+> Après confirmation, ces éléments seront intégrés aux archives selon le plan de classement défini.
+>
+> Confirmez-vous cette opération ?
+
+Boutons :
+
+**[ Annuler ]**
+
+**[ Confirmer l'archivage ]**
+
+---
+
+# 11. Traçabilité
+
+Chaque opération d'archivage doit être enregistrée dans un journal d'audit.
+
+Enregistrer au minimum :
+
+* utilisateur ayant déclenché l'opération ;
+* date et heure ;
+* type d'élément ;
+* identifiant de l'élément ;
+* ancienne localisation ;
+* nouvelle localisation archivistique ;
+* période d'archivage ;
+* classement retenu ;
+* utilisateur ayant confirmé ;
+* date et heure de confirmation ;
+* résultat de l'opération ;
+* éventuelle erreur.
+
+Exemple :
+
+```text
+ARCHIVAGE #2026-00015
+
+Archiviste : Jean DUPONT
+Date : 28/08/2026 10:30
+
+Période :
+01/01/2025 → 31/12/2025
+
+Courriers : 245
+Projets : 18
+Missions : 36
+
+Statut : ARCHIVAGE TERMINÉ
+```
+
+---
+
+# 12. Gestion des erreurs
+
+Le système ne doit pas interrompre tout le processus lorsqu'un élément présente une anomalie.
+
+Exemples :
+
+* entité inexistante ;
+* type de courrier non renseigné ;
+* document inaccessible ;
+* élément déjà archivé ;
+* classement impossible.
+
+Ces éléments doivent être placés dans une liste :
+
+**Éléments nécessitant une intervention**
+
+avec le motif de l'anomalie.
+
+Exemple :
+
+```text
+⚠ Projet PRJ-2025-018
+Entité non renseignée.
+
+Action :
+[ Corriger ] [ Exclure de l'archivage ]
+```
+
+---
+
+# 13. Prévention des doublons
+
+Le système doit empêcher qu'un même élément soit archivé plusieurs fois.
+
+Chaque courrier, projet ou mission doit disposer d'un état archivistique, par exemple :
+
+```text
+NON ARCHIVÉ
+EN PRÉPARATION
+EN ATTENTE DE CONFIRMATION
+ARCHIVÉ
+```
+
+Une fois confirmé comme **ARCHIVÉ**, l'élément ne doit plus apparaître dans la liste des éléments éligibles.
+
+---
+
+# 14. Recherche dans les archives
+
+L'archivage ne doit pas rendre les informations inaccessibles.
+
+Les archivistes et utilisateurs autorisés doivent pouvoir rechercher les éléments archivés à partir de :
+
+* année ;
+* type ;
+* entité ;
+* référence ;
+* intitulé ;
+* date ;
+* mot-clé ;
+* type de document ;
+* utilisateur ;
+* statut archivistique.
+
+Exemple :
+
+```text
+Recherche dans les archives
+
+Année       : 2025
+Type        : Projet
+Entité      : Direction Technique
+Mot-clé     : Digitalisation
+
+[ Rechercher ]
+```
+
+---
+
+# 15. Principe important : conservation des données
+
+L'archivage ne doit pas supprimer les données opérationnelles.
+
+Il doit déplacer l'élément vers son **espace archivistique** tout en conservant :
+
+* son identifiant ;
+* ses métadonnées ;
+* son historique ;
+* ses documents ;
+* ses relations avec les autres modules ;
+* sa date de création ;
+* sa date de clôture ;
+* son entité ;
+* son historique des actions.
+
+L'objectif est de garantir une **continuité documentaire complète** entre les modules opérationnels et la GED.
+
+---
+
+# 16. Tableau de bord de l'archivage
+
+Ajouter un petit tableau de bord permettant à l'archiviste de visualiser :
+
+* nombre de courriers à archiver ;
+* nombre de projets à archiver ;
+* nombre de missions à archiver ;
+* nombre d'éléments déjà archivés ;
+* nombre d'anomalies ;
+* dernière opération d'archivage ;
+* année actuellement proposée.
+
+Exemple :
+
+```text
+┌──────────────────┐ ┌──────────────────┐ ┌──────────────────┐
+│ COURRIERS        │ │ PROJETS          │ │ MISSIONS         │
+│      245         │ │       18         │ │       36         │
+│ À archiver       │ │ À archiver       │ │ À archiver       │
+└──────────────────┘ └──────────────────┘ └──────────────────┘
+
+          ARCHIVAGE ANNUEL 2025
+
+       01/01/2025 → 31/12/2025
+
+          [ Préparer l'archivage ]
+
+Dernière opération : 15/08/2026
+Statut : Terminé
+```
+
+---
+
+# 17. Règle d'automatisation
+
+Le système doit automatiquement calculer la période d'archivage annuelle.
+
+Si l'année courante est **N**, la période proposée par défaut est :
+
+**01/01/(N-1) → 31/12/(N-1)**
+
+Exemples :
+
+| Année courante | Période proposée        |
+| -------------- | ----------------------- |
+| 2026           | 01/01/2025 → 31/12/2025 |
+| 2027           | 01/01/2026 → 31/12/2026 |
+| 2028           | 01/01/2027 → 31/12/2027 |
+
+L'archiviste reste toutefois libre de sélectionner une autre période si ses droits le permettent.
+
+---
+
+# 18. Sécurité et droits
+
+Créer des permissions spécifiques :
+
+```text
+GED_ARCHIVAGE_CONSULTER
+GED_ARCHIVAGE_PREPARER
+GED_ARCHIVAGE_CONFIRMER
+GED_ARCHIVAGE_MODIFIER_CLASSEMENT
+GED_ARCHIVAGE_RESTAURER
+GED_ARCHIVAGE_ADMIN
+```
+
+L'autorisation de **confirmer définitivement un archivage** doit être limitée aux archivistes habilités.
+
+Toutes les opérations sensibles doivent être journalisées.
+
+---
+
+# 19. Résultat attendu
+
+La fonctionnalité doit permettre à l'archiviste de réaliser un cycle complet :
+
+```text
+1. Sélectionner l'année
+        ↓
+2. Détecter automatiquement les éléments clôturés
+        ↓
+3. Afficher les courriers / projets / missions
+        ↓
+4. Vérifier les éléments
+        ↓
+5. Vérifier / corriger le classement
+        ↓
+6. Valider la préparation
+        ↓
+7. Confirmer l'archivage
+        ↓
+8. Classer automatiquement dans la GED
+        ↓
+9. Mettre à jour le statut archivistique
+        ↓
+10. Enregistrer l'opération dans le journal d'audit
+```
+
+Le résultat final doit respecter strictement les trois plans de classement :
+
+### Courriers
+
+```text
+Archives
+└── Courriers
+    └── Année
+        └── Type courrier
+            └── Entité
+```
+
+### Projets
+
+```text
+Archives
+└── Projets
+    └── Année
+        └── Entité
+            └── Projet
+```
+
+### Missions
+
+```text
+Archives
+└── Missions
+    └── Année
+        └── Entité
+            └── Mission
+```
+
+**L'archiviste reste l'autorité finale de validation du classement.** Le système automatise la détection, la préparation et le classement proposé, mais aucune archive ne doit être considérée comme définitivement classée sans la confirmation explicite d'un archiviste habilité.

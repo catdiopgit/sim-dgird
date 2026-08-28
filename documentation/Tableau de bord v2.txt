@@ -1,0 +1,1246 @@
+# Refonte complète du Dashboard du SIM — Design moderne, institutionnel et orienté pilotage
+
+## 1. CONTEXTE
+
+Je travaille sur le **SIM — Système d’Information Managérial**.
+
+L’application regroupe notamment les modules suivants :
+
+* Gestion des courriers
+* Gestion de la GED / Documents
+* Gestion des projets
+* Gestion des missions
+* Gestion des utilisateurs et habilitations
+* Notifications et alertes
+
+Je souhaite réaliser une **refonte complète du tableau de bord principal** afin d'obtenir une interface moderne, attractive, professionnelle, institutionnelle et orientée pilotage.
+
+Le Dashboard doit donner à un responsable ou à un utilisateur une **vision immédiate de l'activité du système**, des éléments à traiter, des échéances et des indicateurs clés.
+
+---
+
+# 2. RÈGLE ABSOLUE AVANT DE COMMENCER
+
+**NE COMMENCE PAS immédiatement à coder.**
+
+Avant toute modification :
+
+1. Analyse complètement le projet existant.
+2. Identifie le framework et les technologies utilisées.
+3. Analyse la structure actuelle du Dashboard.
+4. Analyse les composants UI existants.
+5. Analyse les routes/navigation.
+6. Analyse les modèles de données.
+7. Analyse les tables Supabase/PostgreSQL utilisées.
+8. Analyse les services/API existants.
+9. Identifie les indicateurs déjà disponibles.
+10. Identifie les composants réutilisables.
+11. Identifie les éventuels problèmes UX/UI actuels.
+12. Vérifie le système d'authentification et les rôles utilisateurs.
+13. Vérifie les permissions nécessaires pour afficher les statistiques.
+14. Vérifie si les données sont récupérées côté client ou côté serveur.
+
+**Ne recrée pas inutilement ce qui existe déjà.**
+
+Le Dashboard doit s'intégrer à l'architecture existante.
+
+---
+
+# 3. OBJECTIF DE LA REFONTE
+
+Le nouveau Dashboard doit donner l'impression d'utiliser un véritable **cockpit de pilotage institutionnel**.
+
+Il doit être :
+
+* moderne ;
+* élégant ;
+* professionnel ;
+* institutionnel ;
+* clair ;
+* rapide à comprendre ;
+* responsive ;
+* accessible ;
+* cohérent avec l'identité graphique du SIM ;
+* orienté données ;
+* orienté action ;
+* facilement extensible.
+
+Éviter absolument l'effet :
+
+> "Dashboard rempli de widgets sans hiérarchie."
+
+La priorité doit être donnée à :
+
+**Information → Priorité → Action → Analyse**
+
+---
+
+# 4. DIRECTION ARTISTIQUE
+
+Adopter une direction graphique :
+
+> **Institutionnelle + moderne + premium + sobre**
+
+### Couleur principale
+
+Utiliser le **bleu** comme couleur principale du SIM.
+
+Le bleu doit être utilisé notamment pour :
+
+* les éléments principaux ;
+* les boutons ;
+* certains graphiques ;
+* les icônes ;
+* les éléments actifs ;
+* les indicateurs positifs liés à l'activité.
+
+Éviter d'utiliser trop de couleurs.
+
+### Couleurs fonctionnelles
+
+Utiliser les couleurs uniquement lorsqu'elles ont une signification :
+
+* Bleu : information
+* Vert : succès / terminé / situation normale
+* Orange : attention
+* Rouge : urgence / retard / problème
+* Gris : informations secondaires
+
+### Style général
+
+Utiliser :
+
+* cartes blanches ;
+* fond général gris très clair ;
+* bordures très discrètes ;
+* coins légèrement arrondis ;
+* ombres légères ;
+* beaucoup d'espace blanc ;
+* icônes modernes ;
+* typographie claire ;
+* hiérarchie visuelle forte ;
+* animations très légères.
+
+Éviter :
+
+* gradients excessifs ;
+* couleurs criardes ;
+* ombres lourdes ;
+* bordures épaisses ;
+* animations inutiles ;
+* effets 3D ;
+* surcharge visuelle.
+
+---
+
+# 5. STRUCTURE GÉNÉRALE DU DASHBOARD
+
+Le Dashboard doit être organisé selon cette structure :
+
+```text
+HEADER
+   ↓
+KPI PRINCIPAUX
+   ↓
+GRAPHIQUE PRINCIPAL + RÉPARTITION
+   ↓
+PROJETS + MISSIONS
+   ↓
+À TRAITER + ALERTES
+   ↓
+ACTIVITÉ RÉCENTE + ÉCHÉANCES
+```
+
+---
+
+# 6. HEADER DU DASHBOARD
+
+Créer un header moderne.
+
+Afficher :
+
+### À gauche
+
+```text
+Tableau de bord
+Vue synthétique de l'activité du SIM
+```
+
+### À droite
+
+* Sélecteur de période
+* Notifications
+* Profil utilisateur
+
+Le sélecteur de période doit proposer :
+
+* Aujourd'hui
+* Cette semaine
+* Ce mois
+* Ce trimestre
+* Cette année
+
+Prévoir également une option :
+
+**Période personnalisée**
+
+avec :
+
+* date début ;
+* date fin.
+
+Le changement de période doit actualiser les KPI et graphiques concernés.
+
+---
+
+# 7. CARTES KPI
+
+Créer une première rangée de cartes KPI.
+
+Ne pas utiliser uniquement des cartes rectangulaires classiques.
+
+Créer des cartes modernes et élégantes avec :
+
+* icône ;
+* titre ;
+* valeur principale ;
+* évolution ;
+* indication de tendance ;
+* éventuellement mini-indicateur visuel.
+
+Exemple :
+
+```text
+┌────────────────────────────┐
+│ 📩       Courriers         │
+│                            │
+│ 1 248                      │
+│                            │
+│ ↗ +12,5 %                  │
+│ vs période précédente      │
+└────────────────────────────┘
+```
+
+---
+
+# 8. KPI À AFFICHER
+
+Prévoir au minimum les KPI suivants :
+
+### KPI 1 — Courriers
+
+Afficher :
+
+* nombre total ;
+* nombre à traiter ;
+* nombre en retard ;
+* évolution.
+
+### KPI 2 — Documents / GED
+
+Afficher :
+
+* nombre total de documents ;
+* documents ajoutés sur la période ;
+* évolution.
+
+### KPI 3 — Projets
+
+Afficher :
+
+* projets actifs ;
+* projets terminés ;
+* projets en retard.
+
+### KPI 4 — Missions
+
+Afficher :
+
+* missions en cours ;
+* missions terminées ;
+* missions en retard.
+
+### KPI 5 — Échéances
+
+Afficher :
+
+* échéances proches ;
+* échéances dépassées.
+
+### KPI 6 — Alertes
+
+Afficher :
+
+* nombre d'alertes actives ;
+* nombre d'alertes critiques.
+
+### KPI supplémentaires
+
+Si les données existantes le permettent :
+
+* utilisateurs actifs ;
+* activités réalisées ;
+* validations en attente.
+
+---
+
+# 9. RÈGLE IMPORTANTE SUR LES KPI
+
+Ne jamais afficher de données fictives.
+
+Si une donnée n'existe pas dans la base :
+
+* ne pas inventer une valeur ;
+* identifier la source de données nécessaire ;
+* proposer une implémentation propre.
+
+Pour les données momentanément indisponibles :
+
+afficher un état :
+
+```text
+—
+Données indisponibles
+```
+
+et non :
+
+```text
+0
+```
+
+car 0 et donnée indisponible ne signifient pas la même chose.
+
+---
+
+# 10. INDICATEURS D'ÉVOLUTION
+
+Lorsqu'une comparaison avec une période précédente est possible, afficher :
+
+```text
+↗ +12,5 %
+vs mois précédent
+```
+
+ou :
+
+```text
+↘ -8,2 %
+vs mois précédent
+```
+
+La couleur doit être déterminée selon le sens métier de l'indicateur.
+
+Par exemple :
+
+* augmentation des documents = généralement positif ;
+* augmentation des retards = négatif.
+
+Ne pas considérer automatiquement toute augmentation comme positive.
+
+---
+
+# 11. GRAPHIQUE PRINCIPAL
+
+Créer un graphique principal occupant environ **65 à 70 % de la largeur**.
+
+Titre :
+
+> **Activité du SIM**
+
+Afficher l'évolution de l'activité sur la période sélectionnée.
+
+Selon les données disponibles, afficher :
+
+* courriers ;
+* documents ;
+* projets ;
+* missions.
+
+Utiliser de préférence un **graphique en courbes** pour les données temporelles.
+
+Le graphique doit permettre :
+
+* tooltip au survol ;
+* affichage des valeurs ;
+* légende ;
+* changement de période ;
+* responsive ;
+* lecture claire.
+
+Éviter d'afficher trop de séries simultanément.
+
+Si quatre séries rendent le graphique illisible, prévoir un système permettant d'activer/désactiver les séries.
+
+---
+
+# 12. RÉPARTITION DES COURRIERS
+
+À côté du graphique principal, créer une carte :
+
+> **État des courriers**
+
+Afficher la répartition :
+
+* En attente
+* En cours
+* Traités
+* En retard
+
+Utiliser un graphique **donut** ou une représentation équivalente.
+
+Sous le graphique, afficher la légende avec :
+
+```text
+● En attente       124
+● En cours         85
+● Traités          980
+● En retard        59
+```
+
+Les données doivent provenir de la base réelle.
+
+---
+
+# 13. ÉTAT DES PROJETS
+
+Créer une section :
+
+> **État des projets**
+
+Présenter les projets selon leur statut :
+
+* Préparation
+* En cours
+* Suspendu
+* Terminé
+* En retard
+
+Privilégier un graphique en barres.
+
+Pour chaque statut afficher :
+
+* nombre ;
+* éventuellement pourcentage.
+
+---
+
+# 14. ÉTAT DES MISSIONS
+
+Créer une section similaire :
+
+> **État des missions**
+
+Statuts possibles :
+
+* Planifiée
+* En cours
+* Terminée
+* Annulée
+* En retard
+
+Utiliser un graphique adapté.
+
+---
+
+# 15. SECTION "À TRAITER"
+
+Cette section est particulièrement importante.
+
+Elle doit être orientée **action**.
+
+Créer une carte :
+
+> **À traiter**
+
+Afficher les éléments nécessitant une intervention de l'utilisateur.
+
+Exemples :
+
+```text
+🔴 5 courriers en retard
+🟠 8 courriers à traiter
+🟠 3 validations en attente
+🔴 2 projets avec échéance dépassée
+🟠 4 documents nécessitant une validation
+```
+
+Chaque élément doit être cliquable.
+
+Lorsqu'on clique sur :
+
+> 5 courriers en retard
+
+rediriger directement vers la liste filtrée des courriers concernés.
+
+---
+
+# 16. SYSTÈME DE PRIORITÉ
+
+Les éléments à traiter doivent être classés :
+
+### Critique
+
+Rouge.
+
+Exemple :
+
+> Échéance dépassée
+
+### Important
+
+Orange.
+
+Exemple :
+
+> Validation en attente
+
+### Information
+
+Bleu.
+
+Exemple :
+
+> Nouveau document
+
+Ne pas utiliser de rouge partout.
+
+Le rouge doit rester réservé aux situations nécessitant une intervention.
+
+---
+
+# 17. ALERTES
+
+Créer une carte :
+
+> **Alertes**
+
+Afficher les alertes les plus importantes.
+
+Chaque alerte doit contenir :
+
+* icône ;
+* titre ;
+* description courte ;
+* date ;
+* niveau de priorité ;
+* action.
+
+Exemple :
+
+```text
+🔴 Échéance dépassée
+Projet SCAT 4.0
+Il y a 2 jours
+```
+
+Cliquer sur l'alerte doit ouvrir l'élément concerné.
+
+---
+
+# 18. ACTIVITÉ RÉCENTE
+
+Créer une section :
+
+> **Activité récente**
+
+Afficher les dernières actions effectuées dans le système.
+
+Exemple :
+
+```text
+09:42
+Ahmed a enregistré un nouveau courrier
+
+09:35
+Fatou a ajouté un document dans la GED
+
+09:21
+Projet SIM 2026 a été mis à jour
+
+08:56
+Mission M-2026-014 créée
+```
+
+Utiliser une présentation de type timeline.
+
+Chaque activité peut afficher :
+
+* avatar ;
+* utilisateur ;
+* action ;
+* objet ;
+* date/heure.
+
+---
+
+# 19. ÉCHÉANCES PROCHAINES
+
+Créer une section :
+
+> **Prochaines échéances**
+
+Afficher les échéances à venir.
+
+Exemple :
+
+```text
+29 AOÛT
+Réunion du projet SIM
+
+02 SEPT.
+Échéance du livrable 03
+
+05 SEPT.
+Fin de mission
+
+12 SEPT.
+Échéance du contrat
+```
+
+Utiliser une timeline ou une liste calendrier moderne.
+
+Afficher visuellement les échéances urgentes.
+
+---
+
+# 20. NAVIGATION RAPIDE
+
+Prévoir éventuellement une zone :
+
+> **Accès rapides**
+
+avec quelques actions :
+
+* Nouveau courrier
+* Ajouter un document
+* Nouveau projet
+* Nouvelle mission
+* Rechercher un document
+* Consulter les notifications
+
+Ces actions doivent être visibles mais ne doivent pas prendre trop de place.
+
+---
+
+# 21. RESPONSIVE DESIGN
+
+Le Dashboard doit être parfaitement responsive.
+
+### Desktop
+
+Utiliser une grille :
+
+```text
+4 KPI
++
+2 colonnes de contenu
+```
+
+### Tablette
+
+Adapter automatiquement :
+
+```text
+2 KPI par ligne
+```
+
+### Mobile
+
+Afficher :
+
+```text
+1 KPI par ligne
+```
+
+Les graphiques doivent s'adapter à la largeur disponible.
+
+Éviter tout débordement horizontal.
+
+---
+
+# 22. ACCESSIBILITÉ
+
+Respecter autant que possible les bonnes pratiques d'accessibilité :
+
+* contraste suffisant ;
+* taille de texte lisible ;
+* boutons suffisamment grands ;
+* navigation clavier ;
+* labels explicites ;
+* ne pas utiliser uniquement la couleur pour indiquer un statut.
+
+Exemple :
+
+Ne pas faire uniquement :
+
+🔴
+
+mais plutôt :
+
+🔴 **En retard**
+
+---
+
+# 23. ÉTATS DE CHARGEMENT
+
+Prévoir des skeleton loaders élégants pour :
+
+* KPI ;
+* graphiques ;
+* activités ;
+* échéances.
+
+Éviter les écrans blancs pendant le chargement.
+
+Exemple :
+
+```text
+┌────────────────────────────┐
+│ ████████                   │
+│                            │
+│ █████                      │
+│                            │
+│ ███████                    │
+└────────────────────────────┘
+```
+
+---
+
+# 24. ÉTATS VIDES
+
+Lorsqu'il n'y a aucune donnée :
+
+ne pas laisser une carte vide.
+
+Afficher par exemple :
+
+```text
+Aucune activité à afficher
+```
+
+ou :
+
+```text
+Aucune échéance prochaine
+```
+
+avec une petite illustration/icône discrète.
+
+---
+
+# 25. GESTION DES ERREURS
+
+En cas d'erreur de récupération des données :
+
+afficher un message clair :
+
+> Impossible de récupérer les données.
+
+avec éventuellement :
+
+**Réessayer**
+
+Ne jamais afficher une erreur technique brute à l'utilisateur.
+
+---
+
+# 26. PERMISSIONS ET SÉCURITÉ
+
+Le Dashboard doit respecter les permissions existantes.
+
+Un utilisateur ne doit voir que les informations auxquelles il a accès.
+
+Exemple :
+
+Un utilisateur sans accès aux projets ne doit pas recevoir les données des projets.
+
+Respecter :
+
+* rôles ;
+* permissions ;
+* RLS Supabase ;
+* règles d'accès existantes.
+
+**Ne jamais contourner les mécanismes de sécurité existants pour alimenter le Dashboard.**
+
+---
+
+# 27. PERFORMANCE
+
+Le Dashboard doit être rapide.
+
+Éviter :
+
+* une requête par carte ;
+* les requêtes inutiles ;
+* les appels répétés ;
+* les recalculs côté navigateur lorsqu'ils peuvent être faits efficacement côté serveur/base de données.
+
+Regrouper intelligemment les requêtes.
+
+Si nécessaire, créer :
+
+* vues SQL ;
+* fonctions RPC Supabase ;
+* requêtes agrégées ;
+* services dédiés au Dashboard.
+
+Mais **ne modifier la base de données qu'après avoir analysé l'architecture existante**.
+
+---
+
+# 28. ARCHITECTURE DU CODE
+
+Organiser le Dashboard en composants réutilisables.
+
+Par exemple :
+
+```text
+Dashboard
+│
+├── DashboardHeader
+│
+├── PeriodSelector
+│
+├── KpiGrid
+│   ├── KpiCard
+│   ├── KpiCard
+│   ├── KpiCard
+│   └── KpiCard
+│
+├── ActivityChart
+│
+├── MailStatusChart
+│
+├── ProjectStatusChart
+│
+├── MissionStatusChart
+│
+├── ActionRequired
+│
+├── AlertsPanel
+│
+├── RecentActivity
+│
+└── UpcomingDeadlines
+```
+
+Les composants doivent être :
+
+* propres ;
+* réutilisables ;
+* maintenables ;
+* fortement typés si TypeScript est utilisé ;
+* découplés autant que possible des requêtes de données.
+
+---
+
+# 29. RESPONSABILITÉ DES COMPOSANTS
+
+Séparer clairement :
+
+### UI
+
+Responsable de :
+
+* affichage ;
+* interactions ;
+* responsive ;
+* états visuels.
+
+### Data layer
+
+Responsable de :
+
+* récupération des données ;
+* agrégation ;
+* filtrage ;
+* gestion des erreurs.
+
+### Business logic
+
+Responsable de :
+
+* calculs ;
+* règles métier ;
+* permissions.
+
+Ne pas mélanger toute la logique dans le composant Dashboard.
+
+---
+
+# 30. GRAPHIQUES
+
+Utiliser la bibliothèque de graphiques déjà présente dans le projet si elle existe.
+
+Ne pas installer une nouvelle bibliothèque inutilement.
+
+Si aucune bibliothèque n'existe, choisir une solution moderne, légère et compatible avec le framework existant.
+
+Les graphiques doivent être :
+
+* responsives ;
+* interactifs ;
+* lisibles ;
+* cohérents entre eux ;
+* sobres.
+
+Types recommandés :
+
+| Besoin               | Graphique    |
+| -------------------- | ------------ |
+| Évolution temporelle | Line chart   |
+| Comparaison          | Bar chart    |
+| Répartition          | Donut        |
+| Progression          | Progress bar |
+| Activité             | Line / Area  |
+| Statuts              | Bar chart    |
+
+---
+
+# 31. MICRO-INTERACTIONS
+
+Ajouter des micro-interactions très légères :
+
+* hover sur les cartes ;
+* transition des valeurs ;
+* apparition progressive ;
+* hover sur les graphiques ;
+* feedback lors d'un clic.
+
+Mais éviter les animations excessives.
+
+Le Dashboard doit rester professionnel.
+
+---
+
+# 32. DESIGN DES CARTES
+
+Les cartes KPI doivent avoir une identité visuelle commune.
+
+Exemple :
+
+```text
+┌────────────────────────────────────┐
+│  [ICON]  COURRIERS                 │
+│                                    │
+│  1 248                             │
+│                                    │
+│  ↗ 12,5 %   vs période précédente │
+└────────────────────────────────────┘
+```
+
+Ajouter éventuellement une petite barre ou mini-tendance.
+
+Ne pas surcharger chaque carte.
+
+---
+
+# 33. HIÉRARCHIE VISUELLE
+
+Le regard de l'utilisateur doit suivre naturellement :
+
+```text
+1. KPI
+     ↓
+2. Alertes / À traiter
+     ↓
+3. Activité
+     ↓
+4. Analyse
+     ↓
+5. Détails
+```
+
+Les informations urgentes doivent être immédiatement visibles.
+
+---
+
+# 34. PERSONNALISATION SELON L'UTILISATEUR
+
+Si le système possède plusieurs profils, prévoir une adaptation du Dashboard.
+
+Exemple :
+
+### Administrateur
+
+Vue globale.
+
+### Directeur / Responsable
+
+Vue de pilotage.
+
+### Chef de projet
+
+Vue projets et échéances.
+
+### Agent
+
+Vue des tâches et éléments à traiter.
+
+Ne pas créer immédiatement plusieurs dashboards différents si l'architecture actuelle ne le nécessite pas.
+
+Prévoir plutôt une architecture permettant de faire évoluer cette fonctionnalité.
+
+---
+
+# 35. FILTRES
+
+Prévoir au minimum :
+
+* période ;
+* module.
+
+Éventuellement :
+
+* statut ;
+* utilisateur ;
+* projet ;
+* service/direction.
+
+Les filtres doivent être simples et ne pas encombrer l'interface.
+
+---
+
+# 36. EXPORT
+
+Prévoir la possibilité d'ajouter ultérieurement :
+
+* Export PDF ;
+* Export Excel ;
+* impression.
+
+Ne pas forcément développer cette fonctionnalité maintenant si elle n'existe pas déjà.
+
+Préparer néanmoins l'architecture pour l'ajouter facilement.
+
+---
+
+# 37. PRINCIPES UX
+
+Respecter les principes suivants :
+
+### Règle 1
+
+L'utilisateur doit comprendre le Dashboard en moins de 5 secondes.
+
+### Règle 2
+
+Les informations critiques doivent être visibles sans devoir parcourir toute la page.
+
+### Règle 3
+
+Chaque indicateur important doit permettre d'aller vers le détail.
+
+### Règle 4
+
+Les graphiques doivent aider à comprendre une information, pas simplement décorer l'interface.
+
+### Règle 5
+
+Limiter la densité visuelle.
+
+### Règle 6
+
+Utiliser des textes courts.
+
+### Règle 7
+
+Utiliser des icônes cohérentes.
+
+---
+
+# 38. CE QU'IL NE FAUT PAS FAIRE
+
+Ne pas :
+
+* supprimer des fonctionnalités existantes ;
+* modifier les permissions sans raison ;
+* modifier les tables sans analyse ;
+* créer des données fictives ;
+* casser les routes existantes ;
+* casser l'authentification ;
+* remplacer des composants fonctionnels sans nécessité ;
+* installer plusieurs bibliothèques concurrentes ;
+* créer un Dashboard surchargé ;
+* utiliser des graphiques uniquement pour faire joli.
+
+---
+
+# 39. PROCESSUS DE DÉVELOPPEMENT OBLIGATOIRE
+
+Procéder dans cet ordre.
+
+## PHASE 1 — AUDIT
+
+Analyser :
+
+* architecture ;
+* frontend ;
+* backend ;
+* Supabase ;
+* PostgreSQL ;
+* composants ;
+* authentification ;
+* permissions ;
+* données disponibles.
+
+À la fin de cette phase, produire un court rapport :
+
+```text
+Architecture actuelle
+Composants réutilisables
+Données disponibles
+Données manquantes
+Risques
+Recommandations
+```
+
+**Ne pas coder avant cette analyse.**
+
+---
+
+# PHASE 2 — PROPOSITION UI
+
+Avant d'implémenter définitivement :
+
+définir :
+
+* structure ;
+* grille ;
+* composants ;
+* hiérarchie ;
+* couleurs ;
+* typographie ;
+* graphiques.
+
+Créer une première version visuelle cohérente.
+
+---
+
+# PHASE 3 — IMPLÉMENTATION FRONTEND
+
+Créer :
+
+* Header ;
+* KPI cards ;
+* graphiques ;
+* alertes ;
+* activité récente ;
+* échéances ;
+* accès rapides.
+
+Utiliser des composants réutilisables.
+
+---
+
+# PHASE 4 — CONNEXION AUX DONNÉES
+
+Connecter les composants aux vraies données.
+
+Vérifier :
+
+* permissions ;
+* RLS ;
+* performances ;
+* gestion des erreurs ;
+* valeurs nulles ;
+* états vides.
+
+---
+
+# PHASE 5 — RESPONSIVE
+
+Tester :
+
+* écran desktop large ;
+* laptop ;
+* tablette ;
+* mobile.
+
+---
+
+# PHASE 6 — TESTS
+
+Vérifier :
+
+### Fonctionnel
+
+* KPI corrects ;
+* filtres ;
+* navigation ;
+* graphiques ;
+* alertes ;
+* permissions.
+
+### UX
+
+* lisibilité ;
+* hiérarchie ;
+* navigation ;
+* responsive.
+
+### Technique
+
+* absence d'erreurs console ;
+* absence de requêtes inutiles ;
+* performances ;
+* absence de régression.
+
+---
+
+# 40. LIVRABLE FINAL ATTENDU
+
+À la fin, je veux obtenir un Dashboard qui ressemble à un véritable **cockpit de pilotage du SIM**, et non à une simple page contenant des statistiques.
+
+Le résultat doit être :
+
+> **Moderne + institutionnel + élégant + data-driven + responsive + orienté action.**
+
+Le Dashboard doit permettre à un responsable de comprendre immédiatement :
+
+1. Quelle est l'activité actuelle ?
+2. Quels sont les indicateurs importants ?
+3. Quels éléments nécessitent mon intervention ?
+4. Quels projets sont en difficulté ?
+5. Quelles sont les prochaines échéances ?
+6. Que s'est-il passé récemment ?
+7. Où dois-je cliquer pour agir ?
+
+---
+
+# 41. CONSIGNE FINALE À CLAUDE CODE
+
+**Commence par analyser le projet existant.**
+
+Ne fais aucune modification importante avant d'avoir compris :
+
+* l'architecture ;
+* les composants ;
+* les données ;
+* les tables ;
+* les relations ;
+* les permissions ;
+* les services ;
+* le système d'authentification.
+
+Après l'analyse, présente-moi d'abord :
+
+### 1. Audit de l'existant
+
+### 2. Architecture proposée du nouveau Dashboard
+
+### 3. Liste des composants à créer/modifier
+
+### 4. Sources de données utilisées pour chaque KPI
+
+### 5. Graphiques proposés
+
+### 6. Modifications éventuelles de la base de données
+
+### 7. Plan d'implémentation
+
+**Puis seulement après validation, implémente la refonte.**
+
+L'objectif principal est de **moderniser fortement l'expérience utilisateur sans casser les fonctionnalités existantes du SIM**.

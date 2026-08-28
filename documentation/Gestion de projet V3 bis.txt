@@ -1,0 +1,80 @@
+# Compléments fonctionnels — Gestion de projet V3
+
+Apporter les modifications complémentaires suivantes au module **Gestion de projet**, sans modifier les fonctionnalités déjà validées.
+
+## 1. Réalisation d’un livrable — Justificatif obligatoire
+
+Lors de la réalisation d’un livrable :
+
+* Lorsque l’utilisateur clique sur le bouton **« Clôturer »**, vérifier si un document justificatif a été renseigné.
+* Si aucun justificatif n’est présent, ne pas clôturer immédiatement le livrable.
+* Afficher une fenêtre permettant à l’utilisateur de **joindre directement le document justificatif**.
+* La clôture du livrable ne doit être effective qu’après l’ajout et l’enregistrement du justificatif.
+* Si un justificatif existe déjà, permettre la clôture normalement.
+
+## 2. Décaissement — Calcul automatique du montant et du pourcentage
+
+Dans la gestion des **décaissements** :
+
+* Après saisie du **pourcentage**, calculer automatiquement le **montant correspondant**.
+* Inversement, après saisie du **montant**, calculer automatiquement le **pourcentage correspondant**.
+* Le calcul doit être basé sur le **montant du contrat concerné**.
+* Le montant et le pourcentage doivent rester cohérents lorsque l’un des deux est modifié.
+
+## 3. Avenants — Prise en compte dans la Vue d’ensemble
+
+La **Vue d’ensemble** du projet doit prendre en compte les avenants dans les indicateurs de pilotage.
+
+Les informations relatives aux avenants doivent notamment être intégrées dans :
+
+* l’**état d’avancement** du projet ;
+* les **décaissements** ;
+* les montants contractuels ;
+* les montants décaissés.
+
+L’objectif est d’avoir une vision consolidée du projet en tenant compte à la fois du **contrat d’origine et des avenants**.
+
+## 4. Décaissements — Identifier le contrat concerné
+
+Lors de l’enregistrement d’un décaissement, ajouter un champ permettant de préciser son origine :
+
+* **Contrat d’origine**
+* **Avenant**
+
+Si le décaissement concerne un avenant, permettre de sélectionner **l’avenant concerné**.
+
+Cette information doit permettre de suivre séparément :
+
+* les décaissements du contrat d’origine ;
+* les décaissements de chaque avenant ;
+* le cumul global des décaissements du projet.
+
+Ces informations doivent également être intégrées dans la **Vue d’ensemble**.
+
+## 5. Clôture du projet — Vérification de la demande de clôture
+
+Le bouton **« Demande de clôture »** du projet ne s’affiche actuellement pas.
+
+Vérifier s’il s’agit d’un **bug d’affichage ou d’une erreur dans la logique fonctionnelle**.
+
+Vérifier notamment :
+
+* les conditions d’affichage du bouton ;
+* les droits et permissions associés à l’utilisateur ;
+* les conditions liées à l’état du projet ;
+* les éventuelles conditions qui masquent le bouton ;
+* les erreurs éventuelles dans le code.
+
+Si le bouton doit être disponible selon les règles fonctionnelles définies, **corriger le problème afin qu’il s’affiche et fonctionne correctement**.
+
+## 6. Vérification finale
+
+Après l’implémentation :
+
+* Tester la clôture d’un livrable avec et sans justificatif.
+* Tester le calcul automatique **montant ↔ pourcentage** des décaissements.
+* Tester les projets avec et sans avenant.
+* Tester les décaissements du contrat d’origine et des avenants.
+* Vérifier les indicateurs de la **Vue d’ensemble**.
+* Vérifier l’affichage et le fonctionnement de la **Demande de clôture**.
+* S’assurer qu’aucune fonctionnalité précédemment validée n’a été régressée.

@@ -1,0 +1,112 @@
+Je souhaite **mettre en pause le développement des autres modules** et consacrer cette étape à l’amélioration globale du design et de l’expérience utilisateur de l’application.
+
+L’objectif est de donner à l’application une **identité visuelle moderne, professionnelle et institutionnelle**, digne d’une application utilisée par une **institution de la République**.
+
+### 1. Principes généraux
+
+* Revoir le design global de l’application afin de le rendre plus moderne, élégant, sobre et professionnel.
+* S’inspirer des standards UI/UX des applications institutionnelles modernes et des portails numériques gouvernementaux de référence.
+* Privilégier une interface **premium, sobre, claire et rassurante**, adaptée à un environnement administratif.
+* Améliorer la hiérarchie visuelle, les espacements, la typographie, les boutons, les cartes, les tableaux, les menus et les éléments de navigation.
+* Garantir une excellente lisibilité et une utilisation intuitive.
+* Prévoir un design responsive et cohérent sur les différentes tailles d’écran.
+* **Ne modifier aucune fonctionnalité métier déjà développée et validée.**
+* Ne pas modifier les workflows, règles de gestion, données ou comportements fonctionnels existants.
+* Le travail doit porter principalement sur **l’interface, l’expérience utilisateur et l’identité visuelle**.
+
+### 2. En-tête de l’application
+
+Repenser complètement l’en-tête afin de lui donner une apparence institutionnelle.
+
+À gauche :
+
+* Le **logo officiel de l’organisation**.
+* Le **nom de l’application**.
+* Éventuellement un sous-titre institutionnel si cela améliore la présentation.
+
+À droite :
+
+* Le **nom complet de l’utilisateur connecté**.
+* Sa **fonction / son poste**.
+* Un avatar ou une initiale élégante.
+* Un menu utilisateur permettant d'accéder aux actions déjà existantes (profil, déconnexion, etc.), sans modifier leur fonctionnement.
+
+L’en-tête doit être sobre, professionnel et suffisamment distinctif pour donner immédiatement une impression de **plateforme institutionnelle de haut niveau**.
+
+### 3. Menu de navigation
+
+Améliorer également le menu de navigation :
+
+* Design moderne et institutionnel.
+* Icônes cohérentes pour chaque module.
+* Mise en évidence claire du module ou de la page actuellement sélectionné(e).
+* Bonne organisation visuelle des différents modules.
+* Prévoir une navigation intuitive et facilement compréhensible.
+* Conserver exactement les fonctionnalités et les routes existantes.
+
+### 4. Page de connexion
+
+Je souhaite également une **refonte complète et personnalisée de la page Login**.
+
+La page de connexion ne doit pas ressembler à une page de connexion générique.
+
+Créer une véritable identité visuelle institutionnelle avec, par exemple :
+
+* Logo de l’organisation.
+* Nom et identité de l’application.
+* Design moderne et élégant.
+* Formulaire de connexion clair et professionnel.
+* Champs utilisateur et mot de passe bien travaillés.
+* Bouton de connexion moderne.
+* Éléments visuels permettant de renforcer l’identité institutionnelle.
+* Éventuellement une illustration, une photographie institutionnelle ou une composition graphique sobre sur une partie de l’écran.
+* Gestion élégante des messages d’erreur et états de chargement.
+* Design responsive pour ordinateur, tablette et mobile.
+
+### 5. Cohérence graphique
+
+Définir une véritable **charte graphique de l’application** et l’appliquer de manière cohérente :
+
+* Palette de couleurs institutionnelle.
+* Typographie.
+* Tailles et niveaux de titres.
+* Boutons.
+* Icônes.
+* Cartes.
+* Tableaux.
+* Formulaires.
+* Badges et statuts.
+* Notifications.
+* Modales.
+* Menus.
+* États actifs, hover, disabled et loading.
+
+L’ensemble doit donner l'impression d'un **produit logiciel institutionnel conçu par une équipe UX/UI professionnelle**, et non d'une application administrative basique.
+
+### 6. Références et inspiration
+
+Avant de modifier le design :
+
+1. Analyse les tendances actuelles des interfaces des plateformes institutionnelles et gouvernementales modernes.
+2. Identifie les bonnes pratiques UI/UX pertinentes.
+3. Inspire-toi de ces références pour construire une interface originale adaptée à notre application.
+4. **Ne copie pas directement une interface existante.**
+
+### 7. Contraintes importantes
+
+**Ne touche surtout pas aux fonctionnalités déjà validées.**
+
+Avant toute modification, analyse l’existant afin de comprendre :
+
+* la structure actuelle ;
+* les composants réutilisables ;
+* les routes ;
+* les modules ;
+* les workflows ;
+* les fonctionnalités déjà implémentées.
+
+Ensuite, réalise uniquement les modifications nécessaires au **design et à l’expérience utilisateur**.
+
+Le résultat attendu est une application qui donne, dès la première utilisation, une impression de **modernité, de sérieux, de sécurité et de niveau institutionnel élevé**.
+
+Une fois cette refonte graphique terminée et validée, nous pourrons reprendre le développement des autres modules.

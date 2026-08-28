@@ -1,0 +1,14 @@
+-- Corrige un oubli de 0065/0066 : GED V2 (0057) a rendu documents.versement_id
+-- obligatoire (chaque document appartient à un versement GED, avec son
+-- propre workflow brouillon/soumis). fn_ajouter_document_projet (0066) ne
+-- fait pas passer un document projet par ce workflow — il n'a pas de
+-- versement à lui rattacher, exactement comme il n'a pas besoin de
+-- dossier_id (déjà nullable) pour exister. Sans ce correctif, tout appel à
+-- fn_ajouter_document_projet échoue avec "null value in column
+-- versement_id... violates not-null constraint".
+--
+-- Sans risque pour le reste de GED V2 : toutes les requêtes qui joignent
+-- documents à ged_versements le font en INNER JOIN (0058/0060/0062/0063) —
+-- un document projet (versement_id null) en sera simplement absent, ce qui
+-- est le comportement voulu (il n'appartient pas à un versement GED).
+alter table public.documents alter column versement_id drop not null;

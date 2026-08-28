@@ -1,0 +1,138 @@
+# GED — V2 / Refonte fonctionnelle de la V1
+
+La première version du module GED a déjà été développée, mais après analyse, elle ne correspond pas suffisamment aux besoins métier réels de l'organisation.
+
+Je ne souhaite donc PAS que tu continues simplement à ajouter des fonctionnalités à la V1.
+
+Je souhaite que tu réalises d'abord un AUDIT COMPLET de la V1 existante, que tu compares son fonctionnement avec le besoin métier décrit ci-dessous, puis que tu proposes une refonte adaptée.
+
+L'objectif est d'obtenir une GED professionnelle, orientée gestion documentaire et archivage, et non un simple système de dépôt et de stockage de fichiers.
+
+---
+
+# 1. CONSIGNE PRINCIPALE
+
+Commence par analyser en profondeur la V1 actuelle.
+
+Tu dois comprendre :
+
+- comment la V1 fonctionne actuellement ;
+- son architecture ;
+- son modèle de données ;
+- ses écrans ;
+- ses workflows ;
+- ses règles de gestion ;
+- ses permissions ;
+- son stockage documentaire ;
+- son système de classement ;
+- son système de recherche ;
+- son système d'indexation ;
+- son système d'audit ;
+- ses composants réutilisables.
+
+Ensuite, compare la V1 avec les besoins métier décrits dans ce prompt.
+
+Identifie clairement :
+
+### A. Ce qui est correct dans la V1
+
+### B. Ce qui doit être conservé
+
+### C. Ce qui doit être modifié
+
+### D. Ce qui doit être supprimé
+
+### E. Ce qui manque complètement
+
+### F. Ce qui a été mal conçu
+
+### G. Ce qui nécessite une refonte technique
+
+Ne cherche pas à préserver une fonctionnalité simplement parce qu'elle existe déjà.
+
+**La priorité est le besoin métier, puis la cohérence de l'architecture.**
+
+---
+
+# 2. NE PAS CODER IMMÉDIATEMENT
+
+Avant toute modification du code, produis une analyse complète.
+
+Je veux notamment voir :
+
+1. Architecture actuelle de la V1
+2. Architecture cible proposée
+3. Comparaison V1 / besoin métier
+4. Modèle de données actuel
+5. Modèle de données cible
+6. Workflow actuel
+7. Workflow cible
+8. Gestion actuelle du plan de classement
+9. Gestion cible du plan de classement
+10. Gestion des droits
+11. Recherche et indexation
+12. Gestion des documents confidentiels/secrets
+13. Liste des écrans à conserver/modifier/créer
+14. Risques de migration
+15. Plan de refonte
+
+**Attends ma validation avant de modifier le code.**
+
+---
+
+# 3. VISION MÉTIER DE LA GED
+
+La GED doit être conçue comme un véritable système de :
+
+- gestion documentaire ;
+- versement ;
+- classement ;
+- archivage ;
+- recherche documentaire ;
+- indexation ;
+- consultation ;
+- contrôle d'accès ;
+- traçabilité.
+
+Elle ne doit pas être conçue comme :
+
+> Utilisateur → Upload fichier → Stockage fichier
+
+Le fonctionnement cible est :
+
+```text
+AGENT
+   │
+   ├── Créer une demande de versement
+   │
+   ├── Ajouter un ou plusieurs documents
+   │
+   ├── Enregistrer en brouillon
+   │
+   └── Soumettre
+          │
+          ▼
+      ARCHIVISTE
+          │
+          ├── Réception
+          │
+          ├── Contrôle
+          │
+          ├── Demande de correction
+          │
+          └── Classement
+                  │
+                  ├── Plan de classement
+                  ├── Métadonnées
+                  ├── Renommage
+                  └── Indexation
+                          │
+                          ▼
+                     ARCHIVAGE
+                          │
+                          ▼
+                     ARCHIVES
+                          │
+             ┌────────────┼────────────┐
+             ▼            ▼            ▼
+          Recherche    Consultation  Téléchargement

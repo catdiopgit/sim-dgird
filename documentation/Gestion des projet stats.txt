@@ -1,0 +1,92 @@
+# Module Projet — Page Statistiques et tableau de bord
+
+Créer une nouvelle page **« Statistiques »** pour le module **Gestion de projet**.
+
+L’objectif est de fournir une **vue globale et synthétique du portefeuille de projets**, avec des informations et des indicateurs pertinents pour la **Direction Générale** ainsi que pour les autres entités de l’organisation.
+
+## 1. Page Statistiques
+
+La page doit permettre d’avoir une vision consolidée de l’ensemble des projets.
+
+Prévoir notamment des indicateurs tels que :
+
+* Nombre total de projets ;
+* Nombre de projets en cours ;
+* Nombre de projets clôturés ;
+* Nombre de projets en retard ;
+* Nombre de projets à venir ;
+* Avancement global des projets ;
+* Répartition des projets par état ;
+* Répartition des projets par organisme chargé de l’exécution ;
+* Répartition des projets par responsable ;
+* Montant total des projets ;
+* Montant total des avenants ;
+* Montant total décaissé ;
+* Pourcentage global des décaissements ;
+* Montant restant à décaisser ;
+* Nombre total de livrables ;
+* Nombre de livrables réalisés ;
+* Nombre de livrables en cours ou non réalisés ;
+* Taux global de réalisation des livrables.
+
+## 2. Visualisation des données
+
+Présenter les informations sous forme de :
+
+* **Cartes KPI** pour les principaux indicateurs ;
+* Graphiques permettant d’analyser la répartition des projets ;
+* Barres de progression pour l’avancement ;
+* Tableaux synthétiques pour les données détaillées ;
+* Graphiques sur les décaissements et l’exécution financière ;
+* Graphiques sur la réalisation des livrables.
+
+La page doit rester **claire, moderne, institutionnelle et facilement exploitable par la Direction Générale**.
+
+## 3. Filtres
+
+Prévoir des filtres permettant d’analyser les statistiques selon différents critères, notamment :
+
+* Période ;
+* État du projet ;
+* Responsable ;
+* Organisme chargé de l’exécution ;
+* Type de projet, si applicable.
+
+Les indicateurs et graphiques doivent être automatiquement mis à jour en fonction des filtres sélectionnés.
+
+## 4. Impression des statistiques
+
+Ajouter un bouton **« Imprimer »** permettant d’imprimer ou de générer une version imprimable de la page de statistiques.
+
+Le document imprimé doit présenter une mise en page professionnelle et institutionnelle, adaptée à une présentation à la **Direction Générale**.
+
+## 5. Exportation Excel
+
+Ajouter un bouton **« Exporter Excel »** permettant d’exporter les données statistiques et les informations pertinentes dans un fichier **Excel (.xlsx)**.
+
+L’export doit respecter les filtres appliqués par l’utilisateur.
+
+## 6. Enrichissement du tableau de bord
+
+Ajouter également au **tableau de bord principal du module Projet** les indicateurs les plus pertinents issus de cette page statistique.
+
+Le tableau de bord doit permettre de visualiser rapidement :
+
+* La situation globale du portefeuille de projets ;
+* L’avancement des projets ;
+* La situation financière ;
+* Les décaissements ;
+* Les avenants ;
+* La réalisation des livrables ;
+* Les projets nécessitant une attention particulière.
+
+L’objectif est que la **Direction Générale puisse disposer, dès l’ouverture du module, d’une vision synthétique de la performance et de la situation des projets**, tout en permettant aux autres entités d’accéder aux informations correspondant à leur périmètre.
+
+## 7. Règles importantes
+
+* Les statistiques doivent être calculées à partir des **données réelles du module Projet**.
+* Ne pas créer de données fictives uniquement pour alimenter les graphiques.
+* Les indicateurs doivent rester cohérents avec les règles de calcul définies pour les **livrables, l’avancement, les avenants et les décaissements**.
+* Respecter le design institutionnel déjà défini pour l’application.
+* Prévoir une interface responsive et lisible sur les différentes tailles d’écran.
+* Ne pas modifier les fonctionnalités existantes qui ne sont pas concernées par cette évolution.

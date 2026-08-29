@@ -1,6 +1,6 @@
 # Migration Supabase → PostgreSQL direct (NestJS + TypeORM)
 
-Statut global : **Phase 0 terminée** (squelette NestJS + TypeORM + Auth JWT natif — module Auth JWT, guard global `JwtAuthGuard`, entités `Utilisateur`/`Role`/`UtilisateurRole`, migration `AddPasswordHashToUtilisateurs`, script de bascule des hash bcrypt `server/scripts/migrate-passwords.ts`). Phase 1 (Administration) à démarrer.
+Statut global : **Phases 0 à 1 terminées** (squelette NestJS + TypeORM + Auth JWT ; administration complète — organisations, entités, utilisateurs, rôles, permissions, fonctions, délégations, paramétrage). Phase 2 (Workflow) à démarrer.
 
 ## Contexte
 
@@ -80,7 +80,7 @@ cette API au lieu de `supabase-js`.
 | # | Module | Statut |
 |---|---|---|
 | 0 | Squelette NestJS + TypeORM + Auth JWT natif | **Fait** |
-| 1 | Administration (organisations, entités, utilisateurs, rôles, permissions, fonctions, délégations, paramétrage) | À faire |
+| 1 | Administration (organisations, entités, utilisateurs, rôles, permissions, fonctions, délégations, paramétrage) | **Fait** |
 | 2 | Workflow / Référentiel (wrappers vers `fn_*`) | À faire |
 | 3 | Courrier | À faire |
 | 4 | GED | À faire |
@@ -129,4 +129,24 @@ cette API au lieu de `supabase-js`.
   hors du dépôt (pas dans `server/migrations/` ni `supabase/`) — n'a pas vocation à être
   rejoué contre la vraie base Supabase (là, `auth.users` existe déjà réellement, c'est
   justement lui que `migrate-passwords.ts` doit lire).
+
+- 2026-08-28 : Audit de la Phase 1 — constat que tout le périmètre (entités, guard,
+  services, contrôleurs CRUD administration) était en réalité déjà livré (travail non
+  journalisé précédemment). `npx nest build` passe sans erreur. Vérification ciblée de
+  `PermissionsGuard`/`AuthorizationService` contre le SQL original
+  (`0004_fonctions_permissions.sql`, `0020_workflow_v2.sql`) : `has_permission`/
+  `fn_a_permission_directe` et la logique de délégation (§9) sont fidèlement portées
+  (même requête, mêmes portées `organisation`/`personnel`/`entite`/`entite_et_descendants`
+  via `ltree @>`). `current_organisation_id`/`current_entite_id` remplacés par
+  `AuthenticatedUser` (re-fetch utilisateur + vérif `statut='actif'` à chaque requête via
+  `JwtStrategy.validate`). Tous les contrôleurs admin protégés par `PermissionsGuard` +
+  `@RequirePermission`, codes module/action cohérents avec l'usage frontend existant
+  (`src/modules/administration/audit/AuditTab.tsx`).
+  Phase 1 déclarée **terminée**. Deux écarts mineurs assumés, à traiter plus tard :
+  `organisation_branding` (vue SQL publique, pas une table) n'a pas encore d'endpoint
+  public dédié ; `creer-utilisateur` n'a pas de route `/auth/creer-utilisateur` séparée
+  mais est couvert par `POST /administration/utilisateurs` (déjà gardé par permission).
+  `can_view_document/courrier/projet/mission`, `can_modifier_projet/mission` et
+  `fn_est_responsable_hierarchique` (catégorie 2) restent à porter avec leurs modules
+  respectifs (Phases 3-6), hors périmètre Phase 1.
 

@@ -6,6 +6,13 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { getDatabaseConfig } from './config/database.config';
 import { AuthModule } from './auth/auth.module';
 import { UtilisateursModule } from './administration/utilisateurs/utilisateurs.module';
+import { OrganisationsModule } from './administration/organisations/organisations.module';
+import { EntitesModule } from './administration/entites/entites.module';
+import { FonctionsModule } from './administration/fonctions/fonctions.module';
+import { RolesModule } from './administration/roles/roles.module';
+import { PermissionsModule } from './administration/permissions/permissions.module';
+import { DelegationsModule } from './administration/delegations/delegations.module';
+import { ParametrageModule } from './administration/parametrage/parametrage.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
 @Module({
@@ -15,6 +22,13 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     ScheduleModule.forRoot(),
     AuthModule,
     UtilisateursModule,
+    OrganisationsModule,
+    EntitesModule,
+    FonctionsModule,
+    RolesModule,
+    PermissionsModule,
+    DelegationsModule,
+    ParametrageModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
 })

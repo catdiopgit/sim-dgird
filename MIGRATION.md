@@ -1,6 +1,6 @@
 # Migration Supabase → PostgreSQL direct (NestJS + TypeORM)
 
-Statut global : **Phases 0 à 2 terminées** (squelette NestJS + TypeORM + Auth JWT ; administration complète ; moteur de workflow générique + référentiel). Notifications/retards courrier différés à la Phase 3 (voir journal). Phase 3 (Courrier) à démarrer.
+Statut global : **Phases 0 à 3 terminées** (squelette NestJS + TypeORM + Auth JWT ; administration complète ; moteur de workflow générique + référentiel ; Courrier complet avec stockage pièces jointes/décharge). Phase 4 (GED) à démarrer.
 
 ## Contexte
 
@@ -82,7 +82,7 @@ cette API au lieu de `supabase-js`.
 | 0 | Squelette NestJS + TypeORM + Auth JWT natif | **Fait** |
 | 1 | Administration (organisations, entités, utilisateurs, rôles, permissions, fonctions, délégations, paramétrage) | **Fait** |
 | 2 | Workflow / Référentiel (wrappers vers `fn_*`) | **Fait** (notifications/retards courrier différés, voir journal) |
-| 3 | Courrier | À faire |
+| 3 | Courrier | **Fait**, y compris stockage pièces jointes/décharge |
 | 4 | GED | À faire |
 | 5 | Projets | À faire |
 | 6 | Missions | À faire |
@@ -193,4 +193,188 @@ cette API au lieu de `supabase-js`.
     reproduire fidèlement tant que ces tables n'existent pas côté NestJS ; exposer ces
     routes maintenant lirait n'importe quelle instance par id sans contrôle d'org. À
     ajouter en Phase 3 avec le vrai scoping.
+
+- 2026-08-28 : Phase 3 livrée — cœur métier Courrier (`server/courrier/`, `server/notifications/`,
+  `server/audit/`). Entités : `Courrier`, `CourrierDestinataire` (table
+  `courrier_destinataires`), `CourrierDestinataireAction`, `Contact` ; `Notification`
+  (nouveau module `server/notifications/`, générique, réutilisable par GED/Missions) ;
+  `JournalAudit` (`server/common/entities/`, lecture seule — alimentée par le trigger SQL
+  `app.fn_audit_trigger`, catégorie 1).
+
+  `WorkflowEngineService` (Phase 2) retouché : `demarrerWorkflow`/`executerTransition`
+  acceptent désormais un `EntityManager` optionnel pour composer dans la transaction de
+  l'appelant (bug évité : les appeler depuis la transaction de `CourriersService.create`/
+  `CourrierWorkflowService.imputerCourrier` sans ce changement aurait ouvert une
+  **deuxième transaction sur une connexion distincte, non atomique** avec celle de
+  l'appelant — un rollback de l'appelant n'aurait pas défait l'écriture workflow).
+  `executerTransition` retourne maintenant l'id de la ligne `workflow_historique` créée
+  (nécessaire à la corrélation `courrier_destinataires.workflow_historique_id`). Ajout de
+  `transitionsDisponibles` (réutilisé par `fn_transitions_disponibles_courrier` et la
+  bannette `'a_traiter'`).
+
+  `ParametrageService.genererNumero` : portage de `app.fn_generer_numero` (0040), avec
+  verrou `FOR UPDATE` sur la règle de numérotation, résolution récursive du chemin
+  d'entité (CTE SQL, `{CHEMIN_ENTITE}`/`{ENTITE}`) et gestion des réinitialisations
+  annuelle/mensuelle/jamais. `OrganisationsService.getParametre` ajouté (lecture d'un
+  seul paramètre clé/valeur, utilisé pour le routage initial des courriers entrants et
+  leur étape post-enregistrement).
+
+  `CourriersService` : `canView`/`assertWritable` (portage de `app.can_view_courrier` et
+  de la policy `courriers_update` 0037), `create` (portage de `app.fn_creer_courrier`,
+  dernier corps 0054 — numérotation, démarrage de workflow, routage automatique des
+  entrants via le paramètre d'organisation `courrier.etape_apres_enregistrement_entrant_id`,
+  notification), `update`/`remove` (patch/suppression douce, champs alignés sur
+  `CourrierPatchInfos` du frontend existant), `findBannette` (portage des 6 branches de
+  `app.fn_bannettes_courrier`, dernier corps 0049), `notifierDestinatairesCourrier`
+  (portage de `app.fn_notifier_destinataires_courrier`, 0053), `journalAuditCourrier`
+  (portage de `app.fn_journal_audit_courrier`, 0035, diff calculé en JS plutôt qu'en SQL
+  latéral). `CourrierWorkflowService` : `executerTransition`/`transitionsDisponibles`
+  (portage de `app.fn_executer_transition_courrier` 0046 et
+  `app.fn_transitions_disponibles_courrier` 0042), `imputerCourrier` (portage de
+  `app.fn_imputer_courrier`, dernier corps 0054), `entitesImputables`/
+  `entitesTransmissibles`/`personnesTransmissibles` (0034/0042/0044).
+
+  **Deux régressions détectées dans le SQL de production actuel** (corps 0054, en
+  vigueur depuis la dernière réécriture de `fn_imputer_courrier`), corrigées dans le
+  port sur décision explicite de l'utilisateur (2026-08-28) plutôt que reproduites à
+  l'identique :
+  1. La distinction introduite en 0044 entre permission `'affecter'` (imputation/
+     affectation) et `'transmettre'` (transmission/redirection) avait été silencieusement
+     perdue en 0054 (retour à `'affecter'` pour tout type d'action) — un utilisateur
+     n'ayant que `courrier/affecter` pouvait donc transmettre/rediriger un courrier.
+     `CourrierWorkflowService.imputerCourrier` réintroduit la distinction.
+  2. La corrélation `courrier_destinataires.workflow_historique_id` sur les destinataires
+     en copie (introduite en 0043) était elle aussi perdue en 0054 (seul le destinataire
+     principal était corrélé) — `listHistoriqueActions` côté frontend en a besoin pour les
+     deux. Restaurée pour tous les destinataires créés par une imputation (principal,
+     copies, personne réceptrice de l'entité).
+
+  Écarts de périmètre assumés :
+  - **Stockage (pièces jointes/décharge) différé** — décision utilisateur du 2026-08-28.
+    `app.fn_ajouter_decharge_courrier` et `app.fn_deverrouiller_courrier` ne sont donc
+    **pas portés** ; les colonnes `courriers.verrouille_le`/`verrouille_par` existent déjà
+    dans l'entité (nécessaires à `assertWritable`) mais restent toujours `null` en
+    pratique tant que la décharge n'est pas implémentée. Le flux actuel (upload direct
+    vers Supabase Storage) devra être entièrement réécrit en upload multipart vers le
+    serveur NestJS + disque local (décision d) — pas un simple remplacement de client.
+  - `app.fn_detecter_et_notifier_retards` (boucle générique + boucle échéances courrier)
+    reste différée à la Phase 7 (cron `@nestjs/schedule`) comme prévu par le plan
+    d'origine — la logique métier est déjà entièrement documentée dans les notes de
+    recherche de cette phase, à ne pas re-dériver.
+  - L'association `workflow_definition_associations` par sens de courrier (câblée en
+    0021) n'est **pas ressuscitée** : le corps final de `fn_creer_courrier` (depuis 0026)
+    n'a jamais transmis de `p_valeur_liste_id` à `fn_demarrer_workflow` malgré ce câblage —
+    code mort côté SQL d'origine, reproduit tel quel (pas de régression introduite, juste
+    non comblé).
+  - `GET /administration/journal-audit` (vue d'ensemble audit générique, hors périmètre
+    Courrier strict) ajouté à moindre coût dans un petit module `server/audit/` dédié,
+    l'entité `JournalAudit` étant de toute façon nécessaire à `journalAuditCourrier`.
+  - Visibilité de liste (`findAll`, bannettes `'a_traiter'`/`'en_copie'`) : filtrage de
+    canView appliqué en mémoire après chargement plutôt qu'inliné dans le SQL (qui
+    demanderait de répliquer la sous-requête `has_permission` + délégations dans chaque
+    requête de liste) — acceptable pour les volumes attendus (VPS mono-instance,
+    ~20 utilisateurs par organisation), à revisiter si la volumétrie change.
+
+  `npx nest build` et `npx nest start` (contre la base locale) passent sans erreur,
+  toutes les routes sont mappées.
+
+- 2026-08-29 : Test de bout en bout de la Phase 3 contre la base locale, serveur réel
+  (`npx nest start`), sans mock. Ajout de `server/scripts/seed-dev.ts` (idempotent,
+  usage : `npx ts-node -P server/tsconfig.json server/scripts/seed-dev.ts <code_org>
+  <email_utilisateur>`) — seede modules/actions/permissions de base, une entité racine,
+  un rôle "tout-organisation" attribué à l'utilisateur donné, un workflow Courrier à 2
+  étapes (Enregistré -> Traité) avec une transition, une règle de numérotation et les
+  paramètres de routage des courriers entrants. Complète la base locale déjà amorcée
+  (organisation `TEST` + utilisateur `admin.test@example.com`, créés lors du bootstrap
+  Phase 0) qui n'avait aucune donnée de référentiel (modules/actions/rôles vides).
+
+  20 appels HTTP exercés avec un JWT signé directement (même charge utile que
+  `AuthService.login`, sans avoir à connaître le mot de passe de l'utilisateur seed) :
+  création courrier sortant (numérotation `COURRIER-2026-0001`, démarrage de workflow),
+  lecture des transitions disponibles, exécution d'une transition (bascule d'étape,
+  passage `en_cours` -> `terminee`, entrée d'historique), lecture de l'historique et de
+  l'instance, bannette `archives` (contient bien le courrier clôturé), création d'un
+  courrier entrant sans `entiteId` (résolution automatique via le paramètre
+  `courrier.entite_destinataire_initiale_id` + avance automatique vers l'étape
+  configurée via `courrier.etape_apres_enregistrement_entrant_id`, avec entrée
+  d'historique dédiée), imputation (création du destinataire principal, notification),
+  liste des destinataires, audit par courrier et audit générique, contacts, ajout direct
+  d'un destinataire en copie, entités imputables/transmissibles/personnes
+  transmissibles, mise à jour directe, bannette `a_traiter` (vide, comme attendu — les
+  deux courriers de test sont déjà clôturés), suppression douce (courrier toujours
+  lisible par id avec `supprimeLe` renseigné, mais absent de la liste). **0 échec.**
+
+  Cas limites vérifiés séparément : requête sans JWT -> 401 ; `sens` invalide -> 400
+  (validation `class-validator`) ; imputation avec `typeAction` sur un courrier
+  `sortant` -> 400 ("réservé aux courriers entrants") ; transition avec un id inexistant
+  -> 404 ; courrier inexistant -> 404.
+
+  Vérification directe en base : le trigger SQL `app.fn_audit_trigger` (catégorie 1)
+  se déclenche bien pour les écritures faites via TypeORM (confirmé par les lignes
+  `journal_audit` générées à l'INSERT et à chaque UPDATE d'un courrier, sans code
+  applicatif dédié). `notifierDestinatairesCourrier` a d'abord semblé ne rien insérer
+  (0 ligne dans `notifications`) — en fait correct : le seul utilisateur de test jouait
+  à la fois le rôle de créateur, de responsable de l'entité et d'agent affecté, donc
+  chaque notification était auto-exclue (`excludeUserId`). Reproduit avec un deuxième
+  utilisateur de test en `personne_receptrice` de l'entité : la notification est bien
+  générée pour lui et lui seul.
+
+  Aucun bug de logique métier trouvé pendant ce test — uniquement des ajustements
+  d'outillage de test (utilisateurs locaux liés à la table `auth.users` du stub Supabase
+  local, `id` sans défaut généré côté SQL pour `utilisateurs`).
+
+- 2026-08-29 : Stockage pièces jointes/décharge (dernier morceau différé de la Phase 3)
+  livré et testé en réel. Entité `CourrierPieceJointe` (`courrier_pieces_jointes`,
+  `document_id`/`hash_sha256` non utilisés — cf. rapport de recherche Courrier : lien
+  croisé GED différé à la Phase 4, hachage jamais renseigné par aucune des 9 fonctions
+  d'origine). `server/config/storage.config.ts` : racine de stockage pilotée par
+  `STORAGE_ROOT` (chemin absolu, doit être hors du dossier de déploiement en production —
+  décision d), défaut local `./storage` à la racine du dépôt (ajouté au `.gitignore`,
+  entrée ajoutée à `.env.example`). Ajout de `@types/multer` en devDependency
+  (`@nestjs/platform-express`/multer étaient déjà présents en dépendance transitive).
+
+  `CourrierStorageService` : upload en mémoire (`multer.memoryStorage()`, limite 25 Mo)
+  puis écriture disque (`{courrier_id}/{uuid}-{nom_fichier_assaini}`, même convention que
+  l'ancien bucket Supabase Storage mais chemin relatif à `STORAGE_ROOT`) ; toute lecture
+  par `storagePath` revalide que le chemin résolu reste sous `STORAGE_ROOT` (défense en
+  profondeur contre la traversée de répertoire, bien que `storagePath` ne soit jamais
+  fourni par le client). Téléchargement : plus d'équivalent à `createSignedUrl` (TTL 60s)
+  en disque local — remplacé par un endpoint authentifié qui revérifie `canView` à chaque
+  requête (`GET /courrier/pieces-jointes/:id/telecharger`, `res.download()`). Portage de
+  `app.fn_ajouter_decharge_courrier` (0054, `ajouterDecharge` : verrouille le courrier,
+  clôture le workflow si `sens='sortant'` et instance `en_cours`, entrée d'historique
+  synthétique "même étape", notification) et `app.fn_deverrouiller_courrier` (0047,
+  `deverrouiller` : motif obligatoire, entrée `journal_audit` manuelle contournant
+  volontairement le trigger générique, réouverture de l'instance de workflow si elle
+  avait été clôturée par la décharge).
+
+  **Bug réel trouvé et corrigé pendant le test en réel** (pas repéré à la relecture ni au
+  build) : `manager.query()` sur une requête `UPDATE ... RETURNING` renvoie, avec la
+  version de TypeORM installée (1.1.0), le tuple `[lignes, nombre de lignes affectées]`
+  — alors qu'`INSERT ... RETURNING` et un `SELECT` renvoient directement le tableau de
+  lignes (vérifié empiriquement les deux cas pour confirmer que seuls UPDATE/DELETE sont
+  concernés). Le code de `ajouterDecharge` traitait `rows[0]` comme la première ligne ;
+  en réalité `rows[0]` était le tableau de lignes lui-même, donc `.etape_courante_id`
+  valait toujours `undefined` — la clôture du workflow (statut + `termine_le`)
+  fonctionnait quand même (faite par un `manager.update()` séparé), mais l'entrée
+  d'historique "Décharge ajoutée" et la notification de clôture étaient silencieusement
+  sautées, sans aucune erreur. Repéré uniquement parce que le test en réel vérifiait le
+  contenu de l'historique après décharge, pas seulement les codes HTTP. Corrigé par
+  déstructuration `const [rows] = await manager.query(...)`, avec un commentaire dans le
+  code pour éviter la récidive. **Aucune autre occurrence** de ce pattern (`UPDATE ...
+  RETURNING` via `.query()`) trouvée ailleurs dans le code déjà écrit (Phases 1-3) — le
+  seul autre point sensible (`WorkflowEngineService.executerTransition`) utilise un
+  `SELECT ... FOR UPDATE`, non concerné.
+
+  17 vérifications HTTP + inspection DB directe, 0 échec après correction : upload/liste/
+  téléchargement/suppression d'une pièce jointe normale (contenu, `Content-Disposition`,
+  présence/absence sur disque) ; décharge refusée sur un courrier entrant (400) ; décharge
+  sur un courrier sortant (verrouillage, clôture du workflow, entrée d'historique,
+  notification — vérifiés directement en base) ; écriture bloquée sur un courrier
+  verrouillé (409) ; déverrouillage refusé sans motif (400) puis accepté avec motif
+  (workflow rouvert, écriture de nouveau possible) ; nom de fichier contenant `../../../`
+  correctement assaini (chemin résolu toujours sous `STORAGE_ROOT`, jamais planté).
+
+  `npx nest build` et test en conditions réelles passent. `seed-dev.ts` complété (action
+  `deverrouiller` accordée au rôle de test) pour permettre ce test.
 

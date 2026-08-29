@@ -14,6 +14,10 @@ dist-server
 *.local
 *.local.*
 
+# Stockage local des pièces jointes/décharges (server/config/storage.config.ts) —
+# jamais commité, chemin réel piloté par STORAGE_ROOT en production.
+/storage
+
 # Environment variables (contains Supabase credentials)
 .env
 .env.*

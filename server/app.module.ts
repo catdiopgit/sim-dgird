@@ -13,6 +13,7 @@ import { RolesModule } from './administration/roles/roles.module';
 import { PermissionsModule } from './administration/permissions/permissions.module';
 import { DelegationsModule } from './administration/delegations/delegations.module';
 import { ParametrageModule } from './administration/parametrage/parametrage.module';
+import { WorkflowModule } from './workflow/workflow.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
 @Module({
@@ -29,6 +30,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     PermissionsModule,
     DelegationsModule,
     ParametrageModule,
+    WorkflowModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
 })

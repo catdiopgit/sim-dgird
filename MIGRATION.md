@@ -1,6 +1,6 @@
 # Migration Supabase → PostgreSQL direct (NestJS + TypeORM)
 
-Statut global : **Phases 0 à 3 terminées** (squelette NestJS + TypeORM + Auth JWT ; administration complète ; moteur de workflow générique + référentiel ; Courrier complet avec stockage pièces jointes/décharge). Phase 4 (GED) à démarrer.
+Statut global : **Phases 0 à 4 terminées** (squelette NestJS + TypeORM + Auth JWT ; administration complète ; moteur de workflow générique + référentiel ; Courrier complet avec stockage ; GED complète avec stockage/versioning et ACL par document/dossier). Sous-système d'archivage annuel GED (0082, cross-module Courrier/Projets/Missions) différé. Phase 5 (Projets) à démarrer.
 
 ## Contexte
 
@@ -83,7 +83,7 @@ cette API au lieu de `supabase-js`.
 | 1 | Administration (organisations, entités, utilisateurs, rôles, permissions, fonctions, délégations, paramétrage) | **Fait** |
 | 2 | Workflow / Référentiel (wrappers vers `fn_*`) | **Fait** (notifications/retards courrier différés, voir journal) |
 | 3 | Courrier | **Fait**, y compris stockage pièces jointes/décharge |
-| 4 | GED | À faire |
+| 4 | GED | **Fait**, y compris stockage/versioning ; archivage annuel (0082) différé — voir journal |
 | 5 | Projets | À faire |
 | 6 | Missions | À faire |
 | 7 | Notifications + cron (`@nestjs/schedule`) | À faire |
@@ -377,4 +377,103 @@ cette API au lieu de `supabase-js`.
 
   `npx nest build` et test en conditions réelles passent. `seed-dev.ts` complété (action
   `deverrouiller` accordée au rôle de test) pour permettre ce test.
+
+- 2026-08-29 : Phase 4 (GED) livrée et testée en réel — `server/ged/`. Entités : `GedDossier`
+  (plan de classement hiérarchique, `chemin`/`niveau` maintenus par le trigger SQL
+  `app.set_ged_dossier_chemin`, catégorie 1, même limite connue que `entites.chemin` :
+  déplacer un sous-arbre ne recalcule pas récursivement le chemin des descendants),
+  `Document`, `DocumentVersion` (vrai versioning multi-fichiers, contrairement à
+  Courrier — chaque version pointe vers un fichier physique distinct, jamais écrasé),
+  `DocumentDroit`/`DossierDroit` (ACL par objet), `GedVersement` (porte le workflow,
+  déplacé hors de `documents` en 0057, l'équivalent GED d'un courrier), `GedConsultation`
+  (journal d'accès en lecture seule). Table `ged_categories` volontairement **pas
+  portée** : vestigiale, plus aucune fonction ne la lit/l'écrit depuis 0062.
+
+  `GedDocumentsService.canView` : portage fidèle de `app.can_view_document` (0057,
+  dernier corps) — le point le plus délicat de cette phase, seule différence
+  structurelle majeure avec Courrier (qui n'a aucune ACL par objet) : créateur toujours
+  visible ; sinon `hasPermission('ged','consulter',entiteId)` sauf si le document est
+  marqué confidentialité `'secrete'` ; sinon droit direct via `document_droits` (match
+  utilisateur direct, entité courante, ou **n'importe quel rôle actif détenu** — non
+  scopé par la portée de l'attribution, contrairement à `AuthorizationService`) ;
+  **`secrete` coupe court sans repli vers le dossier parent** — un droit direct sur le
+  document passe outre `secrete`, un droit hérité du dossier seul ne le peut pas
+  (asymétrie volontaire, vérifiée empiriquement, voir tests ci-dessous). `document_droits`/
+  `dossier_droits` ne portent aujourd'hui que l'action `'consulter'` en pratique : la
+  contrainte SQL n'empêche pas d'octroyer un droit `'modifier'`, mais aucune fonction
+  source ne le lit — capacité morte par omission, non comblée (fidélité au SQL d'origine).
+
+  `GedVersementsService`/`GedWorkflowService` : portage de `app.fn_creer_versement`
+  (pas de workflow démarré à la création, contrairement à `fn_creer_courrier` — la GED a
+  une vraie phase brouillon sans workflow), `app.fn_soumettre_versement` (verrou `FOR
+  UPDATE`, `WorkflowEngineService.demarrerWorkflow` composé dans la même transaction via
+  le paramètre `manager`, rejet si 0 document), `app.fn_transitions_disponibles_versement`
+  (garde `'consulter'`, pas `'modifier'` — lister les actions possibles n'autorise pas à
+  les exécuter, `WorkflowEngineService` fait cette vérification par transition),
+  `app.fn_executer_transition_versement` (**délègue entièrement** à
+  `WorkflowEngineService.executerTransition` sans aucune vérification supplémentaire,
+  contrairement à l'équivalent Courrier plus gardé — différence de conception assumée
+  côté source, reproduite telle quelle, pas une régression), `app.fn_bannette_ged`.
+  `ged-versement-contexte.util.ts` ajouté, miroir de `courrier-contexte.util.ts`, pour
+  l'évaluation des conditions de transition (clés SQL snake_case, pas les propriétés
+  camelCase de l'entité TypeORM).
+
+  `GedStorageService` : reprend le schéma disque de `CourrierStorageService` (upload en
+  mémoire, écriture sous `STORAGE_ROOT/ged/...`, défense anti-traversée de répertoire)
+  sous un préfixe séparé. Deux différences réelles avec Courrier, pas de simple
+  copier-coller : (1) le téléchargement est paramétré par **id de version**, pas par id
+  de document — GED garde tout l'historique des fichiers, il faut pouvoir télécharger une
+  version antérieure ; (2) `verserVersion` calcule `version_majeure = max(...)+1` **sans
+  verrou `FOR UPDATE`**, fidèle à `fn_verser_version_document` — une course concurrente
+  sur le même document peut faire échouer un insert sur la contrainte unique
+  `(document_id, version_majeure, version_mineure)` plutôt que d'être absorbée
+  silencieusement ; reproduit tel quel (bug mineur pré-existant côté SQL, pas corrigé,
+  contrairement au bug `transmettre`/`affecter` de Courrier qui avait été jugé plus
+  sérieux). `creerDocumentAvecFichier` compose `fn_ajouter_document_versement` +
+  `fn_verser_version_document` avec le même repli "supprime le document orphelin si
+  l'upload échoue" que le frontend actuel.
+
+  `GedDroitsService.validerCible` et `GedRechercheService` : le SQL d'origine ne valide
+  jamais côté application qu'un droit référence exactement une cible (rôle/utilisateur/
+  entité) — laisse la contrainte CHECK échouer telle quelle ; validation ajoutée ici pour
+  un message d'erreur plus clair (amélioration mineure assumée, comme pour
+  `WorkflowService.validerActeur` en Phase 2). `GedRechercheService` (portage de
+  `app.fn_rechercher_documents`, l'explorateur "Archives" GED) filtre strictement sur
+  `versement.etapeCode = 'archivage'` — **à ne pas confondre** avec le sous-système
+  d'archivage annuel Courrier/Projets/Missions (0082, différé, voir ci-dessous) : deux
+  fonctionnalités "archives" distinctes qui partagent juste le mot.
+
+  **Différé** : le sous-système `archivage_operations`/`archivage_elements` (0082 —
+  `fn_archivage_compter_eligibles`/`preparer`/`definir_selection`/`confirmer`, la
+  campagne annuelle de classement des courriers/projets/missions clôturés dans le plan
+  de classement GED). Décision assumée sans repasser par l'utilisateur, par analogie
+  directe avec la séquence déjà validée sur Courrier (cœur métier d'abord, sous-système
+  annexe ensuite) : c'est le plus gros morceau isolable de cette phase, il dépend en
+  lecture des tables Projets/Missions (existent en SQL, aucune entité NestJS encore —
+  Phases 5/6), et sa branche Courrier est la seule testable de bout en bout aujourd'hui.
+  À reprendre soit avec la Phase 5/6, soit en évoquant explicitement le rapport de
+  recherche déjà produit (contient le détail complet des 4 fonctions + le helper
+  `archivageGetOrCreateDossier`) pour ne pas re-lire ce SQL une seconde fois.
+
+  25 vérifications HTTP + 7 vérifications ciblées sur la confidentialité, 0 échec,
+  contre le serveur réel et la base locale (aucun bug trouvé cette fois, contrairement
+  au stockage Courrier) : dossier (créer/lister), versement (créer, refus de soumission
+  à vide, soumission), document créé avec fichier en une seule requête multipart,
+  listage, version supplémentaire (numérotation majeure incrémentée correctement),
+  téléchargement par id de version (contenu exact), classement (repli 3 niveaux vérifié :
+  cible explicite -> `dossierCibleId` du versement -> inchangé), traçabilité de
+  consultation, ACL complète (utilisateur sans droit -> 404, droit direct accordé -> 200,
+  droit révoqué -> 404 de nouveau), workflow (aucune transition avant soumission, la
+  bonne après, bannette "à traiter" correcte, exécution de la transition, historique),
+  recherche Archives (ne trouve le document qu'une fois l'étape `archivage` atteinte),
+  modification directe. Cas confidentialité `'secrete'` vérifié séparément : bloqué sans
+  droit ; un droit direct sur le document passe outre `secrete` ; un droit hérité du
+  dossier seul ne le peut pas — les deux comportements exacts prédits par la lecture du
+  SQL, confirmés empiriquement du premier coup.
+
+  `seed-dev.ts` complété : module `ged`, actions `archiver`/`valider` (utiles dès
+  maintenant pour la permission de test, même si le sous-système d'archivage qui les
+  consomme est différé), workflow GED par défaut à 2 étapes (`depose` -> `archivage`,
+  cette dernière codée ainsi délibérément pour que `GedRechercheService` ait quelque
+  chose à trouver).
 

@@ -1,6 +1,6 @@
 # Migration Supabase → PostgreSQL direct (NestJS + TypeORM)
 
-Statut global : **Phases 0 à 4 terminées** (squelette NestJS + TypeORM + Auth JWT ; administration complète ; moteur de workflow générique + référentiel ; Courrier complet avec stockage ; GED complète avec stockage/versioning et ACL par document/dossier). Sous-système d'archivage annuel GED (0082, cross-module Courrier/Projets/Missions) différé. Phase 5 (Projets) à démarrer.
+Statut global : **Phases 0 à 5 terminées** (squelette NestJS + TypeORM + Auth JWT ; administration complète ; moteur de workflow générique + référentiel ; Courrier complet avec stockage ; GED complète avec stockage/versioning et ACL par document/dossier ; Projets complet — cœur métier V3, sans workflow moteur générique). Sous-système d'archivage annuel GED (0082, cross-module Courrier/Projets/Missions) différé. Phase 6 (Missions) à démarrer.
 
 ## Contexte
 
@@ -84,7 +84,7 @@ cette API au lieu de `supabase-js`.
 | 2 | Workflow / Référentiel (wrappers vers `fn_*`) | **Fait** (notifications/retards courrier différés, voir journal) |
 | 3 | Courrier | **Fait**, y compris stockage pièces jointes/décharge |
 | 4 | GED | **Fait**, y compris stockage/versioning ; archivage annuel (0082) différé — voir journal |
-| 5 | Projets | À faire |
+| 5 | Projets | **Fait**, cœur métier V3 uniquement (V1 phases/activites/taches et tables de suivi risques/problèmes/décisions/réunions/indicateurs différées, voir journal) |
 | 6 | Missions | À faire |
 | 7 | Notifications + cron (`@nestjs/schedule`) | À faire |
 | 8 | Frontend : remplacement des ~65 fichiers `supabase-js` par un client HTTP | À faire |
@@ -476,4 +476,164 @@ cette API au lieu de `supabase-js`.
   consomme est différé), workflow GED par défaut à 2 étapes (`depose` -> `archivage`,
   cette dernière codée ainsi délibérément pour que `GedRechercheService` ait quelque
   chose à trouver).
+
+- 2026-08-29 : Phase 5 (Projets) livrée et testée en réel — `server/projets/`. Périmètre
+  : cœur métier V3 (`projets`, `projet_membres`, `livrables`, `avenants`,
+  `avenant_livrables`, `projet_contacts_execution`, `decaissements`,
+  `projet_visibilite_entites`, `projet_visibilite_utilisateurs`) + l'endpoint générique de
+  dépôt de document projet (portage de `app.fn_ajouter_document_projet`, réutilisant le
+  stockage GED existant).
+
+  **Écart de périmètre assumé, décidé sans repasser par l'utilisateur** (par analogie
+  avec les écarts déjà validés en Phases 3/4) : les tables `phases`/`activites`/`taches`
+  (V1, 0010) et les tables de suivi `projet_risques`/`projet_problemes`/
+  `projet_decisions`/`projet_reunions`/`projet_reunion_participants`/
+  `projet_indicateurs` (V1, jamais reprises par V2/V3) **ne sont pas portées**. Vérifié
+  empiriquement (`grep` sur `src/`) qu'aucun hook/service/composant frontend n'y touche
+  — même statut que `ged_categories` en Phase 4 (dead code applicatif, confirmé par le
+  commentaire de tête de 0072 : "les tables phases/activites/taches restent en base...
+  mais ne sont plus référencées par l'application à partir de cette version"). Ces
+  tables restent en base, intactes, rejouables si l'utilisateur veut un jour les
+  ressusciter — mais aucune route/entité NestJS ne les expose.
+
+  **Reclassification de catégorie** (comme `fn_notifier_transition` en Phase 2) :
+  `app.fn_recalculer_avancement_projet`, `app.fn_verifier_responsable_livrable` et
+  `app.fn_verifier_decaissement` (catégorie 6 dans le découpage initial de
+  MIGRATION.md) sont en réalité des fonctions de **trigger** (`trg_livrables_
+  recalcule_avancement`, `trg_livrables_verifier_responsable`,
+  `trg_decaissements_verifier`), jamais appelées en RPC directe par le frontend
+  (vérifié par `grep` — seuls des commentaires y font référence). Reclassées de facto
+  catégorie 6 → catégorie 1 : laissées vivre en SQL, elles se déclenchent
+  automatiquement sur toute écriture TypeORM sur `livrables`/`decaissements`, sans code
+  applicatif dédié (même mécanisme que `app.fn_audit_trigger`, confirmé empiriquement
+  ci-dessous). `LivrablesService`/`DecaissementsService` dupliquent néanmoins la
+  validation en TypeScript (membre actif / contact du projet ; cumul pourcentage/montant
+  par origine) pour renvoyer un message 400 clair avant de toucher la base plutôt que de
+  laisser remonter l'erreur PL/pgSQL brute — le trigger SQL reste le filet de sécurité
+  final, pas dupliqué pour rien.
+
+  `ProjetsService` : `canView`/`canModifier` (portage de `app.can_view_projet` 0071
+  dernier corps — la branche `sponsor_id` a été retirée par 0069/0071 au profit du champ
+  texte libre `financement`, sans équivalent d'accès privilégié — et `app.can_modifier_
+  projet` 0066), `estResponsableHierarchique` (`app.fn_est_responsable_hierarchique`,
+  remontée récursive `parent_entite_id`), CRUD projet, `verifierCloture`/
+  `demanderCloture`/`confirmerCloture`/`rejeterCloture` (workflow de clôture à 2 niveaux,
+  0066/0073 dernier corps — poids des livrables à 100% requis, tous réalisés/validés/
+  annulés, justificatif obligatoire sur les réalisés ; étape 2 réservée au responsable du
+  projet ; étape 3 réservée au responsable hiérarchique de l'entité porteuse ou à la
+  permission `projets/valider`), `historique` (`app.fn_historique_projet`, dernier corps
+  0073 — plus de branches phases/activites/taches, mortes depuis V3). Contrairement à
+  Courrier/GED, **aucun couplage au moteur de workflow générique** : le SQL d'origine ne
+  démarre jamais de `workflow_instance` pour un projet (le champ `livrables.
+  workflow_instance_id` existe en base mais n'est référencé par aucune fonction depuis
+  V1/V2 — colonne morte, mappée pour fidélité de schéma seulement).
+
+  Politique de suppression (`projets_delete`, 0016) jamais retouchée par V2/V3 :
+  réservée à la permission `projets/supprimer`, indépendamment de responsable/membre —
+  reproduite telle quelle dans `ProjetsService.remove`.
+
+  `LivrablesService` : CRUD + `cloturer` (portage de `app.fn_cloturer_livrable`, dernier
+  corps 0073 — `projet_id` direct, plus de join `activite`/`phase` ; refuse la clôture
+  sans document justificatif). Le responsable du livrable garde la main dessus même sans
+  droit d'écriture global sur le projet (`livrables_write`, 0074).
+
+  `AvenantsService` : CRUD avenants + livrables impactés (`avenant_livrables`, avec un
+  endpoint `PUT` "remplacer l'ensemble" en plus d'ajout/retrait unitaire — même patron
+  que `ProjetVisibiliteService`).
+
+  `DecaissementsService.creerAvecJustificatif` : portage de la séquence "créer la ligne
+  `decaissements` d'abord (pour obtenir son id) puis déposer le justificatif via
+  `p_decaissement_id`, rollback (suppression du décaissement) si l'upload échoue" du
+  frontend actuel (`services/projets/decaissements.ts`) — même patron que
+  `ProjetsDocumentsService.ajouterDocumentAvecFichier` et `GedStorageService.
+  creerDocumentAvecFichier`. Validation de cumul par origine (`app.fn_verifier_
+  decaissement`, dernier corps 0075 : cumul distinct par `avenant_id`, ou pour le
+  contrat d'origine si `avenant_id` est nul, plafonné par `avenants.montant` ou
+  `projets.budget_prevu` respectivement).
+
+  `ProjetsDocumentsService` : portage de `app.fn_ajouter_document_projet` (dernier corps
+  0073, avec `p_decaissement_id`) — insère directement dans `documents` en bypassant la
+  permission GED classique (`ged/creer`), gardé par `can_modifier_projet` comme le SQL
+  d'origine. Réutilise `GedStorageService.verserVersion` **tel quel** (Phase 4, aucune
+  modification) pour l'upload du fichier : le document vient d'être créé par
+  l'appelant (`created_by = user.id`), donc son `canView`/`assertModifiable` passent
+  sans changement. `GedStorageService` exporté par `GedModule` (n'était pas exporté en
+  Phase 4, faute de consommateur externe) pour permettre cette réutilisation
+  cross-module.
+
+  **Extension délibérée d'un service déjà livré (Phase 4)**, pas une simple lecture :
+  `GedDocumentsService.canView` ne portait que `app.can_view_document` dans son corps
+  0057 (Phase 4 précédait Projets, la branche `projet_id` de 0066 n'existait pas encore
+  côté NestJS). Ajoutée maintenant (dupliquée en SQL brut plutôt que par dépendance vers
+  `ProjetsModule`, pour éviter un import circulaire — `ProjetsModule` dépend déjà de
+  `GedModule` pour `Document`/`GedStorageService`) : un document rattaché à un projet
+  hérite désormais de sa visibilité, en plus des voies d'accès GED classiques. **Bug réel
+  trouvé dans le SQL de production en écrivant cette extension** : le corps 0066 de
+  `app.can_view_document` (et sa reprise à l'identique par 0077 pour `mission_id`) a
+  **silencieusement perdu la coupure de confidentialité `secrete`** introduite en
+  0057/0058 — la branche `projet_id`/`mission_id` accorde l'accès sans jamais vérifier
+  `confidentialite_valeur_id`, et pire, elle est placée *avant* toute logique de
+  confidentialité dans le corps 0066/0077 (qui n'en a simplement plus). Comme pour la
+  régression `affecter`/`transmettre` de Courrier (Phase 3) et l'asymétrie `secrete` déjà
+  correctement implémentée en Phase 4, **décision assumée de corriger plutôt que
+  reproduire** : la branche `projet_id` ajoutée ici est gardée par `!estSecrete`, au même
+  titre que la permission `ged/consulter` juste au-dessus dans le code déjà existant. En
+  pratique sans impact observable aujourd'hui (aucune des fonctions de création de
+  document projet ne renseigne jamais `confidentialite_valeur_id`), mais corrige le
+  comportement pour le jour où un document projet serait reclassé confidentiel via
+  `GedDocumentsService.modifierDocument`.
+
+  `seed-dev.ts` complété : module `projets`, action `supprimer` (manquait globalement,
+  nécessaire à `ProjetsService.remove`), permissions `consulter`/`creer`/`modifier`/
+  `valider`/`supprimer`, et **référentiel `listes_valeurs`/`valeurs_listes`** pour
+  `livrable_statut`/`projet_statut`/`document_type_projet` — jamais seedé pour
+  l'organisation `TEST` car les migrations 0065/0072 ne l'ont inséré que pour les
+  organisations déjà existantes *au moment du replay des migrations* (avant même la
+  création de `TEST`, faite après coup lors du bootstrap Phase 0). Sans ce complément,
+  impossible de tester `fn_cloturer_livrable`/`confirmerCloture` en réel.
+
+  **Bug réel trouvé et corrigé pendant le test en réel** (pas au build ni à la
+  relecture) : `ProjetsService.create` ne renseignait pas explicitement `avancementPct`/
+  `clotureStatut` dans l'objet passé à `create()`, comptant sur les défauts SQL (`0`/
+  `'aucune'`) — contrairement à la convention déjà suivie partout ailleurs dans le code
+  (Courrier renseigne explicitement chaque colonne à défaut SQL, jamais par omission).
+  Résultat : ces deux colonnes étaient bien écrites en base (defaults SQL appliqués) mais
+  **absentes de l'objet JSON retourné par l'API** juste après la création (TypeORM ne
+  réhydrate que les colonnes explicitement fournies ou marquées `@CreateDateColumn`/
+  générées — pas un simple défaut SQL sans métadonnée `default:` côté entité). Repéré en
+  inspectant la réponse de `POST /projets` pendant le test, pas par la simple lecture du
+  code. Corrigé en renseignant `avancementPct: '0'` et `clotureStatut: 'aucune'`
+  explicitement — aligné sur la convention Courrier.
+
+  **Second écart assumé pendant le test** (pas un bug bloquant, une lacune UX) : la
+  contrainte unique `(organisation_id, code)` sur `projets` remontait en 500 brut sur
+  doublon, alors que `code` est un champ saisi à la main par l'utilisateur (contrairement
+  au numéro auto-généré de Courrier, qui ne peut pas entrer en collision) — donc un cas
+  d'erreur bien plus probable en usage réel. Ajout d'une traduction ciblée
+  (`code Postgres '23505'` → `409 ConflictException`) dans `ProjetsService.create`/
+  `update`, sans introduire de mécanisme générique de traduction d'erreurs SQL
+  (aucun précédent dans le code déjà écrit, portée volontairement limitée à ce seul
+  point d'écriture).
+
+  30+ vérifications HTTP + inspection DB directe, 0 échec après les deux corrections
+  ci-dessus, contre le serveur réel et la base locale : CRUD projet ; visibilité `membres`
+  (403/404 pour un non-membre, 200 après ajout, lecture seule pour un membre
+  `peut_modifier=false`) ; visibilité `agents` (`projet_visibilite_utilisateurs`, 404 puis
+  200 après ajout) ; validation `fn_verifier_responsable_livrable` (responsable non-membre
+  refusé, contact hors-projet refusé, les deux avec message clair) ; recalcul automatique
+  de `projets.avancement_pct` par le trigger SQL après clôture de livrable (60% puis 100%
+  — confirmé sans aucun code applicatif de recalcul) ; clôture de livrable refusée sans
+  justificatif (400) puis acceptée avec (200) ; visibilité d'un document projet pour un
+  membre non-créateur (confirmation directe de l'extension `GedDocumentsService.canView`
+  ci-dessus) ; avenant + livrable impacté ; décaissement avec justificatif obligatoire,
+  cumul de pourcentage refusé au-delà de 100% avec rollback vérifié (le décaissement
+  refusé n'apparaît pas dans la liste) ; workflow de clôture complet (checklist bloquante
+  tant que les livrables ne sont pas tous réalisés/validés, demande réservée au
+  responsable, rejet/confirmation réservés au responsable hiérarchique — 403 pour un
+  utilisateur tiers, 200 pour le responsable d'entité — statut `projet_statut/termine`
+  posé à la confirmation, projet en lecture seule ensuite) ; historique agrégeant tous les
+  objets du graphe (projet, livrables, membres, avenants, documents, décaissements,
+  contacts d'exécution) dans le bon ordre ; suppression de projet gardée par la
+  permission `projets/supprimer` ; 404 sur projet/avenant/décaissement inexistant ; 409 sur
+  code de projet dupliqué.
 

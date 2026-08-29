@@ -16,6 +16,7 @@ import { ParametrageModule } from './administration/parametrage/parametrage.modu
 import { WorkflowModule } from './workflow/workflow.module';
 import { CourrierModule } from './courrier/courrier.module';
 import { GedModule } from './ged/ged.module';
+import { ProjetsModule } from './projets/projets.module';
 import { AuditModule } from './audit/audit.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
@@ -36,6 +37,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     WorkflowModule,
     CourrierModule,
     GedModule,
+    ProjetsModule,
     AuditModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],

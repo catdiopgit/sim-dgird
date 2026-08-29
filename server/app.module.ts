@@ -17,6 +17,7 @@ import { WorkflowModule } from './workflow/workflow.module';
 import { CourrierModule } from './courrier/courrier.module';
 import { GedModule } from './ged/ged.module';
 import { ProjetsModule } from './projets/projets.module';
+import { MissionsModule } from './missions/missions.module';
 import { AuditModule } from './audit/audit.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
@@ -38,6 +39,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     CourrierModule,
     GedModule,
     ProjetsModule,
+    MissionsModule,
     AuditModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],

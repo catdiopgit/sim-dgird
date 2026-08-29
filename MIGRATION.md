@@ -1,6 +1,6 @@
 # Migration Supabase → PostgreSQL direct (NestJS + TypeORM)
 
-Statut global : **Phases 0 à 5 terminées** (squelette NestJS + TypeORM + Auth JWT ; administration complète ; moteur de workflow générique + référentiel ; Courrier complet avec stockage ; GED complète avec stockage/versioning et ACL par document/dossier ; Projets complet — cœur métier V3, sans workflow moteur générique). Sous-système d'archivage annuel GED (0082, cross-module Courrier/Projets/Missions) différé. Phase 6 (Missions) à démarrer.
+Statut global : **Phases 0 à 6 terminées** (squelette NestJS + TypeORM + Auth JWT ; administration complète ; moteur de workflow générique + référentiel ; Courrier complet avec stockage ; GED complète avec stockage/versioning et ACL par document/dossier ; Projets complet — cœur métier V3, sans workflow moteur générique ; Missions complet, avec workflow moteur générique). Sous-système d'archivage annuel GED (0082, cross-module Courrier/Projets/Missions) différé. Phase 7 (Notifications + cron) à démarrer.
 
 ## Contexte
 
@@ -85,7 +85,7 @@ cette API au lieu de `supabase-js`.
 | 3 | Courrier | **Fait**, y compris stockage pièces jointes/décharge |
 | 4 | GED | **Fait**, y compris stockage/versioning ; archivage annuel (0082) différé — voir journal |
 | 5 | Projets | **Fait**, cœur métier V3 uniquement (V1 phases/activites/taches et tables de suivi risques/problèmes/décisions/réunions/indicateurs différées, voir journal) |
-| 6 | Missions | À faire |
+| 6 | Missions | **Fait** |
 | 7 | Notifications + cron (`@nestjs/schedule`) | À faire |
 | 8 | Frontend : remplacement des ~65 fichiers `supabase-js` par un client HTTP | À faire |
 
@@ -636,4 +636,93 @@ cette API au lieu de `supabase-js`.
   contacts d'exécution) dans le bon ordre ; suppression de projet gardée par la
   permission `projets/supprimer` ; 404 sur projet/avenant/décaissement inexistant ; 409 sur
   code de projet dupliqué.
+
+- 2026-08-29 : Phase 6 (Missions) livrée et testée en réel — `server/missions/`. Entités :
+  `Mission`, `MissionParticipant`, `MissionActionSuivi`, `MissionDepense` (0011, schéma
+  d'origine, pas de réécriture ultérieure du schéma contrairement aux fonctions).
+  Contrairement à Projets (workflow de clôture maison, sans moteur générique), Missions
+  utilise le moteur `WorkflowEngineService` de la Phase 2 comme Courrier/GED —
+  `fn_creer_mission` (0077, dernier corps) compose `ParametrageService.genererNumero` +
+  `WorkflowEngineService.demarrerWorkflow` dans une seule transaction, même patron que
+  `CourriersService.create` (Phase 3). `MissionsWorkflowService` porte
+  `fn_transitions_disponibles_mission`/`fn_executer_transition_mission` (0077) : même
+  niveau de garde explicite que Courrier (revérifie `can_view_mission` et la présence
+  d'une instance de workflow avant de déléguer), plus gardé que l'équivalent GED
+  (`fn_executer_transition_versement`, entièrement délégué) — différence de conception
+  du SQL source, reproduite fidèlement, pas une régression.
+
+  `app.can_view_mission`/`app.can_modifier_mission` (0016/0077) portés dans
+  `MissionsService` : visibilité via entité courante, responsable, permission
+  `missions/consulter` ou participation (`mission_participants`, sans condition de date
+  contrairement à `projet_membres.date_retrait`) ; modification via responsable ou
+  permission `missions/modifier` uniquement — pas de notion de "membre contributeur"
+  comme sur Projets, la table `mission_participants` n'a pas de colonne équivalente à
+  `peut_modifier`. `fn_est_responsable_hierarchique` n'est pas concerné par Missions
+  (jamais appelé par `can_modifier_mission`, contrairement à Projets) — aucun portage
+  supplémentaire nécessaire ici.
+
+  `app.fn_recalculer_budget_reel_mission` (catégorisée Missions dans le découpage
+  d'origine) **n'est pas portée en TypeScript** : c'est en réalité un trigger SQL vivant
+  (`app.trg_mission_depenses_recalcule_budget`, posé par 0077) qui se déclenche pour tout
+  INSERT/UPDATE/DELETE sur `mission_depenses`, y compris ceux émis par TypeORM — reclassée
+  de facto catégorie 7 → catégorie 1, même raisonnement déjà appliqué à
+  `app.sync_etape_cache` en Phase 2. Confirmé empiriquement : `budget_reel` passe de
+  `null` à la somme exacte des dépenses après chaque insertion, sans aucun code
+  applicatif de recalcul.
+
+  `MissionsDocumentsService` porte `app.fn_ajouter_document_mission` (0077, les 4 rôles
+  `ordre_mission`/`compte_rendu`/`pv`/`depense`), même patron que
+  `ProjetsDocumentsService` (Phase 5) : bypasse la permission GED classique
+  (`can_modifier_mission` suffit), réutilise `GedStorageService.verserVersion` avec le
+  même repli "supprime le document orphelin si l'upload échoue". Complète
+  `GedDocumentsService.canView` avec une branche `missionId` symétrique à la branche
+  `projetId` existante (dupliquant `app.can_view_mission` en SQL brut, même raison
+  qu'évoquée pour `peutVoirProjet` : éviter un import circulaire GedModule/MissionsModule)
+  — gatée par `!estSecrete` pour la même raison que la branche projet (voir la note sur
+  la régression 0066/0077 dans le journal Phase 5) : confirmé qu'un document `secrete`
+  rattaché à une mission reste invisible pour un participant sans droit direct, alors
+  qu'il restait visible pour le créateur.
+
+  **Bug réel trouvé et corrigé pendant le test en réel** : créer une mission avec un
+  `entiteId` inexistant passait la vérification `hasPermission('missions','creer',...)`
+  (portée `organisation` du rôle de test, qui ne valide pas l'existence de l'entité) puis
+  remontait en `500` brut sur la violation de contrainte FK `missions.entite_id` au moment
+  de l'insertion — repéré uniquement parce que le test exerçait délibérément ce cas
+  limite, pas par la lecture du code. Corrigé par une vérification d'existence explicite
+  avant la transaction (`404` propre). Le même gap existe très probablement dans
+  Courrier/Projets (déjà livrés, non modifiés dans cette passe — portée volontairement
+  limitée à Missions).
+
+  **Écart assumé, non corrigé** : `ProjetsDocumentsService.listByProjet`/`listByLivrable`
+  (Phase 5) et son miroir `MissionsDocumentsService.listByMission` ne filtrent pas
+  document par document avec `canView` — ils vérifient une seule fois l'accès au
+  projet/à la mission porteur, puis renvoient tous les documents rattachés. Concrètement,
+  un document marqué `secrete` reste donc visible dans cette liste pour un participant
+  qui n'y aurait pas accès via `GET /ged/documents/:id` directement (confirmé
+  empiriquement pendant ce test). C'est un gap pré-existant depuis la Phase 5, pas
+  introduit ici ; laissé tel quel par cohérence entre les deux modules plutôt que
+  corrigé unilatéralement côté Missions seulement — à traiter dans une passe dédiée si
+  jugé prioritaire (filtrage `canView` par document dans les deux services).
+
+  `seed-dev.ts` complété : module `missions`, permissions
+  (`consulter`/`creer`/`modifier`/`valider`/`supprimer`), workflow Missions par défaut à
+  3 étapes (`creation` → `en-cours` → `cloture`) et règle de numérotation
+  `MIS-{ANNEE}-{SEQ:4}`.
+
+  30+ vérifications HTTP contre le serveur réel (`npx nest start`) et la base locale,
+  0 échec après la correction ci-dessus : création (numérotation `MIS-2026-0001`,
+  démarrage de workflow) ; visibilité (404 pour un non-participant, 200 après ajout comme
+  participant) ; action de suivi modifiable par son propre responsable même sans
+  permission `missions/modifier` (règle par ligne de `mission_actions_suivi_write`,
+  0016) ; dépenses avec recalcul automatique de `budget_reel` par trigger, refusées pour
+  un participant sans droit de modification (403) ; documents (upload multipart pour les
+  4 rôles, y compris justificatif de dépense corrélé) ; confidentialité `secrete` (visible
+  pour le créateur, invisible pour un participant sans droit direct) ; workflow (transition
+  `demarrer` exécutée, `etape_code`/`etape_libelle` synchronisés par le trigger SQL
+  `sync_etape_cache`, historique et instance cohérents) ; suppression gardée par la
+  permission `missions/supprimer` (403 pour un participant, 200 pour le titulaire de la
+  permission, 404 ensuite) ; 401 sans JWT, 404 mission/entité inexistante, 400 rôle de
+  document invalide ou dépense hors mission, 404 transition inexistante.
+
+  `npx nest build` passe sans erreur.
 

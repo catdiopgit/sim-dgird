@@ -14,7 +14,7 @@ import { useState, type CSSProperties } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Navigate, useLocation } from 'react-router-dom';
 import { z } from 'zod';
-import { DrapeauTchad } from '../components/branding/DrapeauTchad';
+import { DrapeauSenegal } from '../components/branding/DrapeauSenegal';
 import { env } from '../config/env';
 import { useAuth } from '../hooks/useAuth';
 import { darken } from '../utils/color';
@@ -31,7 +31,7 @@ const trustPoints = [
   { icon: <FileProtectOutlined />, label: 'Archivage numérique sécurisé' },
   { icon: <TeamOutlined />, label: 'Accès maîtrisé par rôle' },
   { icon: <ProjectOutlined />, label: 'Gestion des projets' },
-  { icon: <CompassOutlined />, label: 'Gestion des missions' },
+  { icon: <CompassOutlined />, label: 'Gestion des Passations des Marchés' },
 ];
 
 // Identité institutionnelle de la page de connexion : en dur, volontairement
@@ -39,9 +39,10 @@ const trustPoints = [
 // — contrairement au reste de l'application (en-tête, documents imprimés),
 // qui continue d'utiliser l'organisation configurée en base
 // (useOrganisationBranding, App.tsx). Ne pas fusionner ces deux sources.
-const NOM_ORGANISATION = 'DIRECTION GENERALE DES DOUANES ET DES DROITS INDIRECTS - DGDDI';
-const NOM_PAYS = 'RÉPUBLIQUE DU TCHAD';
-const DEVISE_PAYS = 'Unité - Travail - Progrès';
+const NOM_ORGANISATION = 'DIRECTION GENERALE DES INSFRASTRUCTURES ROUTIERES ET DU DESCENCLAVEMENT - DGRID';
+const NOM_PAYS = 'RÉPUBLIQUE DU SÉNÉGAL';
+const DEVISE_PAYS = 'Un peuple - Un but - Une foi';
+const NOM_MINISTERE = 'MINISTÈRE DES INFRASTRUCTURES';
 const NOM_SYSTEME = 'SYSTÈME D’INFORMATION MANAGÉRIEL – SIM';
 
 // Bleu institutionnel fixe pour cette page uniquement : volontairement
@@ -95,10 +96,11 @@ export function LoginPage() {
             (voir index.css). */}
         <div className="login-brand-topbar" style={styles.brandTopbar}>
           <div style={styles.paysLigne}>
-            <DrapeauTchad />
+            <DrapeauSenegal />
             <span style={styles.paysNom}>{NOM_PAYS}</span>
           </div>
           <span style={styles.devise}>« {DEVISE_PAYS} »</span>
+          <span style={styles.ministere}>{NOM_MINISTERE}</span>
         </div>
 
         <div style={styles.brandContent}>
@@ -137,7 +139,7 @@ export function LoginPage() {
             </ul>
           </div>
         </div>
-        <span style={styles.brandFooter}>© {new Date().getFullYear()} — DGDDI</span>
+        <span style={styles.brandFooter}>© {new Date().getFullYear()} — DGIRD</span>
       </div>
 
       <div className="login-form-panel">
@@ -295,6 +297,12 @@ const styles = {
     fontSize: 13,
     fontStyle: 'italic',
     color: 'rgba(255, 255, 255, 0.7)',
+  },
+  ministere: {
+    fontSize: 12,
+    fontWeight: 600,
+    letterSpacing: '0.06em',
+    color: 'rgba(255, 255, 255, 0.85)',
   },
   tagline: {
     fontSize: 15,

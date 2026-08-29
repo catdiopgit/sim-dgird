@@ -23,6 +23,9 @@ dist-server
 .env.*
 !.env.example
 
+# Identifiants de connexion locaux (jamais commités)
+admin-login.txt
+
 # Supabase CLI local state (project ref, pooler URL, cached catalog)
 supabase/.temp/
 

@@ -37,8 +37,12 @@ statiques du frontend et rediriger `/api/*` vers l'API.
    https://www.postgresql.org/download/windows/ → installeur EDB. Noter le
    mot de passe du rôle `postgres` défini pendant l'installation. Le service
    Windows `postgresql-x64-<version>` démarre automatiquement.
-3. **Git** — https://git-scm.com/download/win (pour cloner/mettre à jour le
-   dépôt ; sinon, transférer les fichiers autrement, par ex. via un ZIP).
+3. **Git** — optionnel. L'accès à github.com étant bloqué depuis ce VPS,
+   le code est transféré par **fichier ZIP** (étape 3) plutôt que par
+   `git clone`/`git pull`, y compris pour les mises à jour futures (étape
+   9). Installer Git n'est donc pas nécessaire, sauf si vous voulez
+   garder un historique local (`git init` sur les fichiers extraits, sans
+   remote) pour comparer deux versions déployées.
 4. **IIS** (rôle Windows) — Gestionnaire de serveur → Ajouter des rôles et
    fonctionnalités → Serveur Web (IIS). Puis installer deux extensions IIS
    (pas incluses par défaut) depuis iis.net :
@@ -52,10 +56,17 @@ statiques du frontend et rediriger `/api/*` vers l'API.
 
 ## 3. Récupérer le code et configurer
 
+github.com étant bloqué depuis ce VPS, le code est transféré par ZIP :
+
+1. Sur le poste de développement : `git archive --format=zip -o sim-dgird-deploy.zip HEAD`
+   à la racine du dépôt (produit un instantané exact du code committé, sans
+   `.git`/`node_modules`/`dist`/`.env` — rien de tout ça n'est versionné).
+2. Transférer `sim-dgird-deploy.zip` sur le VPS via RDP (presse-papiers
+   partagé, ou un lecteur réseau/dossier partagé mappé dans la session RDP).
+3. Sur le VPS, extraire l'archive dans `D:\sim-dgird` puis :
+
 ```powershell
-cd D:\
-git clone https://github.com/catdiopgit/sim-dgird.git
-cd sim-dgird
+cd D:\sim-dgird
 npm install
 ```
 
@@ -245,18 +256,43 @@ En cas de souci, consulter les fichiers de log configurés ci-dessus.
 
 ## 9. Mises à jour futures
 
+github.com étant bloqué depuis ce VPS, chaque mise à jour repasse par un
+nouveau ZIP (comme à l'étape 3) plutôt que `git pull` :
+
+1. Sur le poste de développement, à la racine du dépôt (à jour) :
+   `git archive --format=zip -o sim-dgird-deploy.zip HEAD`, puis transférer
+   le ZIP sur le VPS (RDP).
+2. Sur le VPS :
+
 ```powershell
+net stop SimDgirdApi
+
+# Sauvegarde de sécurité, .env n'est jamais dans le ZIP (non versionné)
+Copy-Item D:\sim-dgird\.env D:\sim-dgird.env.backup
+Rename-Item D:\sim-dgird D:\sim-dgird-old
+
+# Extraire le nouveau ZIP dans D:\sim-dgird (clic droit → Extraire tout,
+# ou Expand-Archive), puis :
+Copy-Item D:\sim-dgird.env.backup D:\sim-dgird\.env
 cd D:\sim-dgird
-git pull
 npm install
 npm run build
 npm run server:build
-net stop SimDgirdApi
-net start SimDgirdApi
 ```
 
 Si une nouvelle migration TypeORM a été ajoutée entre-temps :
 `npm run migration:run` avant de redémarrer le service.
+
+```powershell
+net start SimDgirdApi
+```
+
+Vérifier que l'application répond correctement (voir étape 8), puis
+supprimer `D:\sim-dgird-old` et `D:\sim-dgird.env.backup`. En cas de
+problème, il suffit de renommer `D:\sim-dgird-old` en `D:\sim-dgird` et de
+relancer le service pour revenir en arrière (garder aussi les migrations
+TypeORM en tête : un retour arrière du code après une migration déjà
+appliquée peut nécessiter `npm run migration:revert`).
 
 ## 10. Plus tard : nom de domaine + HTTPS
 

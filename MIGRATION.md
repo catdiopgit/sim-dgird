@@ -1,6 +1,6 @@
 # Migration Supabase → PostgreSQL direct (NestJS + TypeORM)
 
-Statut global : **Phases 0 à 6 terminées** (squelette NestJS + TypeORM + Auth JWT ; administration complète ; moteur de workflow générique + référentiel ; Courrier complet avec stockage ; GED complète avec stockage/versioning et ACL par document/dossier ; Projets complet — cœur métier V3, sans workflow moteur générique ; Missions complet, avec workflow moteur générique). Sous-système d'archivage annuel GED (0082, cross-module Courrier/Projets/Missions) différé. Phase 7 (Notifications + cron) à démarrer.
+Statut global : **Phases 0 à 7 terminées** (squelette NestJS + TypeORM + Auth JWT ; administration complète ; moteur de workflow générique + référentiel ; Courrier complet avec stockage ; GED complète avec stockage/versioning et ACL par document/dossier ; Projets complet — cœur métier V3, sans workflow moteur générique ; Missions complet, avec workflow moteur générique ; Notifications + cron — détection de retards et envoi SMTP internalisés via `@nestjs/schedule`). Sous-système d'archivage annuel GED (0082, cross-module Courrier/Projets/Missions) différé. Phase 8 (Frontend : remplacement de `supabase-js` par un client HTTP) à démarrer — dernière phase.
 
 ## Contexte
 
@@ -86,7 +86,7 @@ cette API au lieu de `supabase-js`.
 | 4 | GED | **Fait**, y compris stockage/versioning ; archivage annuel (0082) différé — voir journal |
 | 5 | Projets | **Fait**, cœur métier V3 uniquement (V1 phases/activites/taches et tables de suivi risques/problèmes/décisions/réunions/indicateurs différées, voir journal) |
 | 6 | Missions | **Fait** |
-| 7 | Notifications + cron (`@nestjs/schedule`) | À faire |
+| 7 | Notifications + cron (`@nestjs/schedule`) | **Fait** |
 | 8 | Frontend : remplacement des ~65 fichiers `supabase-js` par un client HTTP | À faire |
 
 ## Journal
@@ -723,6 +723,110 @@ cette API au lieu de `supabase-js`.
   permission `missions/supprimer` (403 pour un participant, 200 pour le titulaire de la
   permission, 404 ensuite) ; 401 sans JWT, 404 mission/entité inexistante, 400 rôle de
   document invalide ou dépense hors mission, 404 transition inexistante.
+
+  `npx nest build` passe sans erreur.
+
+- 2026-08-29 : Phase 7 (Notifications + cron) livrée et testée en réel. Périmètre :
+  portage de `app.fn_detecter_et_notifier_retards` (dernier corps 0059) et
+  internalisation de l'envoi SMTP (ex-Edge Function `envoyer-notifications-email`) via
+  `@nestjs/schedule` (déjà enregistré dans `AppModule` depuis la Phase 0, jamais utilisé
+  jusqu'ici). `app.fn_notifier_transition` reste un trigger SQL vivant, décision Phase 2
+  inchangée (rien à porter) ; sa branche GED interroge toujours `ged_versements` (reponté
+  en 0059, avant même la Phase 4 NestJS — aucun changement requis côté serveur).
+
+  `WorkflowEngineService.resolveDestinatairesEtape` ajouté (méthode additive, aucun
+  comportement existant modifié) : énumère TOUS les utilisateurs satisfaisant un acteur de
+  transition (role/fonction/entite/entite_et_descendants/utilisateur/
+  responsable_entite_courante/superieur_hierarchique_courant), par opposition à
+  `acteurDeTransitionAutorise` (Phase 2) qui ne fait que vérifier UN candidat — nécessaire
+  pour déterminer QUI relancer, pas seulement QUI est autorisé à agir. Même jeu de
+  conditions SQL, une requête combinée par ligne `workflow_transition_roles` (fidèle à la
+  boucle de l'origine).
+
+  `server/notifications/retards.service.ts` (`RetardsService`, cron horaire
+  `CronExpression.EVERY_HOUR`) : reprend telle quelle la double boucle 0059 — (1) instances
+  `en_cours` dont l'étape courante dépasse `workflow_etapes.delai_jours`, résolution de
+  l'objet porteur (courriers / ged_versements / missions, dans cet ordre, comme l'origine),
+  ignoré si `supprime_le` renseigné, notification de chaque destinataire résolu via
+  `resolveDestinatairesEtape` + escalade au responsable de l'entité parente de l'objet
+  s'il existe ; (2) échéances `courrier_destinataires` (`type_diffusion='principal'`)
+  dépassées, indépendamment du délai d'étape, spécifique Courrier. Déduplication
+  au jour/objet fidèle à l'origine (`titre like 'Retard :%' and created_at::date =
+  current_date`) — **partagée entre les deux boucles** : un objet déjà notifié par la
+  boucle (1) le même jour n'est pas re-notifié par la boucle (2), même pour une raison
+  différente (comportement de l'origine, pas une régression du portage — vérifié
+  empiriquement pendant le test, voir plus bas).
+
+  `server/notifications/email-notifications.service.ts` (`EmailNotificationsService`, cron
+  5 min `CronExpression.EVERY_5_MINUTES`) : sélectionne les notifications `envoye_le is
+  null` (limite 200, plus ancien d'abord), groupe par organisation, charge
+  `parametres_smtp` (déjà porté en Phase 1 — `mot_de_passe` chiffré avec
+  `server/common/crypto/encryption.util.ts`, dont le commentaire anticipait déjà
+  explicitement cette Phase 7), ignore une organisation sans SMTP actif configuré (les
+  notifications restent simplement en attente, reprises automatiquement plus tard — même
+  comportement que l'Edge Function d'origine), envoie via `nodemailer` (nouvelle
+  dépendance ; `secure` = vrai uniquement si `securite='ssl'`, portage direct de
+  l'interprétation `tls: securite==='ssl'` de la version Deno), marque `envoye_le` en lot
+  pour les seuls envois réussis, catch par notification (un échec individuel n'interrompt
+  pas le lot).
+
+  Aucun endpoint HTTP ajouté pour ces deux jobs : contrairement aux Edge Functions
+  d'origine (invoquées périodiquement depuis l'extérieur via le tableau de bord Supabase,
+  avec vérification du bearer `service_role`), `@nestjs/schedule` internalise l'horloge —
+  il n'y a plus d'appelant externe à authentifier.
+
+  **Observation hors périmètre, non corrigée** : `app.set_entite_chemin()` (catégorie 1,
+  trigger SQL, inchangé depuis la Phase 0) référence l'opérateur de concaténation `ltree
+  ||` sans qualifier son schéma ; le `search_path` par défaut de cette base locale
+  (`"$user", public`) ne contient pas `extensions`, où l'opérateur est défini par
+  l'extension `ltree`. Résultat : créer une entité avec un `parent_entite_id` renseigné
+  échoue (`l'opérateur n'existe pas : extensions.ltree || extensions.ltree`) sur cette base
+  locale précise. Découvert seulement maintenant car aucune phase précédente n'avait testé
+  la création d'une entité enfant (tous les jeux de test n'utilisaient qu'une entité racine
+  unique). Probablement sans impact en production Supabase (où `search_path` inclut
+  généralement `extensions` par défaut) — à vérifier côté utilisateur si la hiérarchie
+  d'entités est exercée en pratique. Contourné pour le test ci-dessous par un `SET
+  search_path` scoped à la session de test uniquement (aucun changement de code produit).
+
+  **Tests réels, sans mock, contre le serveur (`npx nest start`) et la base locale** :
+  - Retards d'étape + escalade : `workflow_etapes.delai_jours` mis à 0 sur l'étape
+    'Enregistré' du workflow Courrier (6 instances `en_cours` concernées), acteur
+    `utilisateur` ajouté sur la transition sortante, un courrier temporairement rattaché à
+    une entité enfant (créée pour le test) dont l'entité parente porte un responsable —
+    7 notifications créées en un passage (6 relances + 1 escalade), exactement le compte
+    attendu ; second passage immédiat : 0 nouvelle notification (idempotence confirmée) ;
+    contenu vérifié ligne à ligne (destinataires, titres, messages).
+  - Échéance courrier en isolation : délai d'étape réinitialisé, notification du jour
+    supprimée pour l'objet testé, `courrier_destinataires.echeance` positionnée à hier sur
+    un courrier `en_cours` distinct → 1 notification "Échéance dépassée depuis 1 jour(s)."
+    générée, confirmant que la seconde boucle fonctionne indépendamment de la première
+    quand elles ne se chevauchent pas sur le même objet le même jour.
+  - Emails, cas SMTP non configuré : organisation sans `parametres_smtp` → 0 envoyée, 0
+    échouée, toutes en attente (comportement de repli correct).
+  - Emails, cas SMTP configuré mais injoignable : `parametres_smtp` factice
+    (`localhost:1025`, mot de passe chiffré/déchiffré avec succès) sans serveur à l'écoute
+    → échec propre par notification (`ECONNREFUSED` catché individuellement), `envoye_le`
+    resté `null` pour les 18 notifications concernées (aucune marquée envoyée à tort),
+    reprise possible au prochain passage du cron.
+  - Emails, envoi réel de bout en bout : un serveur SMTP local jetable (`smtp-server` +
+    `mailparser`, installés temporairement hors périmètre produit puis désinstallés) monté
+    sur le port 1025 — **18 emails reçus avec succès**, destinataire/sujet/corps exacts
+    vérifiés pour chacun (dont les 8 notifications de retard du test précédent et 10
+    notifications Courrier restées en attente depuis les tests de la Phase 3), `envoye_le`
+    correctement renseigné en lot. Contrairement à la réserve envisagée dans la directive
+    de cette phase, l'envoi SMTP réel **a bien pu être vérifié de bout en bout**, pas
+    seulement la sélection/le marquage.
+  - Toutes les données et notifications créées pour ces tests ont été nettoyées après coup
+    (acteur de transition, entité enfant, destinataire à échéance, `parametres_smtp`
+    factice, notifications "Retard :" générées) ; aucun script de test n'a été laissé dans
+    `server/scripts/`.
+
+  `npx nest build` passe sans erreur ; démarrage réel (`npx nest start`) vérifié sans
+  erreur après le nettoyage final, `NotificationsModule` (et donc `RetardsService`/
+  `EmailNotificationsService`, tous deux `@Cron`) s'initialise correctement dans le graphe
+  de dépendances (importé transitivement via `CourrierModule`, singleton partagé — pas de
+  double enregistrement des jobs malgré les imports multiples de `WorkflowModule` par
+  GED/Missions/Projets).
 
   `npx nest build` passe sans erreur.
 

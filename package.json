@@ -14,7 +14,9 @@
     "migration:generate": "cross-env TS_NODE_PROJECT=server/tsconfig.json typeorm-ts-node-commonjs migration:generate -d server/config/data-source.ts",
     "migration:run": "cross-env TS_NODE_PROJECT=server/tsconfig.json typeorm-ts-node-commonjs migration:run -d server/config/data-source.ts",
     "migration:revert": "cross-env TS_NODE_PROJECT=server/tsconfig.json typeorm-ts-node-commonjs migration:revert -d server/config/data-source.ts",
-    "migrate:passwords": "cross-env TS_NODE_PROJECT=server/tsconfig.json ts-node server/scripts/migrate-passwords.ts"
+    "migrate:passwords": "cross-env TS_NODE_PROJECT=server/tsconfig.json ts-node server/scripts/migrate-passwords.ts",
+    "bootstrap:admin": "cross-env TS_NODE_PROJECT=server/tsconfig.json ts-node server/scripts/bootstrap-admin.ts",
+    "seed:dev": "cross-env TS_NODE_PROJECT=server/tsconfig.json ts-node server/scripts/seed-dev.ts"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.2",

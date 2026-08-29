@@ -27,13 +27,9 @@ const LIBELLE_TYPE_ACTION: Record<TypeActionCourrier, string> = {
 };
 
 export function CourrierWorkflowPanel({ courrier, organisationId }: Props) {
-  const { data: instance, isLoading: chargementInstance } = useWorkflowInstance(
-    courrier.workflow_instance_id ?? undefined,
-  );
+  const { data: instance, isLoading: chargementInstance } = useWorkflowInstance(courrier.id);
   const { data: etapes } = useWorkflowEtapes(instance?.workflow_definition_id);
-  const { data: historique, isLoading: chargementHistorique } = useWorkflowHistorique(
-    courrier.workflow_instance_id ?? undefined,
-  );
+  const { data: historique, isLoading: chargementHistorique } = useWorkflowHistorique(courrier.id);
   const { data: utilisateurs } = useUtilisateursOptions(organisationId);
   const { data: entites } = useEntites(organisationId);
   const { data: referentiel } = useCourrierReferentiel(organisationId);
@@ -45,7 +41,7 @@ export function CourrierWorkflowPanel({ courrier, organisationId }: Props) {
   const executer = useExecuterTransitionCourrier(courrier.id);
 
   const historiqueIds = useMemo(() => (historique ?? []).map((h) => h.id), [historique]);
-  const { data: actionsHistorique } = useHistoriqueActions(historiqueIds);
+  const { data: actionsHistorique } = useHistoriqueActions(courrier.id, historiqueIds);
 
   const [actionOuverte, setActionOuverte] = useState<TransitionDisponible | null>(null);
 

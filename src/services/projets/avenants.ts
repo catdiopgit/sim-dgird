@@ -1,4 +1,5 @@
-import { supabase } from '../../config/supabase';
+import { api } from '../../config/apiClient';
+import { toCamelCase, toSnakeCase } from '../../utils/caseMapping';
 import type { Database } from '../../types/database';
 
 export type Avenant = Database['public']['Tables']['avenants']['Row'];
@@ -8,47 +9,41 @@ export type AvenantLivrable = Database['public']['Tables']['avenant_livrables'][
 export type AvenantLivrableInsert = Database['public']['Tables']['avenant_livrables']['Insert'];
 
 export async function listAvenants(projetId: string): Promise<Avenant[]> {
-  const { data, error } = await supabase
-    .from('avenants')
-    .select('*')
-    .eq('projet_id', projetId)
-    .order('date_avenant', { ascending: false });
-  if (error) throw error;
-  return data ?? [];
+  const data = await api.get<unknown[]>(`/projets/${projetId}/avenants`);
+  return toSnakeCase<Avenant[]>(data);
 }
 
 export async function createAvenant(insert: AvenantInsert): Promise<Avenant> {
-  const { data, error } = await supabase.from('avenants').insert(insert).select('*').single();
-  if (error) throw error;
-  return data;
+  const { projet_id, ...rest } = insert as AvenantInsert & { projet_id: string };
+  const data = await api.post<unknown>(`/projets/${projet_id}/avenants`, toCamelCase(rest));
+  return toSnakeCase<Avenant>(data);
 }
 
-export async function updateAvenant(id: string, patch: AvenantUpdate): Promise<Avenant> {
-  const { data, error } = await supabase.from('avenants').update(patch).eq('id', id).select('*').single();
-  if (error) throw error;
-  return data;
+export async function updateAvenant(projetId: string, id: string, patch: AvenantUpdate): Promise<Avenant> {
+  const data = await api.patch<unknown>(`/projets/${projetId}/avenants/${id}`, toCamelCase(patch));
+  return toSnakeCase<Avenant>(data);
 }
 
-export async function deleteAvenant(id: string): Promise<void> {
-  const { error } = await supabase.from('avenants').delete().eq('id', id);
-  if (error) throw error;
+export async function deleteAvenant(projetId: string, id: string): Promise<void> {
+  await api.delete(`/projets/${projetId}/avenants/${id}`);
 }
 
-export async function listAvenantLivrables(avenantId: string): Promise<AvenantLivrable[]> {
-  const { data, error } = await supabase.from('avenant_livrables').select('*').eq('avenant_id', avenantId);
-  if (error) throw error;
-  return data ?? [];
+export async function listAvenantLivrables(projetId: string, avenantId: string): Promise<AvenantLivrable[]> {
+  const data = await api.get<unknown[]>(`/projets/${projetId}/avenants/${avenantId}/livrables`);
+  return toSnakeCase<AvenantLivrable[]>(data);
 }
 
-export async function ajouterAvenantLivrable(insert: AvenantLivrableInsert): Promise<AvenantLivrable> {
-  const { data, error } = await supabase.from('avenant_livrables').insert(insert).select('*').single();
-  if (error) throw error;
-  return data;
+export async function ajouterAvenantLivrable(
+  projetId: string,
+  insert: AvenantLivrableInsert,
+): Promise<AvenantLivrable> {
+  const { avenant_id, ...rest } = insert as AvenantLivrableInsert & { avenant_id: string };
+  const data = await api.post<unknown>(`/projets/${projetId}/avenants/${avenant_id}/livrables`, toCamelCase(rest));
+  return toSnakeCase<AvenantLivrable>(data);
 }
 
-export async function retirerAvenantLivrable(id: string): Promise<void> {
-  const { error } = await supabase.from('avenant_livrables').delete().eq('id', id);
-  if (error) throw error;
+export async function retirerAvenantLivrable(projetId: string, id: string): Promise<void> {
+  await api.delete(`/projets/${projetId}/avenants/livrables/${id}`);
 }
 
 export interface AvenantLivrableEntree {
@@ -58,14 +53,14 @@ export interface AvenantLivrableEntree {
   contenu_modifie?: boolean;
 }
 
-// Remplace l'ensemble des livrables impactés par cet avenant (même patron
-// "remplacer plutôt que diffuser" que definirVisibiliteEntites).
-export async function definirAvenantLivrables(avenantId: string, entrees: AvenantLivrableEntree[]): Promise<void> {
-  const { error: deleteError } = await supabase.from('avenant_livrables').delete().eq('avenant_id', avenantId);
-  if (deleteError) throw deleteError;
-  if (entrees.length === 0) return;
-  const { error } = await supabase
-    .from('avenant_livrables')
-    .insert(entrees.map((e) => ({ avenant_id: avenantId, ...e })));
-  if (error) throw error;
+// Remplace l'ensemble des livrables impactés par cet avenant en une fois
+// (même patron "remplacer plutôt que diffuser" que definirVisibiliteEntites).
+export async function definirAvenantLivrables(
+  projetId: string,
+  avenantId: string,
+  entrees: AvenantLivrableEntree[],
+): Promise<void> {
+  await api.put(`/projets/${projetId}/avenants/${avenantId}/livrables`, {
+    entrees: entrees.map((e) => toCamelCase(e)),
+  });
 }

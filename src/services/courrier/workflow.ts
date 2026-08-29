@@ -1,45 +1,21 @@
-import { supabase } from '../../config/supabase';
-import { callRpc } from '../rpc';
+import { api } from '../../config/apiClient';
+import { toSnakeCase } from '../../utils/caseMapping';
 import type { Entite } from '../administration/entites';
 import type { Database } from '../../types/database';
+import type { WorkflowHistoriqueEntree, WorkflowInstance } from '../workflow/generique';
+import { listActionsDemandeesDestinataire, listDestinataires } from './destinataires';
 import type { Courrier } from './courriers';
 
-// Tables génériques du moteur de workflow (instance/étape/historique par id,
-// sans rien de spécifique à Courrier) : déplacées vers
-// services/workflow/generique.ts (partagées avec GED), réexportées ici pour
-// ne rien casser des imports existants côté Courrier.
-export {
-  getWorkflowInstance,
-  listWorkflowEtapes,
-  listWorkflowHistorique,
-  type WorkflowInstance,
-  type WorkflowEtape,
-  type WorkflowHistoriqueEntree,
-} from '../workflow/generique';
-
-export type WorkflowTransition = Database['public']['Tables']['workflow_transitions']['Row'];
-export type WorkflowTransitionRole = Database['public']['Tables']['workflow_transition_roles']['Row'];
 export type TypeActionCourrier = Database['public']['Enums']['type_action_courrier'];
 
-export async function listWorkflowTransitions(workflowDefinitionId: string): Promise<WorkflowTransition[]> {
-  const { data, error } = await supabase
-    .from('workflow_transitions')
-    .select('*')
-    .eq('workflow_definition_id', workflowDefinitionId);
-  if (error) throw error;
-  return data ?? [];
+export async function getWorkflowInstance(courrierId: string): Promise<WorkflowInstance> {
+  const data = await api.get<unknown>(`/courrier/courriers/${courrierId}/workflow-instance`);
+  return toSnakeCase<WorkflowInstance>(data);
 }
 
-export async function listWorkflowTransitionRoles(
-  transitionIds: string[],
-): Promise<WorkflowTransitionRole[]> {
-  if (transitionIds.length === 0) return [];
-  const { data, error } = await supabase
-    .from('workflow_transition_roles')
-    .select('*')
-    .in('workflow_transition_id', transitionIds);
-  if (error) throw error;
-  return data ?? [];
+export async function listWorkflowHistorique(courrierId: string): Promise<WorkflowHistoriqueEntree[]> {
+  const data = await api.get<unknown[]>(`/courrier/courriers/${courrierId}/historique`);
+  return toSnakeCase<WorkflowHistoriqueEntree[]>(data);
 }
 
 export async function executerTransitionCourrier(
@@ -47,11 +23,7 @@ export async function executerTransitionCourrier(
   transitionId: string,
   commentaire?: string | null,
 ): Promise<void> {
-  await callRpc<null>('fn_executer_transition_courrier', {
-    p_courrier_id: courrierId,
-    p_transition_id: transitionId,
-    p_commentaire: commentaire ?? null,
-  });
+  await api.post(`/courrier/courriers/${courrierId}/transition`, { transitionId, commentaire: commentaire ?? null });
 }
 
 export interface TransitionDisponible {
@@ -68,12 +40,11 @@ export interface TransitionDisponible {
 }
 
 // Résolution serveur (acteur polymorphe rôle/fonction/entité/délégation +
-// condition) via public.fn_transitions_disponibles_courrier (migration 0020) —
-// évite de reproduire cette logique côté client.
+// condition) via le moteur de workflow générique — évite de reproduire cette
+// logique côté client.
 export async function listTransitionsDisponiblesCourrier(courrierId: string): Promise<TransitionDisponible[]> {
-  return callRpc<TransitionDisponible[]>('fn_transitions_disponibles_courrier', {
-    p_courrier_id: courrierId,
-  });
+  const data = await api.get<unknown[]>(`/courrier/courriers/${courrierId}/transitions-disponibles`);
+  return toSnakeCase<TransitionDisponible[]>(data);
 }
 
 export interface ImputerCourrierPayload {
@@ -85,7 +56,7 @@ export interface ImputerCourrierPayload {
   p_transition_id?: string | null;
   p_commentaire?: string | null;
   // V5 (0042): Affectation/Imputation/Transmission/Redirection portées par la
-  // même fonction — le type d'action est une donnée, pas 4 RPC parallèles.
+  // même route — le type d'action est une donnée, pas 4 endpoints parallèles.
   p_type_action?: TypeActionCourrier | null;
   p_entites_copie_ids?: string[] | null;
   p_actions_demandees_ids?: string[] | null;
@@ -97,21 +68,35 @@ export interface ImputerCourrierPayload {
 // transition (typiquement "affecter"), en une seule opération transactionnelle
 // côté serveur plutôt que deux appels séparés côté client.
 export async function imputerCourrier(payload: ImputerCourrierPayload): Promise<Courrier> {
-  return callRpc<Courrier>('fn_imputer_courrier', { ...payload });
+  const data = await api.post<unknown>(`/courrier/courriers/${payload.p_courrier_id}/imputer`, {
+    entiteId: payload.p_entite_id,
+    agentId: payload.p_agent_id ?? null,
+    instruction: payload.p_instruction ?? null,
+    echeance: payload.p_echeance ?? null,
+    transitionId: payload.p_transition_id ?? null,
+    commentaire: payload.p_commentaire ?? null,
+    typeAction: payload.p_type_action ?? null,
+    entitesCopieIds: payload.p_entites_copie_ids ?? null,
+    actionsDemandeesIds: payload.p_actions_demandees_ids ?? null,
+    prioriteValeurId: payload.p_priorite_valeur_id ?? null,
+  });
+  return toSnakeCase<Courrier>(data);
 }
 
 // Périmètre hiérarchique (V4 §8): entités sur lesquelles l'utilisateur courant
-// a courrier/affecter (portée organisation ou entite_et_descendants, ltree
-// @> côté serveur — cf. 0034). Résolu dynamiquement, jamais une liste statique.
+// a courrier/affecter (portée organisation ou entite_et_descendants, résolu
+// dynamiquement côté serveur, jamais une liste statique).
 export async function listEntitesImputables(): Promise<Entite[]> {
-  return callRpc<Entite[]>('fn_entites_imputables');
+  const data = await api.get<unknown[]>('/courrier/entites-imputables');
+  return toSnakeCase<Entite[]>(data);
 }
 
 // V5 §10: entités/personnes vers lesquelles l'utilisateur courant peut
 // transmettre/rediriger — action distincte de 'affecter' (0042), même
 // principe de résolution dynamique côté serveur.
 export async function listEntitesTransmissibles(): Promise<Entite[]> {
-  return callRpc<Entite[]>('fn_entites_transmissibles');
+  const data = await api.get<unknown[]>('/courrier/entites-transmissibles');
+  return toSnakeCase<Entite[]>(data);
 }
 
 export interface PersonneTransmissible {
@@ -123,7 +108,8 @@ export interface PersonneTransmissible {
 // personne dans la modale de transmission/redirection dérive automatiquement
 // l'entité cible (p_entite_id), sans champ supplémentaire à saisir.
 export async function listPersonnesTransmissibles(): Promise<PersonneTransmissible[]> {
-  return callRpc<PersonneTransmissible[]>('fn_personnes_transmissibles');
+  const data = await api.get<unknown[]>('/courrier/personnes-transmissibles');
+  return toSnakeCase<PersonneTransmissible[]>(data);
 }
 
 export interface HistoriqueActionDestinataire {
@@ -138,39 +124,33 @@ export interface HistoriqueActionDestinataire {
   actions_demandees_ids: string[];
 }
 
-// Timeline enrichie (V5 §14/§15): corrèle chaque ligne workflow_historique
-// aux détails de l'action qui l'a déclenchée (entité principale, copies,
-// actions demandées) via courrier_destinataires.workflow_historique_id
-// (0042/0043) — évite de dupliquer cette donnée dans workflow_historique
-// lui-même.
+// Timeline enrichie (V5 §14/§15): corrèle chaque ligne d'historique aux
+// détails de l'action qui l'a déclenchée (entité principale, copies, actions
+// demandées). Pas d'endpoint dédié côté backend (server/courrier/destinataires.service.ts
+// n'expose que la liste par courrier + les actions par destinataire) : on
+// recompose ici — liste des destinataires du courrier, filtrée par les ids
+// d'historique affichés, puis actions demandées récupérées par destinataire.
 export async function listHistoriqueActions(
+  courrierId: string,
   workflowHistoriqueIds: string[],
 ): Promise<HistoriqueActionDestinataire[]> {
   if (workflowHistoriqueIds.length === 0) return [];
-  const { data: destinataires, error } = await supabase
-    .from('courrier_destinataires')
-    .select('id, workflow_historique_id, type_diffusion, type_action, entite_id, utilisateur_id, instruction, echeance')
-    .in('workflow_historique_id', workflowHistoriqueIds);
-  if (error) throw error;
-
-  const destinataireIds = (destinataires ?? []).map((d) => d.id);
-  let actionsParDestinataire = new Map<string, string[]>();
-  if (destinataireIds.length > 0) {
-    const { data: actions, error: actionsError } = await supabase
-      .from('courrier_destinataire_actions')
-      .select('courrier_destinataire_id, valeur_liste_id')
-      .in('courrier_destinataire_id', destinataireIds);
-    if (actionsError) throw actionsError;
-    actionsParDestinataire = (actions ?? []).reduce((acc, a) => {
-      const liste = acc.get(a.courrier_destinataire_id) ?? [];
-      liste.push(a.valeur_liste_id);
-      acc.set(a.courrier_destinataire_id, liste);
-      return acc;
-    }, new Map<string, string[]>());
-  }
-
-  return (destinataires ?? []).map((d) => ({
-    ...d,
-    actions_demandees_ids: actionsParDestinataire.get(d.id) ?? [],
+  const ids = new Set(workflowHistoriqueIds);
+  const destinataires = (await listDestinataires(courrierId)).filter(
+    (d) => d.workflow_historique_id && ids.has(d.workflow_historique_id),
+  );
+  const actionsParDestinataire = await Promise.all(
+    destinataires.map((d) => listActionsDemandeesDestinataire(d.id)),
+  );
+  return destinataires.map((d, i) => ({
+    id: d.id,
+    workflow_historique_id: d.workflow_historique_id,
+    type_diffusion: d.type_diffusion,
+    type_action: d.type_action,
+    entite_id: d.entite_id,
+    utilisateur_id: d.utilisateur_id,
+    instruction: d.instruction,
+    echeance: d.echeance,
+    actions_demandees_ids: actionsParDestinataire[i],
   }));
 }

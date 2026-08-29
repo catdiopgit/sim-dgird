@@ -1,5 +1,5 @@
-import { FunctionsHttpError } from '@supabase/supabase-js';
-import { supabase } from '../../config/supabase';
+import { api } from '../../config/apiClient';
+import { toCamelCase, toSnakeCase } from '../../utils/caseMapping';
 import type { Database } from '../../types/database';
 
 export type Utilisateur = Database['public']['Tables']['utilisateurs']['Row'];
@@ -8,24 +8,13 @@ export type UtilisateurRole = Database['public']['Tables']['utilisateur_roles'][
 export type UtilisateurRoleInsert = Database['public']['Tables']['utilisateur_roles']['Insert'];
 
 export async function listUtilisateurs(organisationId: string): Promise<Utilisateur[]> {
-  const { data, error } = await supabase
-    .from('utilisateurs')
-    .select('*')
-    .eq('organisation_id', organisationId)
-    .order('nom', { ascending: true });
-  if (error) throw error;
-  return data ?? [];
+  const data = await api.get<unknown[]>('/administration/utilisateurs', { organisationId });
+  return toSnakeCase<Utilisateur[]>(data);
 }
 
 export async function updateUtilisateur(id: string, patch: UtilisateurUpdate): Promise<Utilisateur> {
-  const { data, error } = await supabase
-    .from('utilisateurs')
-    .update(patch)
-    .eq('id', id)
-    .select('*')
-    .single();
-  if (error) throw error;
-  return data;
+  const data = await api.patch<unknown>(`/administration/utilisateurs/${id}`, toCamelCase(patch));
+  return toSnakeCase<Utilisateur>(data);
 }
 
 export interface CreerUtilisateurPayload {
@@ -44,45 +33,25 @@ export interface CreerUtilisateurResultat {
   motDePasseTemporaire: string;
 }
 
+// Remplace l'Edge Function `creer-utilisateur` : couvert par
+// POST /administration/utilisateurs (server/administration/utilisateurs), déjà
+// gardé par permission `utilisateurs/creer` — voir MIGRATION.md Phase 1.
 export async function creerUtilisateur(
   payload: CreerUtilisateurPayload,
 ): Promise<CreerUtilisateurResultat> {
-  const { data, error } = await supabase.functions.invoke<CreerUtilisateurResultat>('creer-utilisateur', {
-    body: payload,
-  });
-  if (error) {
-    let message = error.message;
-    if (error instanceof FunctionsHttpError) {
-      try {
-        const corps = (await error.context.json()) as { error?: string };
-        message = corps?.error ?? message;
-      } catch {
-        // Corps non-JSON : on garde le message par défaut.
-      }
-    }
-    throw new Error(message);
-  }
-  if (!data) throw new Error('Réponse vide de la fonction de création.');
-  return data;
+  return api.post<CreerUtilisateurResultat>('/administration/utilisateurs', payload);
 }
 
 export async function listUtilisateurRoles(utilisateurId: string): Promise<UtilisateurRole[]> {
-  const { data, error } = await supabase
-    .from('utilisateur_roles')
-    .select('*')
-    .eq('utilisateur_id', utilisateurId)
-    .order('date_debut', { ascending: false });
-  if (error) throw error;
-  return data ?? [];
+  const data = await api.get<unknown[]>('/administration/roles/attributions', { utilisateurId });
+  return toSnakeCase<UtilisateurRole[]>(data);
 }
 
 export async function assignerRole(insert: UtilisateurRoleInsert): Promise<UtilisateurRole> {
-  const { data, error } = await supabase.from('utilisateur_roles').insert(insert).select('*').single();
-  if (error) throw error;
-  return data;
+  const data = await api.post<unknown>('/administration/roles/attributions', toCamelCase(insert));
+  return toSnakeCase<UtilisateurRole>(data);
 }
 
 export async function revoquerRole(id: string): Promise<void> {
-  const { error } = await supabase.from('utilisateur_roles').delete().eq('id', id);
-  if (error) throw error;
+  await api.delete(`/administration/roles/attributions/${id}`);
 }

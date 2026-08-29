@@ -1,4 +1,6 @@
-import { callRpc } from '../rpc';
+// Catégorie 9 (reporting/statistiques) : jamais portée côté NestJS — voir
+// services/projets/statistiques.ts pour l'explication complète.
+const NON_IMPLEMENTE = 'Les statistiques GED ne sont pas encore portées côté serveur (voir MIGRATION.md).';
 
 export interface StatistiquesGedTotaux {
   total: number;
@@ -22,12 +24,6 @@ export interface StatistiquesGed {
   evolution: StatistiquesGedEvolutionPoint[];
 }
 
-// Une seule fonction serveur (public.fn_statistiques_ged, migration 0080)
-// agrège tout, même patron que fetchStatistiquesCourrier. Dates au format
-// YYYY-MM-DD (ou undefined = pas de borne).
-export async function fetchStatistiquesGed(dateDebut?: string, dateFin?: string): Promise<StatistiquesGed> {
-  return callRpc<StatistiquesGed>('fn_statistiques_ged', {
-    p_date_debut: dateDebut ?? null,
-    p_date_fin: dateFin ?? null,
-  });
+export async function fetchStatistiquesGed(_dateDebut?: string, _dateFin?: string): Promise<StatistiquesGed> {
+  throw new Error(NON_IMPLEMENTE);
 }

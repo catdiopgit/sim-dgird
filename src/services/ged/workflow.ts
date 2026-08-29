@@ -1,4 +1,6 @@
-import { callRpc } from '../rpc';
+import { api } from '../../config/apiClient';
+import { toSnakeCase } from '../../utils/caseMapping';
+import type { WorkflowHistoriqueEntree, WorkflowInstance } from '../workflow/generique';
 
 export interface TransitionDisponibleGed {
   transition_id: string;
@@ -11,9 +13,8 @@ export interface TransitionDisponibleGed {
 // Résolution serveur (acteur + condition), portée par le versement (le
 // workflow ne vit plus sur chaque document individuellement, cf. GED V2).
 export async function listTransitionsDisponiblesVersement(versementId: string): Promise<TransitionDisponibleGed[]> {
-  return callRpc<TransitionDisponibleGed[]>('fn_transitions_disponibles_versement', {
-    p_versement_id: versementId,
-  });
+  const data = await api.get<unknown[]>(`/ged/versements/${versementId}/transitions-disponibles`);
+  return toSnakeCase<TransitionDisponibleGed[]>(data);
 }
 
 export async function executerTransitionVersement(
@@ -21,9 +22,15 @@ export async function executerTransitionVersement(
   transitionId: string,
   commentaire?: string | null,
 ): Promise<void> {
-  await callRpc<null>('fn_executer_transition_versement', {
-    p_versement_id: versementId,
-    p_transition_id: transitionId,
-    p_commentaire: commentaire ?? null,
-  });
+  await api.post(`/ged/versements/${versementId}/transition`, { transitionId, commentaire: commentaire ?? null });
+}
+
+export async function getWorkflowInstance(versementId: string): Promise<WorkflowInstance> {
+  const data = await api.get<unknown>(`/ged/versements/${versementId}/workflow-instance`);
+  return toSnakeCase<WorkflowInstance>(data);
+}
+
+export async function listWorkflowHistorique(versementId: string): Promise<WorkflowHistoriqueEntree[]> {
+  const data = await api.get<unknown[]>(`/ged/versements/${versementId}/historique`);
+  return toSnakeCase<WorkflowHistoriqueEntree[]>(data);
 }

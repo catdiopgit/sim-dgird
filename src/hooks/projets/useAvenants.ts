@@ -38,7 +38,7 @@ export function useAvenantMutations(projetId: string | undefined) {
   });
 
   const update = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: AvenantUpdate }) => updateAvenant(id, patch),
+    mutationFn: ({ id, patch }: { id: string; patch: AvenantUpdate }) => updateAvenant(projetId!, id, patch),
     onSuccess: () => {
       message.success('Avenant mis à jour.');
       void invalidate();
@@ -47,7 +47,7 @@ export function useAvenantMutations(projetId: string | undefined) {
   });
 
   const remove = useMutation({
-    mutationFn: (id: string) => deleteAvenant(id),
+    mutationFn: (id: string) => deleteAvenant(projetId!, id),
     onSuccess: () => {
       message.success('Avenant supprimé.');
       void invalidate();
@@ -58,32 +58,32 @@ export function useAvenantMutations(projetId: string | undefined) {
   return { create, update, remove };
 }
 
-export function useAvenantLivrables(avenantId: string | undefined) {
+export function useAvenantLivrables(projetId: string | undefined, avenantId: string | undefined) {
   return useQuery({
     queryKey: ['avenant-livrables', avenantId],
-    queryFn: () => listAvenantLivrables(avenantId!),
-    enabled: Boolean(avenantId),
+    queryFn: () => listAvenantLivrables(projetId!, avenantId!),
+    enabled: Boolean(projetId) && Boolean(avenantId),
   });
 }
 
-export function useAvenantLivrableMutations(avenantId: string | undefined) {
+export function useAvenantLivrableMutations(projetId: string | undefined, avenantId: string | undefined) {
   const queryClient = useQueryClient();
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['avenant-livrables', avenantId] });
 
   const ajouter = useMutation({
-    mutationFn: (insert: AvenantLivrableInsert) => ajouterAvenantLivrable(insert),
+    mutationFn: (insert: AvenantLivrableInsert) => ajouterAvenantLivrable(projetId!, insert),
     onSuccess: () => void invalidate(),
     onError: (error: Error) => message.error(error.message),
   });
 
   const retirer = useMutation({
-    mutationFn: (id: string) => retirerAvenantLivrable(id),
+    mutationFn: (id: string) => retirerAvenantLivrable(projetId!, id),
     onSuccess: () => void invalidate(),
     onError: (error: Error) => message.error(error.message),
   });
 
   const definir = useMutation({
-    mutationFn: (entrees: AvenantLivrableEntree[]) => definirAvenantLivrables(avenantId!, entrees),
+    mutationFn: (entrees: AvenantLivrableEntree[]) => definirAvenantLivrables(projetId!, avenantId!, entrees),
     onSuccess: () => void invalidate(),
     onError: (error: Error) => message.error(error.message),
   });

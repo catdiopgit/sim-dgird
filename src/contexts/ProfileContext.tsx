@@ -41,7 +41,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
   const { data, isLoading } = useQuery({
     queryKey: ['profile', user?.id],
-    queryFn: () => fetchProfileData(user!.id),
+    queryFn: () => fetchProfileData(),
     enabled: Boolean(user?.id),
     staleTime: 60_000,
   });

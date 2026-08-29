@@ -1,6 +1,6 @@
-import { supabase } from '../../config/supabase';
-import { callRpc } from '../rpc';
-import { getUrlSigneeVersion, listInfosFichierVersions, verserVersion } from '../ged/documents';
+import { api } from '../../config/apiClient';
+import { toSnakeCase } from '../../utils/caseMapping';
+import { getDocument } from '../ged/documents';
 import type { Document } from '../ged/documents';
 
 export type { Document };
@@ -15,32 +15,38 @@ export interface AjouterDocumentMissionPayload {
   p_depense_id?: string | null;
 }
 
-// Même séquence à deux étapes que ajouterDocumentProjetAvecFichier
-// (services/projets/documents.ts) : la ligne `documents` doit exister avant
-// de pouvoir construire le chemin de stockage du fichier.
+// Un seul appel multipart côté backend (server/missions/missions-documents.service.ts,
+// ajouterDocumentAvecFichier) — compose déjà la création + le versement du
+// fichier, avec repli automatique si l'upload échoue.
 export async function ajouterDocumentMissionAvecFichier(
   payload: AjouterDocumentMissionPayload,
   fichier: File,
 ): Promise<Document> {
-  const document = await callRpc<Document>('fn_ajouter_document_mission', { ...payload });
-  try {
-    await verserVersion(document.id, fichier);
-  } catch (error) {
-    await supabase.from('documents').delete().eq('id', document.id);
-    throw error;
-  }
-  return document;
+  const formData = new FormData();
+  formData.append('file', fichier);
+  formData.append('titre', payload.p_titre);
+  formData.append('role', payload.p_role);
+  if (payload.p_description) formData.append('description', payload.p_description);
+  if (payload.p_depense_id) formData.append('depenseId', payload.p_depense_id);
+  const data = await api.upload<unknown>(`/missions/${payload.p_mission_id}/documents`, formData);
+  return toSnakeCase<Document>(data);
 }
 
+// Chemin d'API de téléchargement authentifié à passer à ouvrirFichier/
+// telechargerFichier (config/apiClient.ts).
 export async function getUrlTelechargementDocument(document: Document): Promise<string | null> {
   if (!document.version_courante_id) return null;
-  const [version] = await listInfosFichierVersions([document.version_courante_id]);
-  if (!version) return null;
-  return getUrlSigneeVersion(version.storage_path);
+  return `/ged/versions/${document.version_courante_id}/telecharger`;
 }
 
+// Pas de route GET /missions/documents/:id dédiée : le document est visible
+// au même titre que n'importe quel document GED — réutilise l'endpoint
+// générique (GedDocumentsService.findOne couvre déjà can_view_document pour
+// les documents rattachés à une mission, cf. MIGRATION.md Phase 6).
 export async function getDocumentParId(id: string): Promise<Document | null> {
-  const { data, error } = await supabase.from('documents').select('*').eq('id', id).maybeSingle();
-  if (error) throw error;
-  return data;
+  try {
+    return await getDocument(id);
+  } catch {
+    return null;
+  }
 }

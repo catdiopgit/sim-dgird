@@ -30,7 +30,7 @@ export function useContactExecutionMutations(projetId: string | undefined) {
   });
 
   const remove = useMutation({
-    mutationFn: (id: string) => supprimerContactExecution(id),
+    mutationFn: (id: string) => supprimerContactExecution(projetId!, id),
     onSuccess: () => {
       message.success('Contact supprimé.');
       void invalidate();

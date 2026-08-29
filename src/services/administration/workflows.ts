@@ -1,5 +1,5 @@
-import { supabase } from '../../config/supabase';
-import { callRpc } from '../rpc';
+import { api } from '../../config/apiClient';
+import { toCamelCase, toSnakeCase } from '../../utils/caseMapping';
 import type { Database } from '../../types/database';
 
 export type WorkflowDefinition = Database['public']['Tables']['workflow_definitions']['Row'];
@@ -20,139 +20,99 @@ export type WorkflowDefinitionAssociationInsert =
 
 // --- Définitions ---
 
+// organisationId n'est pas transmis en paramètre de requête : le backend le
+// déduit de l'utilisateur courant (JWT) — voir WorkflowController.findDefinitions.
 export async function listWorkflowDefinitions(
-  organisationId: string,
+  _organisationId: string,
   moduleId?: string,
 ): Promise<WorkflowDefinition[]> {
-  let query = supabase.from('workflow_definitions').select('*').eq('organisation_id', organisationId);
-  if (moduleId) query = query.eq('module_id', moduleId);
-  const { data, error } = await query.order('code', { ascending: true });
-  if (error) throw error;
-  return data ?? [];
+  const data = await api.get<unknown[]>('/administration/workflows/definitions', { moduleId });
+  return toSnakeCase<WorkflowDefinition[]>(data);
 }
 
 export async function createWorkflowDefinition(insert: WorkflowDefinitionInsert): Promise<WorkflowDefinition> {
-  const { data, error } = await supabase.from('workflow_definitions').insert(insert).select('*').single();
-  if (error) throw error;
-  return data;
+  const data = await api.post<unknown>('/administration/workflows/definitions', toCamelCase(insert));
+  return toSnakeCase<WorkflowDefinition>(data);
 }
 
 export async function updateWorkflowDefinition(
   id: string,
   patch: WorkflowDefinitionUpdate,
 ): Promise<WorkflowDefinition> {
-  const { data, error } = await supabase
-    .from('workflow_definitions')
-    .update(patch)
-    .eq('id', id)
-    .select('*')
-    .single();
-  if (error) throw error;
-  return data;
+  const data = await api.patch<unknown>(`/administration/workflows/definitions/${id}`, toCamelCase(patch));
+  return toSnakeCase<WorkflowDefinition>(data);
 }
 
 export async function deleteWorkflowDefinition(id: string): Promise<void> {
-  const { error } = await supabase.from('workflow_definitions').delete().eq('id', id);
-  if (error) throw error;
+  await api.delete(`/administration/workflows/definitions/${id}`);
 }
 
-// Bascule est_defaut de manière atomique (désactive l'ancien défaut du même
-// module avant d'activer le nouveau) pour éviter la violation de
-// idx_workflow_definitions_defaut.
 export async function definirWorkflowDefinitionDefaut(id: string): Promise<WorkflowDefinition> {
-  return callRpc<WorkflowDefinition>('fn_definir_workflow_defaut', { p_workflow_definition_id: id });
+  const data = await api.post<unknown>(`/administration/workflows/definitions/${id}/definir-defaut`);
+  return toSnakeCase<WorkflowDefinition>(data);
 }
 
 // --- Étapes ---
 
 export async function listWorkflowEtapes(workflowDefinitionId: string): Promise<WorkflowEtape[]> {
-  const { data, error } = await supabase
-    .from('workflow_etapes')
-    .select('*')
-    .eq('workflow_definition_id', workflowDefinitionId)
-    .order('ordre', { ascending: true });
-  if (error) throw error;
-  return data ?? [];
+  const data = await api.get<unknown[]>(`/administration/workflows/definitions/${workflowDefinitionId}/etapes`);
+  return toSnakeCase<WorkflowEtape[]>(data);
 }
 
 export async function createWorkflowEtape(insert: WorkflowEtapeInsert): Promise<WorkflowEtape> {
-  const { data, error } = await supabase.from('workflow_etapes').insert(insert).select('*').single();
-  if (error) throw error;
-  return data;
+  const data = await api.post<unknown>('/administration/workflows/etapes', toCamelCase(insert));
+  return toSnakeCase<WorkflowEtape>(data);
 }
 
 export async function updateWorkflowEtape(id: string, patch: WorkflowEtapeUpdate): Promise<WorkflowEtape> {
-  const { data, error } = await supabase
-    .from('workflow_etapes')
-    .update(patch)
-    .eq('id', id)
-    .select('*')
-    .single();
-  if (error) throw error;
-  return data;
+  const data = await api.patch<unknown>(`/administration/workflows/etapes/${id}`, toCamelCase(patch));
+  return toSnakeCase<WorkflowEtape>(data);
 }
 
 export async function deleteWorkflowEtape(id: string): Promise<void> {
-  const { error } = await supabase.from('workflow_etapes').delete().eq('id', id);
-  if (error) throw error;
+  await api.delete(`/administration/workflows/etapes/${id}`);
 }
 
 // --- Transitions ---
 
 export async function listWorkflowTransitions(workflowDefinitionId: string): Promise<WorkflowTransition[]> {
-  const { data, error } = await supabase
-    .from('workflow_transitions')
-    .select('*')
-    .eq('workflow_definition_id', workflowDefinitionId);
-  if (error) throw error;
-  return data ?? [];
+  const data = await api.get<unknown[]>(
+    `/administration/workflows/definitions/${workflowDefinitionId}/transitions`,
+  );
+  return toSnakeCase<WorkflowTransition[]>(data);
 }
 
 export async function createWorkflowTransition(insert: WorkflowTransitionInsert): Promise<WorkflowTransition> {
-  const { data, error } = await supabase.from('workflow_transitions').insert(insert).select('*').single();
-  if (error) throw error;
-  return data;
+  const data = await api.post<unknown>('/administration/workflows/transitions', toCamelCase(insert));
+  return toSnakeCase<WorkflowTransition>(data);
 }
 
 export async function updateWorkflowTransition(
   id: string,
   patch: WorkflowTransitionUpdate,
 ): Promise<WorkflowTransition> {
-  const { data, error } = await supabase
-    .from('workflow_transitions')
-    .update(patch)
-    .eq('id', id)
-    .select('*')
-    .single();
-  if (error) throw error;
-  return data;
+  const data = await api.patch<unknown>(`/administration/workflows/transitions/${id}`, toCamelCase(patch));
+  return toSnakeCase<WorkflowTransition>(data);
 }
 
 export async function deleteWorkflowTransition(id: string): Promise<void> {
-  const { error } = await supabase.from('workflow_transitions').delete().eq('id', id);
-  if (error) throw error;
+  await api.delete(`/administration/workflows/transitions/${id}`);
 }
 
-// --- Acteurs de transition (workflow_transition_roles étendue, migration 0020) ---
+// --- Acteurs de transition ---
 
 export async function listWorkflowActeurs(transitionId: string): Promise<WorkflowActeur[]> {
-  const { data, error } = await supabase
-    .from('workflow_transition_roles')
-    .select('*')
-    .eq('workflow_transition_id', transitionId);
-  if (error) throw error;
-  return data ?? [];
+  const data = await api.get<unknown[]>(`/administration/workflows/transitions/${transitionId}/acteurs`);
+  return toSnakeCase<WorkflowActeur[]>(data);
 }
 
 export async function createWorkflowActeur(insert: WorkflowActeurInsert): Promise<WorkflowActeur> {
-  const { data, error } = await supabase.from('workflow_transition_roles').insert(insert).select('*').single();
-  if (error) throw error;
-  return data;
+  const data = await api.post<unknown>('/administration/workflows/acteurs', toCamelCase(insert));
+  return toSnakeCase<WorkflowActeur>(data);
 }
 
 export async function deleteWorkflowActeur(id: string): Promise<void> {
-  const { error } = await supabase.from('workflow_transition_roles').delete().eq('id', id);
-  if (error) throw error;
+  await api.delete(`/administration/workflows/acteurs/${id}`);
 }
 
 // --- Association définition <-> valeur de liste (ex. sens du courrier) ---
@@ -160,27 +120,19 @@ export async function deleteWorkflowActeur(id: string): Promise<void> {
 export async function listWorkflowDefinitionAssociations(
   workflowDefinitionId: string,
 ): Promise<WorkflowDefinitionAssociation[]> {
-  const { data, error } = await supabase
-    .from('workflow_definition_associations')
-    .select('*')
-    .eq('workflow_definition_id', workflowDefinitionId);
-  if (error) throw error;
-  return data ?? [];
+  const data = await api.get<unknown[]>(
+    `/administration/workflows/definitions/${workflowDefinitionId}/associations`,
+  );
+  return toSnakeCase<WorkflowDefinitionAssociation[]>(data);
 }
 
 export async function creerAssociation(
   insert: WorkflowDefinitionAssociationInsert,
 ): Promise<WorkflowDefinitionAssociation> {
-  const { data, error } = await supabase
-    .from('workflow_definition_associations')
-    .insert(insert)
-    .select('*')
-    .single();
-  if (error) throw error;
-  return data;
+  const data = await api.post<unknown>('/administration/workflows/associations', toCamelCase(insert));
+  return toSnakeCase<WorkflowDefinitionAssociation>(data);
 }
 
 export async function retirerAssociation(id: string): Promise<void> {
-  const { error } = await supabase.from('workflow_definition_associations').delete().eq('id', id);
-  if (error) throw error;
+  await api.delete(`/administration/workflows/associations/${id}`);
 }

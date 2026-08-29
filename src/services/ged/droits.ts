@@ -1,18 +1,13 @@
-import { supabase } from '../../config/supabase';
-import { callRpc } from '../rpc';
+import { api } from '../../config/apiClient';
+import { toSnakeCase } from '../../utils/caseMapping';
 import type { Database } from '../../types/database';
 
 export type DocumentDroit = Database['public']['Tables']['document_droits']['Row'];
 export type DossierDroit = Database['public']['Tables']['dossier_droits']['Row'];
 
 export async function listDroitsDocument(documentId: string): Promise<DocumentDroit[]> {
-  const { data, error } = await supabase
-    .from('document_droits')
-    .select('*')
-    .eq('document_id', documentId)
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data ?? [];
+  const data = await api.get<unknown[]>(`/ged/documents/${documentId}/droits`);
+  return toSnakeCase<DocumentDroit[]>(data);
 }
 
 export interface OctroyerDroitPayload {
@@ -26,30 +21,37 @@ export async function octroyerDroitDocument(
   documentId: string,
   payload: OctroyerDroitPayload,
 ): Promise<DocumentDroit> {
-  return callRpc<DocumentDroit>('fn_octroyer_droit_document', { p_document_id: documentId, ...payload });
+  const data = await api.post<unknown>(`/ged/documents/${documentId}/droits`, {
+    actionCode: payload.p_action_code,
+    roleId: payload.p_role_id ?? null,
+    utilisateurId: payload.p_utilisateur_id ?? null,
+    entiteId: payload.p_entite_id ?? null,
+  });
+  return toSnakeCase<DocumentDroit>(data);
 }
 
 export async function revoquerDroitDocument(droitId: string): Promise<void> {
-  await callRpc<null>('fn_revoquer_droit_document', { p_droit_id: droitId });
+  await api.delete(`/ged/documents/droits/${droitId}`);
 }
 
 export async function listDroitsDossier(dossierId: string): Promise<DossierDroit[]> {
-  const { data, error } = await supabase
-    .from('dossier_droits')
-    .select('*')
-    .eq('dossier_id', dossierId)
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return data ?? [];
+  const data = await api.get<unknown[]>(`/ged/dossiers/${dossierId}/droits`);
+  return toSnakeCase<DossierDroit[]>(data);
 }
 
 export async function octroyerDroitDossier(
   dossierId: string,
   payload: OctroyerDroitPayload,
 ): Promise<DossierDroit> {
-  return callRpc<DossierDroit>('fn_octroyer_droit_dossier', { p_dossier_id: dossierId, ...payload });
+  const data = await api.post<unknown>(`/ged/dossiers/${dossierId}/droits`, {
+    actionCode: payload.p_action_code,
+    roleId: payload.p_role_id ?? null,
+    utilisateurId: payload.p_utilisateur_id ?? null,
+    entiteId: payload.p_entite_id ?? null,
+  });
+  return toSnakeCase<DossierDroit>(data);
 }
 
 export async function revoquerDroitDossier(droitId: string): Promise<void> {
-  await callRpc<null>('fn_revoquer_droit_dossier', { p_droit_id: droitId });
+  await api.delete(`/ged/dossiers/droits/${droitId}`);
 }

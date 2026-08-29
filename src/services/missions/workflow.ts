@@ -1,4 +1,6 @@
-import { callRpc } from '../rpc';
+import { api } from '../../config/apiClient';
+import { toSnakeCase } from '../../utils/caseMapping';
+import type { WorkflowHistoriqueEntree, WorkflowInstance } from '../workflow/generique';
 
 export interface TransitionDisponibleMission {
   transition_id: string;
@@ -9,9 +11,8 @@ export interface TransitionDisponibleMission {
 }
 
 export async function listTransitionsDisponiblesMission(missionId: string): Promise<TransitionDisponibleMission[]> {
-  return callRpc<TransitionDisponibleMission[]>('fn_transitions_disponibles_mission', {
-    p_mission_id: missionId,
-  });
+  const data = await api.get<unknown[]>(`/missions/${missionId}/transitions-disponibles`);
+  return toSnakeCase<TransitionDisponibleMission[]>(data);
 }
 
 export async function executerTransitionMission(
@@ -19,9 +20,15 @@ export async function executerTransitionMission(
   transitionId: string,
   commentaire?: string | null,
 ): Promise<void> {
-  await callRpc<null>('fn_executer_transition_mission', {
-    p_mission_id: missionId,
-    p_transition_id: transitionId,
-    p_commentaire: commentaire ?? null,
-  });
+  await api.post(`/missions/${missionId}/transitions`, { transitionId, commentaire: commentaire ?? null });
+}
+
+export async function getWorkflowInstance(missionId: string): Promise<WorkflowInstance> {
+  const data = await api.get<unknown>(`/missions/${missionId}/workflow-instance`);
+  return toSnakeCase<WorkflowInstance>(data);
+}
+
+export async function listWorkflowHistorique(missionId: string): Promise<WorkflowHistoriqueEntree[]> {
+  const data = await api.get<unknown[]>(`/missions/${missionId}/workflow-historique`);
+  return toSnakeCase<WorkflowHistoriqueEntree[]>(data);
 }

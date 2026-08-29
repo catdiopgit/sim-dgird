@@ -1,11 +1,9 @@
-import { callRpc } from '../rpc';
+import { api } from '../../config/apiClient';
 
-// Traçabilité des accès en lecture (§12 du plan de refonte GED V2) — seul
-// point d'écriture de ged_consultations, jamais un insert direct.
+// Traçabilité des accès en lecture (§12 du plan de refonte GED V2). Le
+// téléchargement (ex-fn_telecharger_document) n'a plus de trace séparée côté
+// client : server/ged/ged-storage.service.ts (telecharger) l'enregistre déjà
+// automatiquement à chaque GET /ged/versions/:id/telecharger.
 export async function tracerConsultation(documentId: string): Promise<void> {
-  await callRpc<null>('fn_consulter_document', { p_document_id: documentId });
-}
-
-export async function tracerTelechargement(documentId: string): Promise<void> {
-  await callRpc<null>('fn_telecharger_document', { p_document_id: documentId });
+  await api.post(`/ged/documents/${documentId}/tracer-consultation`);
 }

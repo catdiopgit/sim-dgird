@@ -17,7 +17,7 @@ export function useParametresSmtp(organisationId: string | undefined) {
 export function useDefinirParametresSmtp(organisationId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: DefinirParametresSmtpPayload) => definirParametresSmtp(payload),
+    mutationFn: (payload: DefinirParametresSmtpPayload) => definirParametresSmtp(organisationId!, payload),
     onSuccess: () => {
       message.success('Configuration SMTP enregistrée.');
       void queryClient.invalidateQueries({ queryKey: ['parametres-smtp', organisationId] });

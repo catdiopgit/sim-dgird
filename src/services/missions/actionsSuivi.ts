@@ -1,4 +1,5 @@
-import { supabase } from '../../config/supabase';
+import { api } from '../../config/apiClient';
+import { toCamelCase, toSnakeCase } from '../../utils/caseMapping';
 import type { Database } from '../../types/database';
 
 export type MissionActionSuivi = Database['public']['Tables']['mission_actions_suivi']['Row'];
@@ -6,28 +7,25 @@ export type MissionActionSuiviInsert = Database['public']['Tables']['mission_act
 export type MissionActionSuiviUpdate = Database['public']['Tables']['mission_actions_suivi']['Update'];
 
 export async function listActionsSuivi(missionId: string): Promise<MissionActionSuivi[]> {
-  const { data, error } = await supabase
-    .from('mission_actions_suivi')
-    .select('*')
-    .eq('mission_id', missionId)
-    .order('date_echeance', { ascending: true });
-  if (error) throw error;
-  return data ?? [];
+  const data = await api.get<unknown[]>(`/missions/${missionId}/actions-suivi`);
+  return toSnakeCase<MissionActionSuivi[]>(data);
 }
 
 export async function creerActionSuivi(insert: MissionActionSuiviInsert): Promise<MissionActionSuivi> {
-  const { data, error } = await supabase.from('mission_actions_suivi').insert(insert).select('*').single();
-  if (error) throw error;
-  return data;
+  const { mission_id, ...rest } = insert as MissionActionSuiviInsert & { mission_id: string };
+  const data = await api.post<unknown>(`/missions/${mission_id}/actions-suivi`, toCamelCase(rest));
+  return toSnakeCase<MissionActionSuivi>(data);
 }
 
-export async function updateActionSuivi(id: string, patch: MissionActionSuiviUpdate): Promise<MissionActionSuivi> {
-  const { data, error } = await supabase.from('mission_actions_suivi').update(patch).eq('id', id).select('*').single();
-  if (error) throw error;
-  return data;
+export async function updateActionSuivi(
+  missionId: string,
+  id: string,
+  patch: MissionActionSuiviUpdate,
+): Promise<MissionActionSuivi> {
+  const data = await api.patch<unknown>(`/missions/${missionId}/actions-suivi/${id}`, toCamelCase(patch));
+  return toSnakeCase<MissionActionSuivi>(data);
 }
 
-export async function supprimerActionSuivi(id: string): Promise<void> {
-  const { error } = await supabase.from('mission_actions_suivi').delete().eq('id', id);
-  if (error) throw error;
+export async function supprimerActionSuivi(missionId: string, id: string): Promise<void> {
+  await api.delete(`/missions/${missionId}/actions-suivi/${id}`);
 }

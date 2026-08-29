@@ -2,6 +2,7 @@ import { DownloadOutlined, PlusOutlined } from '@ant-design/icons';
 import { Button, Card, Popconfirm, Space, Statistic, Table, message } from 'antd';
 import { useState } from 'react';
 import { useDepenseMutations, useDepensesMission } from '../../hooks/missions/useDepenses';
+import { ouvrirFichier } from '../../config/apiClient';
 import { getDocumentParId, getUrlTelechargementDocument } from '../../services/missions/documents';
 import type { MissionDepense } from '../../services/missions/depenses';
 import { MissionDepenseFormModal } from './MissionDepenseFormModal';
@@ -30,7 +31,7 @@ export function MissionDepensesTab({ missionId, peutModifier, budgetPrevu, budge
       message.error('Aucun fichier disponible pour ce justificatif.');
       return;
     }
-    window.open(url, '_blank');
+    await ouvrirFichier(url);
   };
 
   return (

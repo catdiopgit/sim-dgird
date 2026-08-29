@@ -107,7 +107,7 @@ export function ArchivesContent({
     ev.stopPropagation();
     const infos = document.version_courante_id ? infosParVersionId.get(document.version_courante_id) : undefined;
     if (!infos) return;
-    await telechargerVersion(document.id, infos.storage_path, infos.nom_fichier);
+    await telechargerVersion(document.id, infos.id, infos.nom_fichier);
   };
 
   if (chargementInitial) return <Skeleton active />;

@@ -58,7 +58,7 @@ interface Props {
 export function AvenantFormModal({ open, projetId, avenant, onClose }: Props) {
   const { create, update } = useAvenantMutations(projetId);
   const { data: livrables } = useLivrables(projetId);
-  const { data: impacts } = useAvenantLivrables(avenant?.id);
+  const { data: impacts } = useAvenantLivrables(projetId, avenant?.id);
 
   const { control, handleSubmit, reset } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -128,7 +128,7 @@ export function AvenantFormModal({ open, projetId, avenant, onClose }: Props) {
       ? await update.mutateAsync({ id: avenant.id, patch })
       : await create.mutateAsync({ ...patch, projet_id: projetId });
 
-    await definirAvenantLivrables(resultat.id, entrees);
+    await definirAvenantLivrables(projetId, resultat.id, entrees);
     onClose();
   };
 

@@ -1,4 +1,5 @@
-import { callRpc } from '../rpc';
+import { api } from '../../config/apiClient';
+import { toSnakeCase } from '../../utils/caseMapping';
 import type { Document } from './documents';
 
 export interface RechercheDocumentsPayload {
@@ -16,5 +17,13 @@ export interface RechercheDocumentsPayload {
 // (p_limite/p_decalage) pour rester correcte avec un volume important de
 // documents ; p_seulement_non_classes cible le dossier virtuel "Non classés".
 export async function rechercherDocuments(payload: RechercheDocumentsPayload): Promise<Document[]> {
-  return callRpc<Document[]>('fn_rechercher_documents', { ...payload });
+  const data = await api.get<unknown[]>('/ged/recherche', {
+    texte: payload.p_texte ?? undefined,
+    dossierId: payload.p_dossier_id ?? undefined,
+    confidentialiteValeurId: payload.p_confidentialite_valeur_id ?? undefined,
+    seulementNonClasses: payload.p_seulement_non_classes,
+    limite: payload.p_limite,
+    decalage: payload.p_decalage,
+  });
+  return toSnakeCase<Document[]>(data);
 }

@@ -40,7 +40,8 @@ export function useDecaissementMutations(projetId: string | undefined) {
   });
 
   const update = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: DecaissementUpdate }) => updateDecaissement(id, patch),
+    mutationFn: ({ id, patch }: { id: string; patch: DecaissementUpdate }) =>
+      updateDecaissement(projetId!, id, patch),
     onSuccess: () => {
       message.success('Décaissement mis à jour.');
       invalidate();
@@ -49,7 +50,7 @@ export function useDecaissementMutations(projetId: string | undefined) {
   });
 
   const remove = useMutation({
-    mutationFn: (id: string) => deleteDecaissement(id),
+    mutationFn: (id: string) => deleteDecaissement(projetId!, id),
     onSuccess: () => {
       message.success('Décaissement supprimé.');
       invalidate();

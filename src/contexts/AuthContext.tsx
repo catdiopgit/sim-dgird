@@ -1,10 +1,19 @@
-import type { Session, User } from '@supabase/supabase-js';
-import { createContext, useEffect, useState, type ReactNode } from 'react';
-import { supabase } from '../config/supabase';
+import { createContext, useCallback, useEffect, useState, type ReactNode } from 'react';
+import { ApiError, api, clearToken, getToken, setToken } from '../config/apiClient';
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  nom: string;
+  prenom: string;
+  organisationId: string;
+  entiteId: string | null;
+  statut: string;
+}
 
 interface AuthContextValue {
-  session: Session | null;
-  user: User | null;
+  session: { accessToken: string } | null;
+  user: AuthUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
@@ -13,34 +22,61 @@ interface AuthContextValue {
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
+  const [token, setTokenState] = useState<string | null>(() => getToken());
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+  const chargerUtilisateurCourant = useCallback(async () => {
+    try {
+      const { profile } = await api.get<{ profile: AuthUser }>('/auth/me');
+      setUser(profile);
+    } catch {
+      clearToken();
+      setTokenState(null);
+      setUser(null);
+    } finally {
       setLoading(false);
-    });
+    }
+  }, []);
 
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-    });
+  useEffect(() => {
+    if (token) {
+      void chargerUtilisateurCourant();
+    } else {
+      setLoading(false);
+    }
+  }, [token, chargerUtilisateurCourant]);
 
-    return () => subscription.subscription.unsubscribe();
+  useEffect(() => {
+    const onUnauthorized = () => {
+      setTokenState(null);
+      setUser(null);
+    };
+    window.addEventListener('sim:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('sim:unauthorized', onUnauthorized);
   }, []);
 
   const signIn: AuthContextValue['signIn'] = async (email, password) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error?.message ?? null };
+    try {
+      const { accessToken } = await api.post<{ accessToken: string }>('/auth/login', { email, password });
+      setToken(accessToken);
+      setTokenState(accessToken);
+      await chargerUtilisateurCourant();
+      return { error: null };
+    } catch (error) {
+      return { error: error instanceof ApiError ? error.message : 'Échec de la connexion.' };
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    clearToken();
+    setTokenState(null);
+    setUser(null);
   };
 
   const value: AuthContextValue = {
-    session,
-    user: session?.user ?? null,
+    session: token ? { accessToken: token } : null,
+    user,
     loading,
     signIn,
     signOut,

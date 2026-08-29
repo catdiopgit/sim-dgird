@@ -5,9 +5,8 @@ import {
   ajouterDocumentAvecFichier,
   classerDocument,
   getDocument,
-  getUrlSigneeVersion,
   listDocumentsVersement,
-  listInfosFichierVersions,
+  listInfosFichierDocuments,
   listVersions,
   modifierDocument,
   verserVersion,
@@ -15,7 +14,7 @@ import {
   type ClasserDocumentPayload,
   type ModifierDocumentPayload,
 } from '../../services/ged/documents';
-import { tracerTelechargement } from '../../services/ged/consultations';
+import { telechargerFichier } from '../../config/apiClient';
 
 export function useDocumentsVersement(versementId: string | undefined) {
   return useQuery({
@@ -33,19 +32,17 @@ export function useDocument(id: string | undefined) {
   });
 }
 
-// Jointe côté client (une seule requête par lot) les infos de fichier
-// (nom réel, type MIME, taille, chemin de stockage) des versions courantes
-// d'une liste de documents — pour les cartes de l'explorateur Archives.
-export function useInfosFichierDocuments(documents: { version_courante_id: string | null }[] | undefined) {
-  const versionIds = useMemo(
-    () =>
-      Array.from(new Set((documents ?? []).map((d) => d.version_courante_id).filter((id): id is string => Boolean(id)))),
-    [documents],
-  );
+// Jointe côté client les infos de fichier (nom réel, type MIME, taille,
+// chemin de stockage) des versions courantes d'une liste de documents — pour
+// les cartes de l'explorateur Archives.
+export function useInfosFichierDocuments(
+  documents: { id: string; version_courante_id: string | null }[] | undefined,
+) {
+  const docIds = useMemo(() => (documents ?? []).map((d) => d.id).sort().join(','), [documents]);
   const requete = useQuery({
-    queryKey: ['ged-infos-fichier-versions', versionIds],
-    queryFn: () => listInfosFichierVersions(versionIds),
-    enabled: versionIds.length > 0,
+    queryKey: ['ged-infos-fichier-documents', docIds],
+    queryFn: () => listInfosFichierDocuments(documents ?? []),
+    enabled: (documents ?? []).length > 0,
   });
   const infosParVersionId = useMemo(() => new Map((requete.data ?? []).map((v) => [v.id, v])), [requete.data]);
   return { ...requete, infosParVersionId };
@@ -113,16 +110,7 @@ export function useClasserDocument() {
   });
 }
 
-// Trace le téléchargement (fn_telecharger_document) avant d'ouvrir l'URL
-// signée — un accès refusé (document secret sans droit explicite) lève avant
-// toute tentative de récupérer le fichier.
-export async function telechargerVersion(documentId: string, storagePath: string, nomFichier: string): Promise<void> {
-  await tracerTelechargement(documentId);
-  const url = await getUrlSigneeVersion(storagePath);
-  const lien = window.document.createElement('a');
-  lien.href = url;
-  lien.download = nomFichier;
-  lien.target = '_blank';
-  lien.rel = 'noopener noreferrer';
-  lien.click();
+// Le téléchargement est tracé automatiquement côté serveur (GedStorageService.telecharger).
+export async function telechargerVersion(_documentId: string, versionId: string, nomFichier: string): Promise<void> {
+  await telechargerFichier(`/ged/versions/${versionId}/telecharger`, nomFichier);
 }

@@ -1,5 +1,15 @@
-import { callRpc } from '../rpc';
 import type { Database } from '../../types/database';
+
+// Catégorie 9 (reporting/statistiques) : jamais portée côté NestJS — ces
+// fonctions PL/pgSQL lisent app.current_organisation_id()/app.can_view_projet(),
+// des fonctions de session dépendant du contexte RLS Supabase (auth.uid() via
+// GUC de requête), qui n'existe plus une fois RLS désactivée (décision b,
+// MIGRATION.md). Les rendre appelables demanderait de réimplémenter toute
+// l'agrégation en TypeScript comme les autres catégories (3 à 8), pas
+// seulement de changer le client HTTP — hors périmètre de la Phase 8
+// (remplacement du client), à traiter dans une phase dédiée. Voir aussi
+// services/ged/archivage.ts pour le même traitement (stub explicite).
+const NON_IMPLEMENTE = 'Les statistiques Projets ne sont pas encore portées côté serveur (voir MIGRATION.md).';
 
 export interface StatistiquesProjetsTotaux {
   total: number;
@@ -61,15 +71,6 @@ export interface FiltresStatistiquesProjets {
   organismeExecutionType?: Database['public']['Enums']['organisme_execution_type'];
 }
 
-// Une seule fonction serveur (public.fn_statistiques_projets, migration
-// 0076) agrège tout — un seul aller-retour réseau, un seul état de
-// chargement côté client. Même patron que fetchStatistiquesCourrier.
-export async function fetchStatistiquesProjets(filtres: FiltresStatistiquesProjets): Promise<StatistiquesProjets> {
-  return callRpc<StatistiquesProjets>('fn_statistiques_projets', {
-    p_date_debut: filtres.dateDebut ?? null,
-    p_date_fin: filtres.dateFin ?? null,
-    p_statut_valeur_id: filtres.statutValeurId ?? null,
-    p_responsable_id: filtres.responsableId ?? null,
-    p_organisme_execution_type: filtres.organismeExecutionType ?? null,
-  });
+export async function fetchStatistiquesProjets(_filtres: FiltresStatistiquesProjets): Promise<StatistiquesProjets> {
+  throw new Error(NON_IMPLEMENTE);
 }

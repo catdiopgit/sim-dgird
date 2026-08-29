@@ -36,7 +36,7 @@ export function useDepenseMutations(missionId: string | undefined) {
   });
 
   const supprimer = useMutation({
-    mutationFn: (id: string) => supprimerDepense(id),
+    mutationFn: (id: string) => supprimerDepense(missionId!, id),
     onSuccess: () => {
       message.success('Dépense supprimée.');
       invalidate();

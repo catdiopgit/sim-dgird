@@ -1,20 +1,15 @@
-import { supabase } from '../../config/supabase';
-import { callRpc } from '../rpc';
+import { api } from '../../config/apiClient';
+import { toSnakeCase } from '../../utils/caseMapping';
 import type { Database } from '../../types/database';
 
-// mot_de_passe volontairement absent : privilège colonne retiré pour
-// authenticated/anon (migration 0052) — jamais lisible depuis le client,
-// seule fn_definir_parametres_smtp peut l'écrire.
+// mot_de_passe volontairement absent : jamais renvoyé par le backend
+// (server/administration/organisations, chiffré en base — voir MIGRATION.md
+// Phase 1/encryption.util.ts). Seul definirParametresSmtp peut l'écrire.
 export type ParametresSmtp = Database['public']['Tables']['parametres_smtp']['Row'];
 
 export async function fetchParametresSmtp(organisationId: string): Promise<ParametresSmtp | null> {
-  const { data, error } = await supabase
-    .from('parametres_smtp')
-    .select('id, organisation_id, hote, port, securite, utilisateur, adresse_expediteur, nom_expediteur, actif, updated_at, updated_by')
-    .eq('organisation_id', organisationId)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
+  const data = await api.get<unknown>(`/administration/organisations/${organisationId}/smtp`);
+  return data ? toSnakeCase<ParametresSmtp>(data) : null;
 }
 
 export interface DefinirParametresSmtpPayload {
@@ -22,14 +17,25 @@ export interface DefinirParametresSmtpPayload {
   p_port: number;
   p_securite: 'none' | 'tls' | 'ssl';
   p_utilisateur: string;
-  // Vide/absent = conserver le mot de passe déjà enregistré (cf.
-  // fn_definir_parametres_smtp, migration 0052).
+  // Vide/absent = conserver le mot de passe déjà enregistré.
   p_mot_de_passe?: string | null;
   p_adresse_expediteur: string;
   p_nom_expediteur?: string | null;
   p_actif: boolean;
 }
 
-export async function definirParametresSmtp(payload: DefinirParametresSmtpPayload): Promise<void> {
-  await callRpc<null>('fn_definir_parametres_smtp', { ...payload });
+export async function definirParametresSmtp(
+  organisationId: string,
+  payload: DefinirParametresSmtpPayload,
+): Promise<void> {
+  await api.post(`/administration/organisations/${organisationId}/smtp`, {
+    hote: payload.p_hote,
+    port: payload.p_port,
+    securite: payload.p_securite,
+    utilisateur: payload.p_utilisateur,
+    motDePasse: payload.p_mot_de_passe || undefined,
+    adresseExpediteur: payload.p_adresse_expediteur,
+    nomExpediteur: payload.p_nom_expediteur ?? null,
+    actif: payload.p_actif,
+  });
 }

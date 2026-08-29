@@ -3,6 +3,7 @@ import { Button, Card, Table, Tag, message } from 'antd';
 import { useMemo, useState } from 'react';
 import { useDocumentsProjet } from '../../hooks/projets/useDocumentsProjet';
 import { useLivrables } from '../../hooks/projets/useLivrables';
+import { ouvrirFichier } from '../../config/apiClient';
 import { getUrlTelechargementDocument, type Document } from '../../services/projets/documents';
 import type { ProjetsReferentiel } from '../../services/projets/referentiel';
 import { DocumentProjetAjouterModal } from './DocumentProjetAjouterModal';
@@ -30,7 +31,7 @@ export function ProjetDocumentsTab({ projetId, peutModifier, referentiel, utilis
       message.error('Aucun fichier disponible pour ce document.');
       return;
     }
-    window.open(url, '_blank');
+    await ouvrirFichier(url);
   };
 
   return (

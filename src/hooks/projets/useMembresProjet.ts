@@ -30,7 +30,7 @@ export function useMembreMutations(projetId: string | undefined) {
   });
 
   const retirer = useMutation({
-    mutationFn: (id: string) => retirerMembre(id),
+    mutationFn: (id: string) => retirerMembre(projetId!, id),
     onSuccess: () => {
       message.success('Membre retiré.');
       void invalidate();

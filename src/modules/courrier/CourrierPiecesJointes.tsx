@@ -2,7 +2,7 @@ import { UploadOutlined } from '@ant-design/icons';
 import { Button, Card, Checkbox, List, Popconfirm, Space, Tag, Upload, message } from 'antd';
 import { useState } from 'react';
 import { usePieceJointeMutations, usePiecesJointes } from '../../hooks/courrier/usePiecesJointes';
-import { getUrlSignee } from '../../services/courrier/piecesJointes';
+import { ouvrirFichier } from '../../config/apiClient';
 import type { PieceJointe } from '../../services/courrier/piecesJointes';
 
 interface Props {
@@ -18,8 +18,7 @@ export function CourrierPiecesJointes({ courrierId, peutModifier }: Props) {
   const onTelecharger = async (piece: PieceJointe) => {
     if (!piece.storage_path) return;
     try {
-      const url = await getUrlSignee(piece.storage_path);
-      window.open(url, '_blank', 'noopener,noreferrer');
+      await ouvrirFichier(`/courrier/pieces-jointes/${piece.id}/telecharger`);
     } catch (error) {
       message.error(error instanceof Error ? error.message : 'Échec du téléchargement.');
     }

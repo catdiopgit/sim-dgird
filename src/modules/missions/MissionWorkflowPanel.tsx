@@ -2,11 +2,12 @@ import { Button, Card, Input, Popconfirm, Skeleton, Space, Timeline, Typography 
 import { useMemo, useState } from 'react';
 import { useUtilisateursOptions } from '../../hooks/administration/useEntites';
 import {
+  useExecuterTransitionMission,
+  useTransitionsDisponiblesMission,
   useWorkflowEtapes,
   useWorkflowHistorique,
   useWorkflowInstance,
-} from '../../hooks/workflow/useWorkflowGenerique';
-import { useExecuterTransitionMission, useTransitionsDisponiblesMission } from '../../hooks/missions/useWorkflowMission';
+} from '../../hooks/missions/useWorkflowMission';
 import type { Mission } from '../../services/missions/missions';
 
 interface Props {
@@ -15,11 +16,9 @@ interface Props {
 }
 
 export function MissionWorkflowPanel({ mission, organisationId }: Props) {
-  const { data: instance, isLoading: chargementInstance } = useWorkflowInstance(mission.workflow_instance_id ?? undefined);
+  const { data: instance, isLoading: chargementInstance } = useWorkflowInstance(mission.id);
   const { data: etapes } = useWorkflowEtapes(instance?.workflow_definition_id);
-  const { data: historique, isLoading: chargementHistorique } = useWorkflowHistorique(
-    mission.workflow_instance_id ?? undefined,
-  );
+  const { data: historique, isLoading: chargementHistorique } = useWorkflowHistorique(mission.id);
   const { data: utilisateurs } = useUtilisateursOptions(organisationId);
   const { data: transitionsDisponibles, isLoading: chargementTransitions } = useTransitionsDisponiblesMission(
     mission.id,

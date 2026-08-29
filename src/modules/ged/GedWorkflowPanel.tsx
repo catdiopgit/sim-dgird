@@ -2,11 +2,12 @@ import { Button, Card, Input, Popconfirm, Skeleton, Space, Timeline, Typography 
 import { useMemo, useState } from 'react';
 import { useUtilisateursOptions } from '../../hooks/administration/useEntites';
 import {
+  useExecuterTransitionVersement,
+  useTransitionsDisponiblesVersement,
   useWorkflowEtapes,
   useWorkflowHistorique,
   useWorkflowInstance,
-} from '../../hooks/workflow/useWorkflowGenerique';
-import { useExecuterTransitionVersement, useTransitionsDisponiblesVersement } from '../../hooks/ged/useWorkflowGed';
+} from '../../hooks/ged/useWorkflowGed';
 import type { GedVersement } from '../../services/ged/versements';
 
 interface Props {
@@ -15,13 +16,9 @@ interface Props {
 }
 
 export function GedWorkflowPanel({ versement, organisationId }: Props) {
-  const { data: instance, isLoading: chargementInstance } = useWorkflowInstance(
-    versement.workflow_instance_id ?? undefined,
-  );
+  const { data: instance, isLoading: chargementInstance } = useWorkflowInstance(versement.id);
   const { data: etapes } = useWorkflowEtapes(instance?.workflow_definition_id);
-  const { data: historique, isLoading: chargementHistorique } = useWorkflowHistorique(
-    versement.workflow_instance_id ?? undefined,
-  );
+  const { data: historique, isLoading: chargementHistorique } = useWorkflowHistorique(versement.id);
   const { data: utilisateurs } = useUtilisateursOptions(organisationId);
   const { data: transitionsDisponibles, isLoading: chargementTransitions } = useTransitionsDisponiblesVersement(
     versement.id,

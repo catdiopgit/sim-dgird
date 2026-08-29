@@ -1,5 +1,3 @@
-import { supabase } from '../../config/supabase';
-import { callRpc } from '../rpc';
 import type { Database } from '../../types/database';
 
 export type ArchivageOperation = Database['public']['Tables']['archivage_operations']['Row'];
@@ -20,61 +18,34 @@ export interface ArchivageCompteurs {
   } | null;
 }
 
-// Compte les éléments éligibles sans rien créer — alimente le mini tableau
-// de bord avant que l'archiviste ne clique sur "Préparer" (fn_archivage_
-// compter_eligibles, migration 0082). Par défaut : année civile précédente.
-export async function fetchArchivageCompteurs(dateDebut?: string, dateFin?: string): Promise<ArchivageCompteurs> {
-  return callRpc<ArchivageCompteurs>('fn_archivage_compter_eligibles', {
-    p_date_debut: dateDebut ?? null,
-    p_date_fin: dateFin ?? null,
-  });
+// Sous-système d'archivage annuel (archivage_operations/archivage_elements,
+// migration 0082) : différé côté backend NestJS depuis la Phase 4
+// (MIGRATION.md) — dépend en lecture de Projets/Missions, cross-module, jamais
+// repris explicitement aux Phases 5/6. La page ArchivagePage reste donc non
+// fonctionnelle tant que ces routes ne sont pas portées ; ces stubs lèvent une
+// erreur claire plutôt que d'échouer silencieusement sur un import cassé.
+const NON_IMPLEMENTE = "Le sous-système d'archivage annuel n'est pas encore porté côté serveur (voir MIGRATION.md).";
+
+export async function fetchArchivageCompteurs(_dateDebut?: string, _dateFin?: string): Promise<ArchivageCompteurs> {
+  throw new Error(NON_IMPLEMENTE);
 }
 
-// "Préparer l'archivage annuel" en un clic : détecte tous les éléments
-// éligibles pour la période et remplace toute préparation en cours pour
-// l'organisation (fn_archivage_preparer).
-export async function preparerArchivage(dateDebut?: string, dateFin?: string): Promise<ArchivageOperation> {
-  return callRpc<ArchivageOperation>('fn_archivage_preparer', {
-    p_date_debut: dateDebut ?? null,
-    p_date_fin: dateFin ?? null,
-  });
+export async function preparerArchivage(_dateDebut?: string, _dateFin?: string): Promise<ArchivageOperation> {
+  throw new Error(NON_IMPLEMENTE);
 }
 
-// Reprend une préparation déjà lancée (rechargement de page, autre onglet)
-// plutôt que de forcer un nouveau clic sur "Préparer".
-export async function fetchOperationEnPreparation(organisationId: string): Promise<ArchivageOperation | null> {
-  const { data, error } = await supabase
-    .from('archivage_operations')
-    .select('*')
-    .eq('organisation_id', organisationId)
-    .eq('statut', 'en_preparation')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
+export async function fetchOperationEnPreparation(_organisationId: string): Promise<ArchivageOperation | null> {
+  throw new Error(NON_IMPLEMENTE);
 }
 
-export async function listArchivageElements(operationId: string): Promise<ArchivageElement[]> {
-  const { data, error } = await supabase
-    .from('archivage_elements')
-    .select('*')
-    .eq('operation_id', operationId)
-    .order('type_element', { ascending: true })
-    .order('reference', { ascending: true });
-  if (error) throw error;
-  return data ?? [];
+export async function listArchivageElements(_operationId: string): Promise<ArchivageElement[]> {
+  throw new Error(NON_IMPLEMENTE);
 }
 
-export async function definirSelectionElement(elementId: string, selectionne: boolean): Promise<ArchivageElement> {
-  return callRpc<ArchivageElement>('fn_archivage_definir_selection', {
-    p_element_id: elementId,
-    p_selectionne: selectionne,
-  });
+export async function definirSelectionElement(_elementId: string, _selectionne: boolean): Promise<ArchivageElement> {
+  throw new Error(NON_IMPLEMENTE);
 }
 
-// "Confirmer l'archivage" : classe définitivement les éléments sélectionnés
-// (fn_archivage_confirmer) — irréversible en v1, cf. décision de scope.
-export async function confirmerArchivage(operationId: string): Promise<ArchivageOperation> {
-  return callRpc<ArchivageOperation>('fn_archivage_confirmer', { p_operation_id: operationId });
+export async function confirmerArchivage(_operationId: string): Promise<ArchivageOperation> {
+  throw new Error(NON_IMPLEMENTE);
 }

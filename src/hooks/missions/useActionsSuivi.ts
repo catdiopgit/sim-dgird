@@ -32,7 +32,8 @@ export function useActionSuiviMutations(missionId: string | undefined) {
   });
 
   const update = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: MissionActionSuiviUpdate }) => updateActionSuivi(id, patch),
+    mutationFn: ({ id, patch }: { id: string; patch: MissionActionSuiviUpdate }) =>
+      updateActionSuivi(missionId!, id, patch),
     onSuccess: () => {
       message.success('Action de suivi mise à jour.');
       void invalidate();
@@ -41,7 +42,7 @@ export function useActionSuiviMutations(missionId: string | undefined) {
   });
 
   const supprimer = useMutation({
-    mutationFn: (id: string) => supprimerActionSuivi(id),
+    mutationFn: (id: string) => supprimerActionSuivi(missionId!, id),
     onSuccess: () => {
       message.success('Action de suivi supprimée.');
       void invalidate();

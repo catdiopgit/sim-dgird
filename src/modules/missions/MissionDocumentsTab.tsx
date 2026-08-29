@@ -2,6 +2,7 @@ import { DownloadOutlined, UploadOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Card, Skeleton, Space, Typography, Upload, message } from 'antd';
 import { useAjouterDocumentMission } from '../../hooks/missions/useDocumentsMission';
+import { ouvrirFichier } from '../../config/apiClient';
 import { getDocumentParId, getUrlTelechargementDocument } from '../../services/missions/documents';
 import type { RoleDocumentMission } from '../../services/missions/documents';
 
@@ -31,7 +32,7 @@ function EmplacementDocument({ label, role, documentId, missionId, peutModifier 
       message.error('Aucun fichier disponible pour ce document.');
       return;
     }
-    window.open(url, '_blank');
+    await ouvrirFichier(url);
   };
 
   return (

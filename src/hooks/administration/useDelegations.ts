@@ -7,10 +7,11 @@ import {
   type DelegationInsert,
 } from '../../services/administration/delegations';
 
-export function useDelegations() {
+export function useDelegations(organisationId?: string) {
   return useQuery({
-    queryKey: ['delegations'],
-    queryFn: listDelegations,
+    queryKey: ['delegations', organisationId],
+    queryFn: () => listDelegations(organisationId as string),
+    enabled: !!organisationId,
   });
 }
 

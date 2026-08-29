@@ -1,5 +1,4 @@
-import { supabase } from '../../config/supabase';
-import type { ValeurListe } from '../administration/parametrage';
+import { listListesValeurs, listValeursListes, type ValeurListe } from '../administration/parametrage';
 
 const CODES_LISTES = ['mission_type_participant', 'statut_generique'] as const;
 
@@ -9,27 +8,15 @@ export interface MissionsReferentiel {
 }
 
 export async function fetchMissionsReferentiel(organisationId: string): Promise<MissionsReferentiel> {
-  const { data: listes, error: listesError } = await supabase
-    .from('listes_valeurs')
-    .select('id, code')
-    .eq('organisation_id', organisationId)
-    .in('code', CODES_LISTES as unknown as string[]);
-  if (listesError) throw listesError;
+  const listes = await listListesValeurs(organisationId);
+  const listesUtiles = listes.filter((l) => (CODES_LISTES as readonly string[]).includes(l.code));
 
-  const listeIdParCode = new Map((listes ?? []).map((l) => [l.code, l.id]));
-  const listeIds = (listes ?? []).map((l) => l.id);
-
-  let valeurs: ValeurListe[] = [];
-  if (listeIds.length > 0) {
-    const { data, error } = await supabase
-      .from('valeurs_listes')
-      .select('*')
-      .in('liste_id', listeIds)
-      .eq('actif', true)
-      .order('ordre', { ascending: true });
-    if (error) throw error;
-    valeurs = data ?? [];
-  }
+  const valeursParListe = await Promise.all(listesUtiles.map((l) => listValeursListes(l.id)));
+  const listeIdParCode = new Map(listesUtiles.map((l) => [l.code, l.id]));
+  const valeurs = valeursParListe
+    .flat()
+    .filter((v) => v.actif)
+    .sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0));
 
   const parCode = (code: (typeof CODES_LISTES)[number]) => {
     const listeId = listeIdParCode.get(code);

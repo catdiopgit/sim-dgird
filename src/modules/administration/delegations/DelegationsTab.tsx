@@ -26,7 +26,7 @@ type FormValues = z.infer<typeof schema>;
 export function DelegationsTab() {
   const { profile } = useProfile();
   const organisationId = profile?.organisation_id;
-  const { data: delegations, isLoading } = useDelegations();
+  const { data: delegations, isLoading } = useDelegations(organisationId);
   const { create, revoquer } = useDelegationMutations();
   const { data: utilisateurs } = useUtilisateurs(organisationId);
   const { data: entites } = useEntites(organisationId);

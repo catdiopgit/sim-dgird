@@ -1,36 +1,24 @@
-import { supabase } from '../../config/supabase';
-import { callRpc } from '../rpc';
+import { api } from '../../config/apiClient';
+import { toCamelCase, toSnakeCase } from '../../utils/caseMapping';
 import type { Database } from '../../types/database';
 
 export type GedVersement = Database['public']['Tables']['ged_versements']['Row'];
 
-export async function listMesBrouillons(organisationId: string): Promise<GedVersement[]> {
-  const { data, error } = await supabase
-    .from('ged_versements')
-    .select('*')
-    .eq('organisation_id', organisationId)
-    .eq('brouillon', true)
-    .is('supprime_le', null)
-    .order('updated_at', { ascending: false });
-  if (error) throw error;
-  return data ?? [];
+// organisationId n'est pas transmis : le backend le déduit de l'utilisateur
+// courant (JWT) — voir server/ged/ged-versements.controller.ts.
+export async function listMesBrouillons(_organisationId: string): Promise<GedVersement[]> {
+  const data = await api.get<unknown[]>('/ged/versements', { brouillons: true });
+  return toSnakeCase<GedVersement[]>(data);
 }
 
-export async function listVersements(organisationId: string): Promise<GedVersement[]> {
-  const { data, error } = await supabase
-    .from('ged_versements')
-    .select('*')
-    .eq('organisation_id', organisationId)
-    .is('supprime_le', null)
-    .order('updated_at', { ascending: false });
-  if (error) throw error;
-  return data ?? [];
+export async function listVersements(_organisationId: string): Promise<GedVersement[]> {
+  const data = await api.get<unknown[]>('/ged/versements');
+  return toSnakeCase<GedVersement[]>(data);
 }
 
 export async function getVersement(id: string): Promise<GedVersement> {
-  const { data, error } = await supabase.from('ged_versements').select('*').eq('id', id).single();
-  if (error) throw error;
-  return data;
+  const data = await api.get<unknown>(`/ged/versements/${id}`);
+  return toSnakeCase<GedVersement>(data);
 }
 
 export interface CreerVersementPayload {
@@ -41,11 +29,18 @@ export interface CreerVersementPayload {
 }
 
 export async function creerVersement(payload: CreerVersementPayload): Promise<GedVersement> {
-  return callRpc<GedVersement>('fn_creer_versement', { ...payload });
+  const data = await api.post<unknown>('/ged/versements', {
+    objet: payload.p_objet,
+    entiteId: payload.p_entite_id ?? null,
+    dossierCibleId: payload.p_dossier_cible_id ?? null,
+    description: payload.p_description ?? null,
+  });
+  return toSnakeCase<GedVersement>(data);
 }
 
 export async function soumettreVersement(versementId: string): Promise<GedVersement> {
-  return callRpc<GedVersement>('fn_soumettre_versement', { p_versement_id: versementId });
+  const data = await api.post<unknown>(`/ged/versements/${versementId}/soumettre`);
+  return toSnakeCase<GedVersement>(data);
 }
 
 export interface ModifierVersementPayload {
@@ -55,9 +50,8 @@ export interface ModifierVersementPayload {
   dossier_cible_id?: string | null;
 }
 
-// Édition directe du brouillon par son rédacteur (ged_versements_write, 0057).
+// Édition directe du brouillon par son rédacteur.
 export async function modifierVersement(id: string, payload: ModifierVersementPayload): Promise<GedVersement> {
-  const { data, error } = await supabase.from('ged_versements').update(payload).eq('id', id).select('*').single();
-  if (error) throw error;
-  return data;
+  const data = await api.patch<unknown>(`/ged/versements/${id}`, toCamelCase(payload));
+  return toSnakeCase<GedVersement>(data);
 }

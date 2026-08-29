@@ -1,5 +1,5 @@
-import { supabase } from '../../config/supabase';
-import { callRpc } from '../rpc';
+import { api } from '../../config/apiClient';
+import { toCamelCase, toSnakeCase } from '../../utils/caseMapping';
 import type { Database } from '../../types/database';
 
 export type Courrier = Database['public']['Tables']['courriers']['Row'];
@@ -11,33 +11,26 @@ export interface CourrierFiltres {
   recherche?: string;
 }
 
+// organisationId n'est pas transmis : le backend le déduit de l'utilisateur
+// courant (JWT) — voir server/courrier/courriers.controller.ts.
 export async function listCourriers(
-  organisationId: string,
+  _organisationId: string,
   filtres: CourrierFiltres = {},
 ): Promise<Courrier[]> {
-  let query = supabase
-    .from('courriers')
-    .select('*')
-    .eq('organisation_id', organisationId)
-    .is('supprime_le', null)
-    .order('created_at', { ascending: false });
-
-  if (filtres.sens) query = query.eq('sens', filtres.sens);
-  if (filtres.recherche) query = query.ilike('objet', `%${filtres.recherche}%`);
-
-  const { data, error } = await query;
-  if (error) throw error;
-  return data ?? [];
+  const data = await api.get<unknown[]>('/courrier/courriers', {
+    sens: filtres.sens,
+    recherche: filtres.recherche,
+  });
+  return toSnakeCase<Courrier[]>(data);
 }
 
 export async function getCourrier(id: string): Promise<Courrier> {
-  const { data, error } = await supabase.from('courriers').select('*').eq('id', id).single();
-  if (error) throw error;
-  return data;
+  const data = await api.get<unknown>(`/courrier/courriers/${id}`);
+  return toSnakeCase<Courrier>(data);
 }
 
 // Champs informatifs seulement: sens/numero/workflow_instance_id/etape_* sont
-// gérés par fn_creer_courrier / fn_executer_transition_courrier, jamais en écriture directe.
+// gérés par le moteur de workflow (création/transition), jamais en écriture directe.
 export type CourrierPatchInfos = Pick<
   CourrierUpdate,
   | 'objet'
@@ -57,32 +50,20 @@ export type CourrierPatchInfos = Pick<
 >;
 
 export async function updateCourrier(id: string, patch: CourrierPatchInfos): Promise<Courrier> {
-  const { data, error } = await supabase
-    .from('courriers')
-    .update(patch)
-    .eq('id', id)
-    .select('*')
-    .single();
-  if (error) throw error;
-  return data;
+  const data = await api.patch<unknown>(`/courrier/courriers/${id}`, toCamelCase(patch));
+  return toSnakeCase<Courrier>(data);
 }
 
-// Suppression douce (colonne supprime_le) plutôt que DELETE dur: cohérent avec
-// le même patron déjà utilisé sur documents/ged_dossiers.
+// Suppression douce (colonne supprime_le) — gérée côté serveur.
 export async function supprimerCourrier(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('courriers')
-    .update({ supprime_le: new Date().toISOString() })
-    .eq('id', id);
-  if (error) throw error;
+  await api.delete(`/courrier/courriers/${id}`);
 }
 
 export interface CreerCourrierPayload {
   p_sens: SensCourrier;
   p_objet: string;
   // Optionnel: pour un courrier arrivé, laisser vide pour laisser le routage
-  // initial (paramètre d'organisation) déterminer l'entité automatiquement —
-  // cf. app.fn_parametre_organisation / clé 'courrier.entite_destinataire_initiale_id'.
+  // initial (paramètre d'organisation) déterminer l'entité automatiquement.
   p_entite_id?: string | null;
   p_type_valeur_id?: string | null;
   p_priorite_valeur_id?: string | null;
@@ -104,14 +85,37 @@ export interface CreerCourrierPayload {
 }
 
 export async function creerCourrier(payload: CreerCourrierPayload): Promise<Courrier> {
-  return callRpc<Courrier>('fn_creer_courrier', { ...payload });
+  const data = await api.post<unknown>('/courrier/courriers', {
+    sens: payload.p_sens,
+    objet: payload.p_objet,
+    entiteId: payload.p_entite_id ?? null,
+    typeValeurId: payload.p_type_valeur_id ?? null,
+    prioriteValeurId: payload.p_priorite_valeur_id ?? null,
+    confidentialiteValeurId: payload.p_confidentialite_valeur_id ?? null,
+    modeTransmissionValeurId: payload.p_mode_transmission_valeur_id ?? null,
+    dateCourrier: payload.p_date_courrier ?? null,
+    dateReception: payload.p_date_reception ?? null,
+    dateEnvoi: payload.p_date_envoi ?? null,
+    expediteurNom: payload.p_expediteur_nom ?? null,
+    expediteurTypeValeurId: payload.p_expediteur_type_valeur_id ?? null,
+    destinataireTexte: payload.p_destinataire_texte ?? null,
+    entiteDestinataireId: payload.p_entite_destinataire_id ?? null,
+    agentDestinataireId: payload.p_agent_destinataire_id ?? null,
+    contactDestinataireId: payload.p_contact_destinataire_id ?? null,
+    statutReceptionValeurId: payload.p_statut_reception_valeur_id ?? null,
+    expediteurContactId: payload.p_expediteur_contact_id ?? null,
+    referenceExpediteur: payload.p_reference_expediteur ?? null,
+    observations: payload.p_observations ?? null,
+  });
+  return toSnakeCase<Courrier>(data);
 }
 
 export type Bannette = 'a_traiter' | 'en_retard' | 'archives' | 'sortants' | 'en_copie' | 'clotures';
 
-// Architecture bannettes (plan V3 §H) : une fonction serveur unique par
+// Architecture bannettes (plan V3 §H) : une route serveur unique par
 // bannette, réutilisant les briques du moteur de workflow (acteur autorisé,
 // délais, étapes finales) plutôt que des filtres client.
 export async function listBannetteCourriers(bannette: Bannette): Promise<Courrier[]> {
-  return callRpc<Courrier[]>('fn_bannettes_courrier', { p_bannette: bannette });
+  const data = await api.get<unknown[]>(`/courrier/courriers/bannettes/${bannette}`);
+  return toSnakeCase<Courrier[]>(data);
 }

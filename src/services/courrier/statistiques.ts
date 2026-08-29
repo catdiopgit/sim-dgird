@@ -1,4 +1,8 @@
-import { callRpc } from '../rpc';
+// Catégorie 9 (reporting/statistiques) : jamais portée côté NestJS — voir
+// services/projets/statistiques.ts pour l'explication complète (dépendance à
+// app.current_organisation_id(), fonction de session RLS Supabase absente en
+// NestJS). Stub explicite plutôt qu'un appel cassé.
+const NON_IMPLEMENTE = 'Les statistiques Courrier ne sont pas encore portées côté serveur (voir MIGRATION.md).';
 
 export interface StatistiquesCourrierTotaux {
   total: number;
@@ -34,16 +38,9 @@ export interface StatistiquesCourrier {
   evolution: StatistiquesCourrierEvolutionPoint[];
 }
 
-// Une seule fonction serveur (public.fn_statistiques_courrier, migration
-// 0055) agrège tout — un seul aller-retour réseau, un seul état de
-// chargement côté client. Dates au format YYYY-MM-DD (ou undefined = pas de
-// borne, toute la période).
 export async function fetchStatistiquesCourrier(
-  dateDebut?: string,
-  dateFin?: string,
+  _dateDebut?: string,
+  _dateFin?: string,
 ): Promise<StatistiquesCourrier> {
-  return callRpc<StatistiquesCourrier>('fn_statistiques_courrier', {
-    p_date_debut: dateDebut ?? null,
-    p_date_fin: dateFin ?? null,
-  });
+  throw new Error(NON_IMPLEMENTE);
 }

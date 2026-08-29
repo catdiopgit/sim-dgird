@@ -30,7 +30,7 @@ export function useParticipantMutations(missionId: string | undefined) {
   });
 
   const retirer = useMutation({
-    mutationFn: (id: string) => retirerParticipant(id),
+    mutationFn: (id: string) => retirerParticipant(missionId!, id),
     onSuccess: () => {
       message.success('Participant retiré.');
       void invalidate();

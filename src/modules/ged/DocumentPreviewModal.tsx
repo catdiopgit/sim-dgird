@@ -1,7 +1,8 @@
 import { DownloadOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import { Button, Descriptions, Modal, Skeleton, Space, Typography } from 'antd';
-import { getUrlSigneeVersion } from '../../services/ged/documents';
+import { useEffect } from 'react';
+import { obtenirUrlObjet } from '../../config/apiClient';
 import type { Document } from '../../services/ged/documents';
 import { telechargerVersion, useInfosFichierDocuments } from '../../hooks/ged/useDocuments';
 import { useTracerConsultation } from '../../hooks/ged/useConsultations';
@@ -24,10 +25,18 @@ export function DocumentPreviewModal({ document, onClose }: Props) {
   const infos = document?.version_courante_id ? infosParVersionId.get(document.version_courante_id) : undefined;
 
   const { data: urlSignee, isLoading: chargementUrl } = useQuery({
-    queryKey: ['ged-url-signee', infos?.storage_path],
-    queryFn: () => getUrlSigneeVersion(infos!.storage_path),
-    enabled: Boolean(infos?.storage_path),
+    queryKey: ['ged-url-objet', infos?.id],
+    queryFn: () => obtenirUrlObjet(`/ged/versions/${infos!.id}/telecharger`),
+    enabled: Boolean(infos?.id),
   });
+
+  // L'URL objet est locale au navigateur (créée par obtenirUrlObjet) : la
+  // révoquer à la destruction de l'aperçu évite une fuite mémoire.
+  useEffect(() => {
+    return () => {
+      if (urlSignee) URL.revokeObjectURL(urlSignee);
+    };
+  }, [urlSignee]);
 
   if (!document) return null;
 
@@ -36,7 +45,7 @@ export function DocumentPreviewModal({ document, onClose }: Props) {
 
   const telecharger = () => {
     if (!infos) return;
-    void telechargerVersion(document.id, infos.storage_path, infos.nom_fichier);
+    void telechargerVersion(document.id, infos.id, infos.nom_fichier);
   };
 
   return (

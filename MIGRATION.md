@@ -1,6 +1,6 @@
 # Migration Supabase → PostgreSQL direct (NestJS + TypeORM)
 
-Statut global : **Phases 0 à 7 terminées** (squelette NestJS + TypeORM + Auth JWT ; administration complète ; moteur de workflow générique + référentiel ; Courrier complet avec stockage ; GED complète avec stockage/versioning et ACL par document/dossier ; Projets complet — cœur métier V3, sans workflow moteur générique ; Missions complet, avec workflow moteur générique ; Notifications + cron — détection de retards et envoi SMTP internalisés via `@nestjs/schedule`). Sous-système d'archivage annuel GED (0082, cross-module Courrier/Projets/Missions) différé. Phase 8 (Frontend : remplacement de `supabase-js` par un client HTTP) à démarrer — dernière phase.
+Statut global : **Phases 0 à 8 terminées** — migration complète. Squelette NestJS + TypeORM + Auth JWT ; administration complète ; moteur de workflow générique + référentiel ; Courrier complet avec stockage ; GED complète avec stockage/versioning et ACL par document/dossier ; Projets complet — cœur métier V3, sans workflow moteur générique ; Missions complet, avec workflow moteur générique ; Notifications + cron — détection de retards et envoi SMTP internalisés via `@nestjs/schedule` ; frontend entièrement basculé sur le client HTTP NestJS (`@supabase/supabase-js` retiré de `package.json`, plus aucun import applicatif). `npx tsc -b --noEmit` et `npx nest build` propres, test manuel réel (navigateur, serveur + base locale) passé sur Administration/Courrier/GED/Projets. Deux réserves documentées, non bloquantes : sous-système d'archivage annuel GED (0082, cross-module Courrier/Projets/Missions) différé depuis la Phase 4 ; reporting/statistiques (catégorie 9 — 4 pages de stats + échéances du tableau de bord) jamais porté côté NestJS, stubbé côté frontend avec message explicite. Voir journal Phase 8 pour le détail complet.
 
 ## Contexte
 
@@ -87,7 +87,7 @@ cette API au lieu de `supabase-js`.
 | 5 | Projets | **Fait**, cœur métier V3 uniquement (V1 phases/activites/taches et tables de suivi risques/problèmes/décisions/réunions/indicateurs différées, voir journal) |
 | 6 | Missions | **Fait** |
 | 7 | Notifications + cron (`@nestjs/schedule`) | **Fait** |
-| 8 | Frontend : remplacement des ~65 fichiers `supabase-js` par un client HTTP | À faire |
+| 8 | Frontend : remplacement des ~65 fichiers `supabase-js` par un client HTTP | **Fait**, avec réserve : reporting/statistiques (catégorie 9) stubbé côté frontend, jamais porté côté serveur — voir journal |
 
 ## Journal
 
@@ -830,3 +830,119 @@ cette API au lieu de `supabase-js`.
 
   `npx nest build` passe sans erreur.
 
+- 2026-08-29 : Phase 8 (Frontend : remplacement de `@supabase/supabase-js` par le client
+  HTTP NestJS) livrée. Le gros du remplacement des ~65 fichiers (`src/config/apiClient.ts`,
+  la conversion camelCase/snake_case via `src/utils/caseMapping.ts`, la bascule de tous
+  les `services/*` Courrier/GED/Administration vers `api.get/post/patch/delete/upload`,
+  l'authentification (`AuthContext`/`ProfileContext`), les téléchargements de fichiers via
+  blob + lien programmatique (`ouvrirFichier`) à la place des URLs signées Supabase) avait
+  été fait dans une session précédente compactée ; ce tour a fini le reste, corrigé deux
+  régressions de build découvertes en cours de route, et fait le test manuel réel.
+
+  **Fichiers finis dans ce tour** (derniers appelants directs de `supabase-js` restants) :
+  `src/services/projets/{membres,visibilite,contactsExecution,decaissements,livrables,
+  avenants,projets,cloture,historique,statistiques}.ts`, `src/services/missions/
+  {participants,depenses,actionsSuivi,referentiel,statistiques}.ts`,
+  `src/services/courrier/statistiques.ts`, `src/services/ged/statistiques.ts`,
+  `src/services/dashboard/echeances.ts`, `src/services/projets/referentiel.ts` (avaient
+  encore un `any` implicite sur le paramètre de callback `.map`, corrigé en réutilisant
+  les helpers déjà migrés `administration/parametrage.ts` au lieu de requêtes brutes) ; les
+  hooks appelants correspondants (`hooks/projets/{useMembresProjet,useDecaissements,
+  useLivrables,useAvenants,useContactsExecution}.ts`, `hooks/missions/{useParticipants,
+  useDepenses,useActionsSuivi}.ts`) ont dû être retouchés en même temps : les endpoints
+  NestJS scopent ces ressources sous `/projets/:projetId/...` ou `/missions/:missionId/...`
+  (contrairement aux anciennes routes PostgREST plates par id de ligne), donc chaque
+  fonction `retirerX(id)`/`updateX(id, patch)`/`deleteX(id)` a dû devenir
+  `retirerX(parentId, id)`/etc. — changement mécanique mais touchant ~15 signatures, fait
+  service par service puis vérifié par `tsc`. Suppression de `src/services/rpc.ts` (plus
+  aucun appelant après ce nettoyage) et `src/config/supabase.ts` ; `src/vite-env.d.ts` et
+  `.env.example` mis à jour (`VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` → `VITE_API_URL`).
+
+  **Écart de périmètre découvert et assumé pendant ce tour** (pas un bug de portage, un
+  trou de couverture jamais comblé côté NestJS) : les fonctions de reporting/statistiques
+  (catégorie 9 — `fn_statistiques_{courrier,projets,missions,ged}`,
+  `fn_echeances_prochaines`) n'ont jamais reçu d'équivalent NestJS dans les Phases 3-7,
+  et ne peuvent pas être appelées telles quelles depuis le backend : elles lisent
+  `app.current_organisation_id()`/`app.can_view_projet()`, des fonctions de session RLS
+  Supabase (GUC positionnée par `auth.uid()`) qui n'existent plus une fois RLS désactivée
+  (décision b) — les appeler via `manager.query()` échouerait avec "Utilisateur non
+  rattaché à une organisation". Les porter fidèlement demanderait de réimplémenter toute
+  l'agrégation en TypeScript, comme les catégories 3 à 8 — un chantier à part entière, hors
+  périmètre de cette phase (remplacement du client HTTP). Décision : les 5 fonctions
+  frontend concernées (`fetchStatistiquesProjets/Courrier/Missions/Ged`,
+  `fetchEcheancesProchaines`) lancent maintenant une erreur explicite ("... ne sont pas
+  encore portées côté serveur") au lieu d'un appel RPC cassé ; `fetchHistoriqueProjet`,
+  elle, a bien un équivalent NestJS déjà livré en Phase 5 (`GET /projets/:id/historique`) et
+  a été rebranchée dessus normalement, ce n'est pas dans le même cas. Vérifié en
+  navigateur : les pages Statistiques/tuiles du tableau de bord affichent "Données
+  indisponibles" proprement (React Query capture l'erreur, pas de crash) plutôt que de
+  planter — dégradation propre, pas un écran blanc. À reprendre dans une phase dédiée si
+  ces pages sont jugées prioritaires ; le détail des 5 fonctions SQL (colonnes, filtres,
+  agrégats) reste inchangé dans `supabase/migrations/0055/0076/0079/0080/0081`, à ne pas
+  re-dériver.
+
+  **Deux régressions de build découvertes et corrigées avant le test navigateur** :
+  1. `server/administration/delegations/delegations.controller.ts` : `list()` passait
+     `utilisateurId` (paramètre de query optionnel, `string | undefined`) directement à
+     `listPourUtilisateur(utilisateurId: string)` sans le valider — cassait `npx nest
+     build`. Corrigé en exigeant explicitement `utilisateurId` ou `organisationId`
+     (`400 BadRequestException` sinon), plutôt qu'un cast qui aurait laissé passer
+     `undefined` en silence.
+  2. `src/config/supabase.ts` avait été laissé en place avec des imports cassés
+     (`@supabase/supabase-js` retiré de `node_modules`, `isSupabaseConfigured`/
+     `supabaseUrl`/`supabaseAnonKey` retirés de `env.ts`) — dernier fichier non traité de
+     la bascule, cassait `npx tsc -b --noEmit`. Traité comme ci-dessus (tous ses
+     appelants migrés, fichier supprimé).
+
+  **Bug réel trouvé et corrigé pendant le test navigateur** (pas au build, ni à la
+  relecture — uniquement visible en observant les valeurs affichées) : les colonnes
+  Postgres `numeric` (`projets.budget_prevu/budget_reel/avancement_pct`,
+  `livrables.poids_pct`, `decaissements.pourcentage/montant`, `avenants.montant`,
+  `missions.budget_prevu/budget_reel`, `mission_depenses.montant` — 9 colonnes au total)
+  étaient typées `string` côté entité TypeORM depuis leur création (Phases 5/6), fidèles
+  au comportement par défaut du driver `pg` (une colonne `numeric` revient en chaîne pour
+  ne jamais perdre de précision). Tant que le frontend passait par `supabase-js`
+  (PostgREST, même comportement de sérialisation), cette chaîne traversait tout le chemin
+  sans jamais être manipulée arithmétiquement côté client de façon visible. Une fois
+  basculé sur l'API NestJS, l'onglet "Vue d'ensemble" d'un projet affichait "Montant total
+  du projet : 1000000.00050000.00" (concaténation de chaînes au lieu d'une somme) et
+  "% financier décaissé : NaN %" — repéré en ouvrant un vrai projet de test dans le
+  navigateur, pas par lecture de code. Corrigé à la source plutôt que côté frontend :
+  nouveau `server/common/transformers/numeric.transformer.ts` (`ValueTransformer`
+  TypeORM, `from: Number(value)`) appliqué aux 9 colonnes concernées
+  (`projet.entity.ts`, `mission.entity.ts`, `mission-depense.entity.ts`,
+  `avenant.entity.ts`, `decaissement.entity.ts`, `livrable.entity.ts`) — ces colonnes
+  sortent désormais en JSON comme de vrais nombres. A nécessité de retirer les
+  conversions `String(...)` explicites que les services (`projets.service.ts`,
+  `livrables.service.ts`, `decaissements.service.ts`, `avenants.service.ts`,
+  `missions.service.ts`, `mission-depenses.service.ts`) faisaient pour satisfaire l'ancien
+  typage `string` à l'écriture (`this.repo.create({ montant: String(data.montant) })`,
+  etc.) — `npx nest build` a servi de filet de sécurité pour retrouver chaque occurrence
+  (erreurs `Type 'string' is not assignable to type 'number'`). Revérifié en navigateur
+  après correction : mêmes montants affichés correctement (1 050 000 FCFA, 47.62 %,
+  550 000 FCFA restant). Aucune autre colonne `numeric` trouvée ailleurs dans le schéma
+  (Courrier/GED/Administration n'en ont aucune).
+
+  **Test manuel réel en navigateur** (Claude in Chrome, serveur NestJS + Vite dev server +
+  base locale, compte `admin.test@example.com` avec un mot de passe temporaire posé puis
+  retiré après coup) : connexion, tableau de bord (tuiles statistiques dégradées
+  proprement en "Données indisponibles", cf. écart ci-dessus) ; Administration
+  (Organisation, Utilisateurs, Rôles & Permissions, Délégations — tous chargés avec
+  données réelles) ; Courrier (liste, détail d'un courrier avec workflow/historique,
+  cycle complet upload → téléchargement authentifié (blob) → suppression d'une pièce
+  jointe, tous vérifiés) ; GED (liste des versements, Archives avec comptage par dossier
+  — nouvel endpoint de la session précédente confirmé correct, aperçu PDF ouvrant bien un
+  blob authentifié dans le viewer natif du navigateur) ; Projets (liste, tous les onglets
+  d'un projet clôturé — Vue d'ensemble, Livrables, Décaissements avec téléchargement de
+  justificatif, Membres, Documents, Avenants, Historique — chacun avec données réelles
+  après correction du bug numeric ci-dessus). Module Missions : liste vide vérifiée sans
+  erreur console, mais la création via le modal n'a pas abouti dans ce tour (fermeture
+  inattendue du formulaire après un clic sur le champ Entité — probablement un aléa de
+  l'automatisation du navigateur, pas d'erreur réseau/console observée) ; non ré-essayé
+  faute de budget restant. Les services Missions suivent exactement le même patron que
+  Projets (déjà validé bout en bout côté HTTP dans le journal Phase 6, et re-vérifiés par
+  `tsc` dans ce tour), donc risque résiduel jugé faible — **à confirmer par un test manuel
+  de création de mission si l'utilisateur veut lever ce doute avant mise en production**.
+
+  `npx tsc -b --noEmit`, `npx nest build` et `npm run build` (bundle Vite production)
+  passent tous les trois sans erreur à l'issue de ce tour.

@@ -47,7 +47,7 @@ export function DocumentVersionsPanel({ documentId }: Props) {
                 key="telecharger"
                 type="link"
                 icon={<DownloadOutlined />}
-                onClick={() => telechargerVersion(documentId, v.storage_path, v.nom_fichier)}
+                onClick={() => telechargerVersion(documentId, v.id, v.nom_fichier)}
               >
                 Télécharger
               </Button>,

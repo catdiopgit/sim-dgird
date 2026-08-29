@@ -3,10 +3,8 @@ import { ConfigProvider } from 'antd';
 import frFR from 'antd/locale/fr_FR';
 import { useEffect, useMemo } from 'react';
 import { RouterProvider } from 'react-router-dom';
-import { isSupabaseConfigured } from './config/env';
 import { AuthProvider } from './contexts/AuthContext';
 import { useOrganisationBranding } from './hooks/administration/useOrganisationBranding';
-import { SupabaseSetupNotice } from './pages/SupabaseSetupNotice';
 import { router } from './routes/AppRouter';
 import { buildTheme, resolveBrandColor } from './theme/buildTheme';
 
@@ -41,13 +39,7 @@ function ThemedApp() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      {isSupabaseConfigured ? (
-        <ThemedApp />
-      ) : (
-        <ConfigProvider locale={frFR}>
-          <SupabaseSetupNotice />
-        </ConfigProvider>
-      )}
+      <ThemedApp />
     </QueryClientProvider>
   );
 }

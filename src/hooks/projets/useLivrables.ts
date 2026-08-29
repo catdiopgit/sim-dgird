@@ -23,7 +23,7 @@ export function useCloturerLivrable(projetId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, statutCode }: { id: string; statutCode?: 'realise' | 'valide' }) =>
-      cloturerLivrable(id, statutCode),
+      cloturerLivrable(projetId!, id, statutCode),
     onSuccess: () => {
       message.success('Livrable clôturé.');
       void queryClient.invalidateQueries({ queryKey: ['livrables', projetId] });
@@ -54,7 +54,7 @@ export function useLivrableMutations(projetId: string | undefined) {
   });
 
   const update = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: LivrableUpdate }) => updateLivrable(id, patch),
+    mutationFn: ({ id, patch }: { id: string; patch: LivrableUpdate }) => updateLivrable(projetId!, id, patch),
     onSuccess: () => {
       message.success('Livrable mis à jour.');
       invalidate();
@@ -63,7 +63,7 @@ export function useLivrableMutations(projetId: string | undefined) {
   });
 
   const remove = useMutation({
-    mutationFn: (id: string) => deleteLivrable(id),
+    mutationFn: (id: string) => deleteLivrable(projetId!, id),
     onSuccess: () => {
       message.success('Livrable supprimé.');
       invalidate();

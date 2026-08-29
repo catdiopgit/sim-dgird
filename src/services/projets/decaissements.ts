@@ -1,54 +1,49 @@
-import { supabase } from '../../config/supabase';
+import { api } from '../../config/apiClient';
+import { toCamelCase, toSnakeCase } from '../../utils/caseMapping';
 import type { Database } from '../../types/database';
-import { ajouterDocumentProjetAvecFichier } from './documents';
 
 export type Decaissement = Database['public']['Tables']['decaissements']['Row'];
 export type DecaissementInsert = Database['public']['Tables']['decaissements']['Insert'];
 export type DecaissementUpdate = Database['public']['Tables']['decaissements']['Update'];
 
 export async function listDecaissements(projetId: string): Promise<Decaissement[]> {
-  const { data, error } = await supabase
-    .from('decaissements')
-    .select('*')
-    .eq('projet_id', projetId)
-    .order('date_decaissement', { ascending: false });
-  if (error) throw error;
-  return data ?? [];
+  const data = await api.get<unknown[]>(`/projets/${projetId}/decaissements`);
+  return toSnakeCase<Decaissement[]>(data);
 }
 
-// §5 Le justificatif est obligatoire : la ligne decaissements est créée
-// d'abord (pour obtenir son id), puis le document est déposé et rattaché via
-// fn_ajouter_document_projet (p_decaissement_id) — même séquence à deux
-// étapes que ajouterDocumentProjetAvecFichier, avec le même rollback si
-// l'upload échoue.
+// §5 Le justificatif est obligatoire : un seul appel multipart côté backend
+// (server/projets/decaissements.service.ts, creerAvecJustificatif) — compose
+// déjà la création du décaissement + le dépôt du document, avec rollback
+// automatique si l'upload échoue.
 export async function creerDecaissementAvecJustificatif(
   insert: DecaissementInsert,
   fichier: File,
   titreDocument: string,
 ): Promise<Decaissement> {
-  const { data: decaissement, error } = await supabase.from('decaissements').insert(insert).select('*').single();
-  if (error) throw error;
-
-  try {
-    await ajouterDocumentProjetAvecFichier(
-      { p_projet_id: decaissement.projet_id, p_titre: titreDocument, p_decaissement_id: decaissement.id },
-      fichier,
-    );
-  } catch (uploadError) {
-    await supabase.from('decaissements').delete().eq('id', decaissement.id);
-    throw uploadError;
-  }
-
-  return decaissement;
+  const { projet_id, avenant_id, pourcentage, montant, date_decaissement, observations } = insert as DecaissementInsert & {
+    projet_id: string;
+  };
+  const formData = new FormData();
+  formData.append('file', fichier);
+  formData.append('titreDocument', titreDocument);
+  formData.append('pourcentage', String(pourcentage));
+  formData.append('montant', String(montant));
+  if (avenant_id) formData.append('avenantId', avenant_id);
+  if (date_decaissement) formData.append('dateDecaissement', date_decaissement);
+  if (observations) formData.append('observations', observations);
+  const data = await api.upload<unknown>(`/projets/${projet_id}/decaissements`, formData);
+  return toSnakeCase<Decaissement>(data);
 }
 
-export async function updateDecaissement(id: string, patch: DecaissementUpdate): Promise<Decaissement> {
-  const { data, error } = await supabase.from('decaissements').update(patch).eq('id', id).select('*').single();
-  if (error) throw error;
-  return data;
+export async function updateDecaissement(
+  projetId: string,
+  id: string,
+  patch: DecaissementUpdate,
+): Promise<Decaissement> {
+  const data = await api.patch<unknown>(`/projets/${projetId}/decaissements/${id}`, toCamelCase(patch));
+  return toSnakeCase<Decaissement>(data);
 }
 
-export async function deleteDecaissement(id: string): Promise<void> {
-  const { error } = await supabase.from('decaissements').delete().eq('id', id);
-  if (error) throw error;
+export async function deleteDecaissement(projetId: string, id: string): Promise<void> {
+  await api.delete(`/projets/${projetId}/decaissements/${id}`);
 }

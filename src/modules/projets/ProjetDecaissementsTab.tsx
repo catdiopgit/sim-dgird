@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { useAvenants } from '../../hooks/projets/useAvenants';
 import { useDecaissementMutations, useDecaissements } from '../../hooks/projets/useDecaissements';
 import { useDocumentsProjet } from '../../hooks/projets/useDocumentsProjet';
+import { ouvrirFichier } from '../../config/apiClient';
 import { getUrlTelechargementDocument } from '../../services/projets/documents';
 import type { Decaissement } from '../../services/projets/decaissements';
 import { DecaissementFormModal } from './DecaissementFormModal';
@@ -62,7 +63,7 @@ export function ProjetDecaissementsTab({ projetId, peutModifier, cloture, budget
       message.error('Aucun fichier disponible pour ce justificatif.');
       return;
     }
-    window.open(url, '_blank');
+    await ouvrirFichier(url);
   };
 
   return (

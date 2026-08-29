@@ -1,4 +1,5 @@
-import { supabase } from '../../config/supabase';
+import { api } from '../../config/apiClient';
+import { toSnakeCase } from '../../utils/caseMapping';
 import type { Database } from '../../types/database';
 
 export type Contact = Database['public']['Tables']['contacts']['Row'];
@@ -13,23 +14,20 @@ export interface ContactInsert {
   adresse?: string | null;
 }
 
-export async function listContacts(organisationId: string, recherche?: string): Promise<Contact[]> {
-  let query = supabase
-    .from('contacts')
-    .select('*')
-    .eq('organisation_id', organisationId)
-    .is('supprime_le', null)
-    .order('nom', { ascending: true });
-
-  if (recherche) query = query.ilike('nom', `%${recherche}%`);
-
-  const { data, error } = await query.limit(50);
-  if (error) throw error;
-  return data ?? [];
+// organisationId n'est pas transmis : le backend le déduit de l'utilisateur
+// courant (JWT) — voir server/courrier/contacts.controller.ts.
+export async function listContacts(_organisationId: string, recherche?: string): Promise<Contact[]> {
+  const data = await api.get<unknown[]>('/courrier/contacts', { recherche });
+  return toSnakeCase<Contact[]>(data);
 }
 
 export async function creerContact(insert: ContactInsert): Promise<Contact> {
-  const { data, error } = await supabase.from('contacts').insert(insert).select('*').single();
-  if (error) throw error;
-  return data;
+  const data = await api.post<unknown>('/courrier/contacts', {
+    nom: insert.nom,
+    type: insert.type,
+    email: insert.email,
+    telephone: insert.telephone,
+    adresse: insert.adresse,
+  });
+  return toSnakeCase<Contact>(data);
 }

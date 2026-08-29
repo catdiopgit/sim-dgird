@@ -1,4 +1,6 @@
-import { callRpc } from '../rpc';
+// Catégorie 9 (reporting/statistiques) : jamais portée côté NestJS — voir
+// services/projets/statistiques.ts pour l'explication complète.
+const NON_IMPLEMENTE = 'Les statistiques Missions ne sont pas encore portées côté serveur (voir MIGRATION.md).';
 
 export interface StatistiquesMissionsTotaux {
   total: number;
@@ -51,15 +53,6 @@ export interface FiltresStatistiquesMissions {
   etapeCode?: string;
 }
 
-// Une seule fonction serveur (public.fn_statistiques_missions, migration
-// 0079) agrège tout — un seul aller-retour réseau, un seul état de
-// chargement côté client. Même patron que fetchStatistiquesProjets.
-export async function fetchStatistiquesMissions(filtres: FiltresStatistiquesMissions): Promise<StatistiquesMissions> {
-  return callRpc<StatistiquesMissions>('fn_statistiques_missions', {
-    p_date_debut: filtres.dateDebut ?? null,
-    p_date_fin: filtres.dateFin ?? null,
-    p_entite_id: filtres.entiteId ?? null,
-    p_responsable_id: filtres.responsableId ?? null,
-    p_etape_code: filtres.etapeCode ?? null,
-  });
+export async function fetchStatistiquesMissions(_filtres: FiltresStatistiquesMissions): Promise<StatistiquesMissions> {
+  throw new Error(NON_IMPLEMENTE);
 }

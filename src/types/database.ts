@@ -445,6 +445,10 @@ export type Database = {
           decaissement_id: string | null;
           mission_id: string | null;
           type_projet_valeur_id: string | null;
+          marche_id: string | null;
+          phase_marche_id: string | null;
+          marche_candidat_id: string | null;
+          type_marche_valeur_id: string | null;
           titre: string;
           description: string | null;
           metadata: Json;
@@ -2576,6 +2580,273 @@ export type Database = {
         };
         Relationships: [];
       };
+      types_marche: {
+        Row: {
+          id: string;
+          organisation_id: string;
+          code: string;
+          libelle: string;
+          description: string | null;
+          ordre: number;
+          actif: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organisation_id: string;
+          code: string;
+          libelle: string;
+          description?: string | null;
+          ordre?: number;
+          actif?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organisation_id?: string;
+          code?: string;
+          libelle?: string;
+          description?: string | null;
+          ordre?: number;
+          actif?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      phases_type_marche: {
+        Row: {
+          id: string;
+          type_marche_id: string;
+          nom: string;
+          description: string | null;
+          ordre: number;
+          duree: number;
+          unite_duree: 'jour' | 'semaine' | 'mois';
+          obligatoire: boolean;
+          actif: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          type_marche_id: string;
+          nom: string;
+          description?: string | null;
+          ordre?: number;
+          duree?: number;
+          unite_duree?: 'jour' | 'semaine' | 'mois';
+          obligatoire?: boolean;
+          actif?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          type_marche_id?: string;
+          nom?: string;
+          description?: string | null;
+          ordre?: number;
+          duree?: number;
+          unite_duree?: 'jour' | 'semaine' | 'mois';
+          obligatoire?: boolean;
+          actif?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      marches: {
+        Row: {
+          id: string;
+          organisation_id: string;
+          entite_id: string;
+          reference: string;
+          objet: string;
+          description: string | null;
+          type_marche_id: string;
+          responsable_id: string | null;
+          date_debut_prevue: string | null;
+          date_fin_prevue: string | null;
+          montant_estimatif: number | null;
+          observations: string | null;
+          statut_cloture: 'en_cours' | 'cloture';
+          cloture_par: string | null;
+          cloture_le: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          organisation_id?: string;
+          entite_id: string;
+          reference: string;
+          objet: string;
+          description?: string | null;
+          type_marche_id: string;
+          responsable_id?: string | null;
+          date_debut_prevue?: string | null;
+          date_fin_prevue?: string | null;
+          montant_estimatif?: number | null;
+          observations?: string | null;
+          statut_cloture?: 'en_cours' | 'cloture';
+          cloture_par?: string | null;
+          cloture_le?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          organisation_id?: string;
+          entite_id?: string;
+          reference?: string;
+          objet?: string;
+          description?: string | null;
+          type_marche_id?: string;
+          responsable_id?: string | null;
+          date_debut_prevue?: string | null;
+          date_fin_prevue?: string | null;
+          montant_estimatif?: number | null;
+          observations?: string | null;
+          statut_cloture?: 'en_cours' | 'cloture';
+          cloture_par?: string | null;
+          cloture_le?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      phases_marche: {
+        Row: {
+          id: string;
+          marche_id: string;
+          phase_type_marche_id: string | null;
+          nom: string;
+          description: string | null;
+          ordre: number;
+          duree_prevue: number;
+          unite_duree: 'jour' | 'semaine' | 'mois';
+          obligatoire: boolean;
+          date_debut_prevue: string | null;
+          date_fin_prevue: string | null;
+          date_debut_reelle: string | null;
+          date_fin_reelle: string | null;
+          observations: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          marche_id: string;
+          phase_type_marche_id?: string | null;
+          nom: string;
+          description?: string | null;
+          ordre?: number;
+          duree_prevue: number;
+          unite_duree?: 'jour' | 'semaine' | 'mois';
+          obligatoire?: boolean;
+          date_debut_prevue?: string | null;
+          date_fin_prevue?: string | null;
+          date_debut_reelle?: string | null;
+          date_fin_reelle?: string | null;
+          observations?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          marche_id?: string;
+          phase_type_marche_id?: string | null;
+          nom?: string;
+          description?: string | null;
+          ordre?: number;
+          duree_prevue?: number;
+          unite_duree?: 'jour' | 'semaine' | 'mois';
+          obligatoire?: boolean;
+          date_debut_prevue?: string | null;
+          date_fin_prevue?: string | null;
+          date_debut_reelle?: string | null;
+          date_fin_reelle?: string | null;
+          observations?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      marche_candidats: {
+        Row: {
+          id: string;
+          marche_id: string;
+          nom: string;
+          type: 'entreprise' | 'consultant';
+          coordonnees: string | null;
+          informations_complementaires: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          marche_id: string;
+          nom: string;
+          type: 'entreprise' | 'consultant';
+          coordonnees?: string | null;
+          informations_complementaires?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          marche_id?: string;
+          nom?: string;
+          type?: 'entreprise' | 'consultant';
+          coordonnees?: string | null;
+          informations_complementaires?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      marche_attributions: {
+        Row: {
+          id: string;
+          marche_id: string;
+          candidat_attributaire_id: string;
+          montant_attribue: number | null;
+          date_attribution: string | null;
+          observations: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          marche_id: string;
+          candidat_attributaire_id: string;
+          montant_attribue?: number | null;
+          date_attribution?: string | null;
+          observations?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          marche_id?: string;
+          candidat_attributaire_id?: string;
+          montant_attribue?: number | null;
+          date_attribution?: string | null;
+          observations?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       organisation_branding: {
@@ -2594,6 +2865,9 @@ export type Database = {
       portee_permission: 'organisation' | 'entite' | 'entite_et_descendants' | 'personnel';
       portee_visibilite_projet: 'membres' | 'entites' | 'agents' | 'tous';
       organisme_execution_type: 'organisation' | 'consultant' | 'entreprise' | 'externe';
+      unite_duree_phase: 'jour' | 'semaine' | 'mois';
+      statut_cloture_marche: 'en_cours' | 'cloture';
+      type_candidat_marche: 'entreprise' | 'consultant';
       statut_cloture_projet: 'aucune' | 'demandee' | 'confirmee' | 'rejetee';
       type_impact_avenant: 'cree' | 'modifie' | 'supprime';
       reinitialisation_numerotation: 'annuelle' | 'mensuelle' | 'jamais';

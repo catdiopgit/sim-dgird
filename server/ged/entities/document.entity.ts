@@ -45,6 +45,18 @@ export class Document {
   @Column({ type: 'uuid', name: 'type_projet_valeur_id', nullable: true })
   typeProjetValeurId: string | null;
 
+  @Column({ type: 'uuid', name: 'marche_id', nullable: true })
+  marcheId: string | null;
+
+  @Column({ type: 'uuid', name: 'phase_marche_id', nullable: true })
+  phaseMarcheId: string | null;
+
+  @Column({ type: 'uuid', name: 'marche_candidat_id', nullable: true })
+  marcheCandidatId: string | null;
+
+  @Column({ type: 'uuid', name: 'type_marche_valeur_id', nullable: true })
+  typeMarcheValeurId: string | null;
+
   @Column({ type: 'text' })
   titre: string;
 

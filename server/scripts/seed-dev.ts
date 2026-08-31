@@ -57,6 +57,7 @@ async function main() {
     const modGed = await upsertModule(ds, 'ged', 'GED');
     const modProjets = await upsertModule(ds, 'projets', 'Projets');
     const modMissions = await upsertModule(ds, 'missions', 'Missions');
+    const modMarches = await upsertModule(ds, 'marches', 'Marchés');
 
     const actConsulter = await upsertAction(ds, 'consulter', 'Consulter');
     const actCreer = await upsertAction(ds, 'creer', 'Créer');
@@ -152,6 +153,11 @@ async function main() {
       [modMissions, actModifier],
       [modMissions, actValider],
       [modMissions, actSupprimer],
+      [modMarches, actConsulter],
+      [modMarches, actCreer],
+      [modMarches, actModifier],
+      [modMarches, actValider],
+      [modMarches, actSupprimer],
     ]) {
       await grant(moduleId, actionId);
     }

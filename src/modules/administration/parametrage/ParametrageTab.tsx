@@ -1,5 +1,6 @@
 import { Skeleton, Tabs } from 'antd';
 import { useProfile } from '../../../hooks/useProfile';
+import { TypesMarcheManager } from '../../marches/administration/TypesMarcheManager';
 import { CourrierParametresManager } from './CourrierParametresManager';
 import { EnteteDocumentManager } from './EnteteDocumentManager';
 import { ListesValeursManager } from './ListesValeursManager';
@@ -12,6 +13,7 @@ export function ParametrageTab() {
   const { profile, can } = useProfile();
   const organisationId = profile?.organisation_id;
   const peutModifier = can('administration', 'modifier');
+  const peutGererMarches = can('marches', 'modifier');
   // Le plan de classement (catégories GED) suit les droits GED, pas
   // administration : réservé à l'administrateur et à l'archiviste, invisible
   // pour les autres rôles (même en lecture seule).
@@ -52,6 +54,11 @@ export function ParametrageTab() {
           key: 'smtp',
           label: 'Notifications (SMTP)',
           children: <SmtpParametresManager organisationId={organisationId} peutModifier={peutModifier} />,
+        },
+        {
+          key: 'marches',
+          label: 'Marchés',
+          children: <TypesMarcheManager organisationId={organisationId} peutModifier={peutGererMarches} />,
         },
         ...(peutGererPlanClassement
           ? [

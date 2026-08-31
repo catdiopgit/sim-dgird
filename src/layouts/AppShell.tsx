@@ -2,6 +2,7 @@ import {
   BellOutlined,
   CompassOutlined,
   DashboardOutlined,
+  FileProtectOutlined,
   FolderOpenOutlined,
   LogoutOutlined,
   MailOutlined,
@@ -26,6 +27,7 @@ const navItems = [
   { key: '/ged', label: 'GED', icon: <FolderOpenOutlined /> },
   { key: '/projets', label: 'Projets', icon: <ProjectOutlined /> },
   { key: '/missions', label: 'Missions', icon: <CompassOutlined /> },
+  { key: '/marches', label: 'Marchés', icon: <FileProtectOutlined /> },
   { key: '/administration', label: 'Administration', icon: <SettingOutlined /> },
 ];
 

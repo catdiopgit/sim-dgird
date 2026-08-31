@@ -19,6 +19,9 @@ import { VersementDetailPage } from '../modules/ged/VersementDetailPage';
 import { MissionDetailPage } from '../modules/missions/MissionDetailPage';
 import { MissionStatistiquesPage } from '../modules/missions/MissionStatistiquesPage';
 import { MissionsPage } from '../modules/missions/MissionsPage';
+import { MarcheDetailPage } from '../modules/marches/MarcheDetailPage';
+import { MarcheStatistiquesPage } from '../modules/marches/MarcheStatistiquesPage';
+import { MarchesPage } from '../modules/marches/MarchesPage';
 import { ProjetDetailPage } from '../modules/projets/ProjetDetailPage';
 import { ProjetStatistiquesPage } from '../modules/projets/ProjetStatistiquesPage';
 import { ProjetsPage } from '../modules/projets/ProjetsPage';
@@ -70,6 +73,14 @@ export const router = createBrowserRouter([
               { index: true, element: <MissionsPage /> },
               { path: 'statistiques', element: <MissionStatistiquesPage /> },
               { path: ':id', element: <MissionDetailPage /> },
+            ],
+          },
+          {
+            path: 'marches',
+            children: [
+              { index: true, element: <MarchesPage /> },
+              { path: 'statistiques', element: <MarcheStatistiquesPage /> },
+              { path: ':id', element: <MarcheDetailPage /> },
             ],
           },
           {

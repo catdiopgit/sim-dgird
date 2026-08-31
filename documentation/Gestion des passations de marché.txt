@@ -1,0 +1,789 @@
+MODULE GESTION DES PASSATIONS DE MARCHÉS
+
+## 1. CONSIGNE PRINCIPALE — ANALYSE OBLIGATOIRE AVANT TOUT DÉVELOPPEMENT
+
+Avant d'écrire, modifier, supprimer ou générer **la moindre ligne de code**, effectuer obligatoirement une **analyse globale et approfondie du projet existant**.
+
+**Ne commence aucun développement avant d'avoir terminé cette analyse et présenté un plan d'implémentation détaillé.**
+
+L'objectif est de comprendre parfaitement l'architecture existante, les fonctionnalités déjà développées, les règles métier, la base de données et les composants réutilisables afin d'intégrer le nouveau module sans provoquer de régression.
+
+---
+
+# 2. ANALYSE GLOBALE DU PROJET
+
+Commencer par explorer le projet dans son ensemble.
+
+Analyser notamment :
+
+### Architecture technique
+
+* Architecture générale de l'application ;
+* Stack technique utilisée ;
+* Frontend ;
+* Backend ;
+* API/services ;
+* Base de données ;
+* Authentification ;
+* Gestion des rôles et permissions ;
+* Gestion des fichiers et documents ;
+* Système de notifications ;
+* Composants UI existants ;
+* Librairies et dépendances utilisées.
+
+### Base de données
+
+Analyser :
+
+* Les tables existantes ;
+* Les relations ;
+* Les clés primaires et étrangères ;
+* Les contraintes ;
+* Les index ;
+* Les migrations ;
+* Les conventions de nommage ;
+* Les tables pouvant être réutilisées.
+
+### Fonctionnalités existantes
+
+Identifier les modules déjà présents et leurs interactions avec la future gestion des passations de marchés.
+
+Porter une attention particulière aux fonctionnalités déjà développées dans :
+
+* Gestion des projets ;
+* Gestion des documents / GED ;
+* Gestion des utilisateurs ;
+* Gestion des organisations ;
+* Gestion des notifications ;
+* Tableau de bord ;
+* Statistiques ;
+* Gestion des contrats ou fonctionnalités similaires.
+
+**Ne pas supposer qu'une fonctionnalité n'existe pas. Vérifier le code, les composants et la base de données avant de conclure.**
+
+---
+
+# 3. ANALYSE DU MODULE EXISTANT
+
+Identifier précisément ce qui existe déjà concernant la **Gestion des passations de marchés**.
+
+Déterminer :
+
+* Les pages existantes ;
+* Les composants existants ;
+* Les tables utilisées ;
+* Les API existantes ;
+* Les workflows ;
+* Les fonctionnalités déjà opérationnelles ;
+* Les fonctionnalités incomplètes ;
+* Les fonctionnalités à conserver ;
+* Les fonctionnalités à modifier ;
+* Les fonctionnalités à supprimer ;
+* Les éventuels bugs ;
+* Les incohérences de conception.
+
+Présenter clairement les résultats de cette analyse.
+
+---
+
+# 4. ANALYSE DES IMPACTS
+
+Avant toute proposition technique, identifier les impacts du nouveau module sur :
+
+* Base de données ;
+* Backend ;
+* Frontend ;
+* API ;
+* Authentification ;
+* Permissions ;
+* GED ;
+* Notifications ;
+* E-mails ;
+* Tableau de bord ;
+* Statistiques ;
+* Autres modules ;
+* Sécurité ;
+* Performances.
+
+Identifier également les risques de régression et proposer les mesures permettant de les éviter.
+
+---
+
+# 5. PROPOSER UN PLAN AVANT DE CODER
+
+Après l'analyse, présenter un **plan d'implémentation détaillé**.
+
+Le plan doit couvrir :
+
+### Base de données
+
+* Tables à créer ;
+* Tables à modifier ;
+* Champs ;
+* Relations ;
+* Contraintes ;
+* Index ;
+* Migrations.
+
+### Backend
+
+* Services ;
+* API ;
+* Règles métier ;
+* Calculs ;
+* Notifications ;
+* Gestion des documents ;
+* Permissions.
+
+### Frontend
+
+* Pages ;
+* Composants ;
+* Formulaires ;
+* Tableaux ;
+* Timeline ;
+* Graphiques ;
+* Statistiques ;
+* Impression.
+
+### Workflow
+
+Décrire le workflow complet du marché.
+
+### Tests
+
+Définir les tests fonctionnels et techniques nécessaires.
+
+**ATTENDRE MA VALIDATION EXPLICITE DE CE PLAN AVANT DE COMMENCER À CODER.**
+
+---
+
+# 6. OBJECTIF DU MODULE
+
+Créer ou faire évoluer le module **Gestion des passations de marchés**.
+
+Le module est destiné principalement aux **agents de la cellule de passation des marchés**.
+
+Il doit permettre de :
+
+* Créer et gérer les marchés ;
+* Planifier automatiquement les différentes phases ;
+* Suivre leur réalisation ;
+* Documenter chaque phase ;
+* Détecter les retards ;
+* Envoyer des alertes ;
+* Gérer les entreprises et consultants ;
+* Gérer les offres techniques et financières ;
+* Gérer l'attribution ;
+* Produire la situation d'un marché ;
+* Produire des statistiques ;
+* Fournir à la Direction Générale une vision globale des passations.
+
+---
+
+# 7. TYPES DE MARCHÉS
+
+Le système doit gérer plusieurs **types de marchés**.
+
+Chaque type de marché possède un ensemble de **phases prédéfinies**.
+
+Pour chaque phase, prévoir notamment :
+
+* Nom ;
+* Description ;
+* Ordre ;
+* Durée prévue ;
+* Unité de durée ;
+* Phase obligatoire ou optionnelle ;
+* Statut actif/inactif.
+
+## Paramétrage
+
+Les types de marchés et leurs phases doivent être **entièrement paramétrables depuis l'administration système**.
+
+L'administrateur doit pouvoir :
+
+* Créer un type de marché ;
+* Modifier un type ;
+* Activer/désactiver un type ;
+* Ajouter une phase ;
+* Modifier une phase ;
+* Supprimer ou désactiver une phase ;
+* Définir l'ordre des phases ;
+* Définir leur durée ;
+* Définir si elles sont obligatoires ou optionnelles.
+
+---
+
+# 8. CRÉATION D'UN MARCHÉ
+
+Lors de la création d'un marché, l'utilisateur doit sélectionner un **type de marché**.
+
+Le système doit automatiquement récupérer les phases associées à ce type.
+
+Prévoir notamment :
+
+* Référence du marché ;
+* Objet/intitulé ;
+* Type de marché ;
+* Date de début prévisionnelle ;
+* Date de fin prévisionnelle ;
+* Responsable/agent chargé du marché ;
+* Description ;
+* Montant estimatif, si applicable ;
+* Observations.
+
+---
+
+# 9. DOCUMENTS DU MARCHÉ
+
+À la création d'un marché, permettre de joindre les documents nécessaires.
+
+Par exemple :
+
+* TDR ;
+* Dossier d'appel d'offres ;
+* Cahier des charges ;
+* Documents administratifs ;
+* Autres documents nécessaires à la procédure.
+
+Utiliser autant que possible le système GED/documentaire déjà présent dans l'application.
+
+---
+
+# 10. PLANIFICATION AUTOMATIQUE DES PHASES
+
+Lorsqu'un type de marché est sélectionné et que la **date de début prévisionnelle** est renseignée, le système doit automatiquement planifier toutes les phases.
+
+Pour chaque phase, calculer :
+
+* Date de début prévisionnelle ;
+* Date de fin prévisionnelle ;
+* Durée ;
+* Ordre.
+
+Exemple :
+
+Début du marché : 01/09/2026
+
+* Phase 1 : 5 jours ;
+* Phase 2 : 10 jours ;
+* Phase 3 : 7 jours ;
+* Phase 4 : 3 jours.
+
+Le système calcule automatiquement les dates de chaque phase.
+
+Si la date de début prévisionnelle du marché est modifiée, la planification doit être recalculée selon les règles définies.
+
+Prévoir une représentation visuelle de la planification, idéalement sous forme de :
+
+* Timeline ;
+* Ou diagramme de Gantt simplifié.
+
+---
+
+# 11. RÉALISATION DES PHASES
+
+Chaque phase doit être suivie individuellement.
+
+Afficher notamment :
+
+* Phase ;
+* Durée prévue ;
+* Début prévisionnel ;
+* Fin prévisionnelle ;
+* Début réel ;
+* Fin réelle ;
+* Statut ;
+* Justificatif ;
+* Observations.
+
+Conserver séparément les données :
+
+### Planification
+
+* Début prévisionnel ;
+* Fin prévisionnelle.
+
+### Réalisation
+
+* Début réel ;
+* Fin réelle.
+
+Les dates réelles peuvent être différentes des dates prévisionnelles.
+
+Le système doit permettre de mesurer les écarts.
+
+---
+
+# 12. JUSTIFICATIF OBLIGATOIRE
+
+Pour valider la réalisation d'une phase, un **document justificatif est obligatoire**.
+
+Lorsque l'utilisateur clique sur **« Valider la réalisation »** :
+
+1. Vérifier si un justificatif existe.
+2. Si aucun justificatif n'existe, empêcher la validation.
+3. Proposer immédiatement à l'utilisateur de joindre le justificatif.
+4. Après ajout du document, permettre la validation.
+5. Enregistrer automatiquement la date de réalisation réelle.
+
+Conserver les documents associés à chaque phase.
+
+---
+
+# 13. GESTION DES RETARDS
+
+Comparer automatiquement :
+
+**Date de fin prévisionnelle**
+
+avec :
+
+**Date de fin réelle**
+
+ou, si la phase n'est pas terminée :
+
+**Date du jour**.
+
+Si la date prévisionnelle est dépassée et que la phase n'est pas terminée, la phase doit être considérée comme **en retard**.
+
+Prévoir des statuts clairement identifiables :
+
+* À venir ;
+* En cours ;
+* Réalisée ;
+* Réalisée dans les délais ;
+* Réalisée en avance ;
+* Réalisée en retard ;
+* En retard.
+
+---
+
+# 14. ALERTES PAR E-MAIL
+
+Le système doit envoyer automatiquement des alertes par e-mail concernant les phases.
+
+Prévoir notamment :
+
+* Rappel avant échéance ;
+* Notification à l'échéance ;
+* Notification de retard ;
+* Rappels périodiques pour les phases toujours en retard.
+
+Les destinataires doivent être définis selon les règles de gestion et les rôles utilisateurs.
+
+Lorsque le système possède déjà un mécanisme de notification, le réutiliser.
+
+Prévoir si possible le paramétrage :
+
+* Activation/désactivation ;
+* Fréquence ;
+* Destinataires ;
+* Modèles d'e-mails.
+
+---
+
+# 15. ENTREPRISES ET CONSULTANTS
+
+Permettre d'enregistrer les entreprises ou consultants participant à une procédure.
+
+Cette fonctionnalité est **optionnelle**.
+
+Pour chaque candidat, prévoir :
+
+* Nom/raison sociale ;
+* Type : Entreprise ou Consultant ;
+* Coordonnées ;
+* Informations complémentaires ;
+* Offre technique ;
+* Offre financière.
+
+Les offres techniques et financières doivent pouvoir être jointes sous forme de documents.
+
+---
+
+# 16. ATTRIBUTION DU MARCHÉ
+
+À la fin de la procédure, permettre d'enregistrer :
+
+* Entreprise/consultant attributaire ;
+* Montant attribué ;
+* Date d'attribution ;
+* Avis d'attribution provisoire ;
+* Avis d'attribution définitive ;
+* Documents associés ;
+* Observations.
+
+L'attributaire doit pouvoir être sélectionné parmi les entreprises/consultants enregistrés pour le marché.
+
+---
+
+# 17. SITUATION ET IMPRESSION D'UN MARCHÉ
+
+Ajouter une fonctionnalité **« Imprimer la situation du marché »**.
+
+Le document doit présenter :
+
+### Informations générales
+
+* Référence ;
+* Objet ;
+* Type ;
+* Responsable ;
+* Dates prévisionnelles ;
+* Statut.
+
+### Planification
+
+Pour chaque phase :
+
+* Nom ;
+* Durée prévue ;
+* Début prévisionnel ;
+* Fin prévisionnelle.
+
+### Réalisation
+
+* Début réel ;
+* Fin réelle ;
+* Écart ;
+* Statut ;
+* Justificatif.
+
+### Attribution
+
+* Attributaire ;
+* Montant ;
+* Avis provisoire ;
+* Avis définitif.
+
+La sortie doit être **professionnelle et institutionnelle**.
+
+---
+
+# 18. PAGE STATISTIQUES
+
+Créer une page **« Statistiques »** pour le module.
+
+Elle doit fournir une vue globale du portefeuille des marchés pour :
+
+* Direction Générale ;
+* Cellule passation des marchés ;
+* Responsables concernés ;
+* Autres entités autorisées.
+
+Prévoir notamment :
+
+* Nombre total de marchés ;
+* Marchés en cours ;
+* Marchés terminés ;
+* Marchés en retard ;
+* Marchés à venir ;
+* Répartition par type ;
+* Répartition par statut ;
+* Nombre de phases réalisées ;
+* Phases en cours ;
+* Phases en retard ;
+* Taux global de réalisation ;
+* Nombre de marchés attribués ;
+* Montant total attribué ;
+* Répartition par entreprise/consultant ;
+* Évolution des marchés dans le temps.
+
+Utiliser :
+
+* Cartes KPI ;
+* Graphiques ;
+* Tableaux ;
+* Filtres ;
+* Barres de progression.
+
+Les statistiques doivent être basées **uniquement sur les données réelles de la base de données**.
+
+---
+
+# 19. FILTRES STATISTIQUES
+
+Prévoir des filtres tels que :
+
+* Période ;
+* Type de marché ;
+* Statut ;
+* Responsable ;
+* Agent ;
+* Entreprise/consultant.
+
+Les indicateurs et graphiques doivent être actualisés automatiquement selon les filtres.
+
+---
+
+# 20. EXPORT ET IMPRESSION DES STATISTIQUES
+
+Ajouter deux boutons :
+
+### « Imprimer »
+
+Permettre d'imprimer ou de générer une version imprimable des statistiques avec une mise en page professionnelle.
+
+### « Exporter Excel »
+
+Permettre d'exporter les données statistiques au format :
+
+**Excel (.xlsx)**
+
+L'export doit respecter les filtres appliqués par l'utilisateur.
+
+---
+
+# 21. VUE D'ENSEMBLE DU MARCHÉ
+
+La fiche d'un marché doit proposer une **Vue d'ensemble** permettant de comprendre rapidement sa situation.
+
+Afficher notamment :
+
+* État global ;
+* Progression des phases ;
+* Phases terminées ;
+* Phases en cours ;
+* Phases en retard ;
+* Prochaines échéances ;
+* Écart entre prévisionnel et réel ;
+* Entreprises/consultants ;
+* Attribution ;
+* Documents importants.
+
+Prévoir une interface moderne, claire et institutionnelle.
+
+---
+
+# 22. GESTION DES DROITS
+
+Le module doit être principalement géré par les **agents de la cellule passation des marchés**.
+
+Prévoir des permissions permettant de contrôler :
+
+* Création ;
+* Modification ;
+* Suppression/annulation ;
+* Ajout de documents ;
+* Gestion des phases ;
+* Validation des phases ;
+* Gestion des entreprises ;
+* Gestion des offres ;
+* Attribution ;
+* Consultation ;
+* Impression ;
+* Statistiques ;
+* Export Excel.
+
+Réutiliser le système de rôles et permissions existant lorsqu'il est disponible.
+
+---
+
+# 23. ADMINISTRATION
+
+Depuis l'administration système, permettre de paramétrer :
+
+### Types de marchés
+
+* Nom ;
+* Description ;
+* Statut ;
+* Ordre.
+
+### Phases
+
+* Nom ;
+* Description ;
+* Durée ;
+* Unité ;
+* Ordre ;
+* Obligatoire/optionnelle ;
+* Statut.
+
+### Notifications
+
+* Activation ;
+* Fréquence ;
+* Destinataires ;
+* Modèles de notification.
+
+---
+
+# 24. WORKFLOW GLOBAL
+
+Le workflow cible est :
+
+**Type de marché**
+↓
+**Création du marché**
+↓
+**Ajout des documents**
+↓
+**Date de début prévisionnelle**
+↓
+**Planification automatique des phases**
+↓
+**Exécution des phases**
+↓
+**Ajout du justificatif**
+↓
+**Validation de la phase**
+↓
+**Comparaison prévisionnel/réel**
+↓
+**Détection des retards**
+↓
+**Alertes**
+↓
+**Attribution**
+↓
+**Clôture du marché**
+
+---
+
+# 25. PRINCIPES DE DÉVELOPPEMENT
+
+Respecter impérativement les règles suivantes :
+
+* Ne pas commencer à coder avant d'avoir présenté le plan et obtenu sa validation.
+* Ne pas réécrire inutilement les fonctionnalités existantes.
+* Réutiliser les composants existants lorsqu'ils sont adaptés.
+* Respecter l'architecture et les conventions actuelles du projet.
+* Ne pas créer de données fictives.
+* Ne pas casser les autres modules.
+* Ne pas modifier les fonctionnalités validées sans nécessité.
+* Sécuriser les migrations de base de données.
+* Respecter le système d'authentification et les permissions existantes.
+* Respecter le design institutionnel de l'application.
+* Privilégier une architecture propre, maintenable et évolutive.
+
+---
+
+# 26. TESTS ET VALIDATION
+
+Après développement, effectuer des tests complets.
+
+Tester notamment :
+
+### Marché
+
+* Création ;
+* Modification ;
+* Documents ;
+* Type de marché.
+
+### Planification
+
+* Génération automatique ;
+* Calcul des dates ;
+* Modification de la date de début ;
+* Phases optionnelles/obligatoires.
+
+### Réalisation
+
+* Début réel ;
+* Fin réelle ;
+* Justificatif obligatoire ;
+* Validation ;
+* Calcul des écarts.
+
+### Retards
+
+* Détection ;
+* Statuts ;
+* Alertes ;
+* Notifications e-mail.
+
+### Entreprises
+
+* Création ;
+* Offres ;
+* Documents ;
+* Attribution.
+
+### Statistiques
+
+* Calcul des KPI ;
+* Filtres ;
+* Graphiques ;
+* Impression ;
+* Export Excel.
+
+### Sécurité
+
+* Permissions ;
+* Accès selon les profils ;
+* Protection des documents ;
+* Contrôle des actions.
+
+### Régression
+
+Vérifier que les autres fonctionnalités existantes continuent de fonctionner normalement.
+
+---
+
+# 27. LIVRABLE FINAL ATTENDU DE CLAUDE CODE
+
+Une fois le développement terminé, fournir un compte rendu indiquant clairement :
+
+### Analyse
+
+* Architecture analysée ;
+* Fonctionnalités existantes identifiées.
+
+### Base de données
+
+* Tables créées ;
+* Tables modifiées ;
+* Migrations effectuées.
+
+### Backend
+
+* Services créés/modifiés ;
+* API créées/modifiées ;
+* Règles métier.
+
+### Frontend
+
+* Pages créées ;
+* Composants créés/modifiés ;
+* Interfaces mises à jour.
+
+### Fonctionnalités
+
+* Fonctionnalités implémentées ;
+* Fonctionnalités conservées ;
+* Éventuelles limitations.
+
+### Tests
+
+* Tests effectués ;
+* Résultats ;
+* Bugs corrigés.
+
+### Régressions
+
+Confirmer que les fonctionnalités existantes ont été vérifiées et qu'aucune régression connue n'a été introduite.
+
+---
+
+## CONSIGNE FINALE
+
+**Commence maintenant uniquement par l'analyse globale du projet.**
+
+**Ne modifie aucun fichier et n'écris aucun code à ce stade.**
+
+À l'issue de l'analyse, présente-moi :
+
+1. **L'analyse de l'architecture existante ;**
+2. **L'analyse du module actuel de passation des marchés ;**
+3. **Les tables et composants existants qui peuvent être réutilisés ;**
+4. **Les impacts et risques identifiés ;**
+5. **Le modèle de données proposé ;**
+6. **Le workflow proposé ;**
+7. **Le plan d'implémentation détaillé, étape par étape ;**
+8. **Le plan de tests.**
+
+**Attends ensuite ma validation explicite avant de commencer toute modification ou écriture de code.**

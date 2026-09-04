@@ -132,6 +132,7 @@ async function main() {
       [modUtil, actConsulter],
       [modUtil, actCreer],
       [modUtil, actModifier],
+      [modUtil, actAffecter],
       [modCourrier, actConsulter],
       [modCourrier, actCreer],
       [modCourrier, actModifier],

@@ -15,7 +15,7 @@ class AttribuerRoleDto {
   @IsUUID() utilisateurId: string;
   @IsUUID() roleId: string;
   @IsOptional() @IsUUID() entiteId?: string | null;
-  @IsDateString() dateDebut: string;
+  @IsOptional() @IsDateString() dateDebut?: string;
   @IsOptional() @IsDateString() dateFin?: string | null;
 }
 
@@ -57,7 +57,8 @@ export class RolesController {
   @Post('attributions')
   @RequirePermission('administration', 'modifier')
   attribuer(@Body() dto: AttribuerRoleDto) {
-    return this.rolesService.attribuer(dto.utilisateurId, dto.roleId, dto.entiteId ?? null, dto.dateDebut, dto.dateFin);
+    const dateDebut = dto.dateDebut ?? new Date().toISOString().slice(0, 10);
+    return this.rolesService.attribuer(dto.utilisateurId, dto.roleId, dto.entiteId ?? null, dateDebut, dto.dateFin);
   }
 
   @Delete('attributions/:id')

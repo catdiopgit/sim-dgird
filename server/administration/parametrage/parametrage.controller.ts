@@ -12,7 +12,6 @@ class CreateListeDto {
 }
 
 class CreateValeurDto {
-  @IsUUID() listeId: string;
   @IsString() code: string;
   @IsString() libelle: string;
   @IsOptional() @IsString() description?: string | null;

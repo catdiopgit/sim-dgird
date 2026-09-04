@@ -75,6 +75,7 @@ Copier `.env.example` en `.env` et remplir :
 ```
 VITE_API_URL=http://<IP_DU_VPS>/api
 VITE_APP_NAME=SIM
+VITE_MARCHES_ENABLED=false
 
 DB_HOST=localhost
 DB_PORT=5432

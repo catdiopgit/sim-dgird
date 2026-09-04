@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { env } from '../config/env';
 import { AppShell } from '../layouts/AppShell';
 import { AdministrationPage } from '../modules/administration/AdministrationPage';
 import { AuditTab } from '../modules/administration/audit/AuditTab';
@@ -69,19 +70,23 @@ export const router = createBrowserRouter([
           },
           {
             path: 'missions',
-            children: [
-              { index: true, element: <MissionsPage /> },
-              { path: 'statistiques', element: <MissionStatistiquesPage /> },
-              { path: ':id', element: <MissionDetailPage /> },
-            ],
+            children: env.missionsEnabled
+              ? [
+                  { index: true, element: <MissionsPage /> },
+                  { path: 'statistiques', element: <MissionStatistiquesPage /> },
+                  { path: ':id', element: <MissionDetailPage /> },
+                ]
+              : [{ path: '*', element: <Navigate to="/" replace /> }],
           },
           {
             path: 'marches',
-            children: [
-              { index: true, element: <MarchesPage /> },
-              { path: 'statistiques', element: <MarcheStatistiquesPage /> },
-              { path: ':id', element: <MarcheDetailPage /> },
-            ],
+            children: env.marchesEnabled
+              ? [
+                  { index: true, element: <MarchesPage /> },
+                  { path: 'statistiques', element: <MarcheStatistiquesPage /> },
+                  { path: ':id', element: <MarcheDetailPage /> },
+                ]
+              : [{ path: '*', element: <Navigate to="/" replace /> }],
           },
           {
             path: 'administration',

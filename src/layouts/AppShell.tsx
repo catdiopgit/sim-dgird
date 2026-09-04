@@ -26,8 +26,8 @@ const navItems = [
   { key: '/courriers', label: 'Courriers', icon: <MailOutlined /> },
   { key: '/ged', label: 'GED', icon: <FolderOpenOutlined /> },
   { key: '/projets', label: 'Projets', icon: <ProjectOutlined /> },
-  { key: '/missions', label: 'Missions', icon: <CompassOutlined /> },
-  { key: '/marches', label: 'Marchés', icon: <FileProtectOutlined /> },
+  ...(env.missionsEnabled ? [{ key: '/missions', label: 'Missions', icon: <CompassOutlined /> }] : []),
+  ...(env.marchesEnabled ? [{ key: '/marches', label: 'Marchés', icon: <FileProtectOutlined /> }] : []),
   { key: '/administration', label: 'Administration', icon: <SettingOutlined /> },
 ];
 

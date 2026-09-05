@@ -74,7 +74,7 @@ export class OrganisationsService {
   // La colonne jsonb `valeur` (Record<string, unknown>) fait buter le typage
   // DeepPartial de TypeORM sur update()/create() (limitation connue avec les
   // index signatures) — cast ciblé, sans rapport avec la validité des données.
-  async definirParametre(organisationId: string, cle: string, valeur: Record<string, unknown>, description?: string) {
+  async definirParametre(organisationId: string, cle: string, valeur: unknown, description?: string) {
     const existant = await this.parametres.findOneBy({ organisationId, cle });
     if (existant) {
       await this.parametres.update(existant.id, {

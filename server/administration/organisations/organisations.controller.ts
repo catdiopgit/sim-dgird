@@ -34,7 +34,13 @@ class UpsertOrganisationDto {
 
 class DefinirParametreDto {
   @IsString() cle: string;
-  valeur: Record<string, unknown>;
+  // Pas de décorateur de type ici : `valeur` porte un JSON hétérogène selon la
+  // clé (uuid en chaîne, booléen, objet...). @IsOptional() seul suffit à faire
+  // survivre le champ au ValidationPipe global (whitelist: true, main.ts) —
+  // sans décorateur du tout, class-validator le considère "non whitelisté" et
+  // le supprime silencieusement du body avant qu'il n'atteigne le contrôleur,
+  // ce qui rendait cet endpoint no-op côté écriture (200 OK sans persister).
+  @IsOptional() valeur: unknown;
   @IsOptional() @IsString() description?: string;
 }
 

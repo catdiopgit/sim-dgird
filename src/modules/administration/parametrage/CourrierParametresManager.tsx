@@ -29,7 +29,13 @@ export function CourrierParametresManager({ organisationId, peutModifier }: Prop
     organisationId,
     moduleCourrierId,
   );
-  const workflowDefinitionId = definitions?.[0]?.id;
+  // Doit correspondre exactement à la définition que WorkflowEngineService.demarrerWorkflow
+  // sélectionne à l'enregistrement (organisation_id + module_id + est_defaut + actif) : si
+  // plusieurs workflows existent pour le module courrier, prendre le premier de la liste
+  // (triée par code) peut désigner un workflow différent de celui réellement démarré, et
+  // l'étape choisie ci-dessous serait alors rejetée par deplacerVersEtapeInitialeEntrant.
+  const workflowDefinitionId =
+    definitions?.find((d) => d.est_defaut && d.actif)?.id ?? definitions?.[0]?.id;
   const { data: etapes, isLoading: etapesEnCours } = useWorkflowEtapes(workflowDefinitionId);
 
   const entiteDestinataireInitiale = useMemo(() => {

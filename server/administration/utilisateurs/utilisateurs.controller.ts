@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../auth/strategies/jwt.strategy';
@@ -33,10 +33,17 @@ class UpdateUtilisateurDto {
 export class UtilisateursController {
   constructor(private readonly utilisateursService: UtilisateursService) {}
 
+  // Lecture ouverte à tout membre de l'organisation, sans permission particulière
+  // (fidèle à la policy RLS d'origine utilisateurs_select : `organisation_id =
+  // current_organisation_id()`, seule l'écriture est réservée à 'utilisateurs/modifier'
+  // ci-dessous) — nécessaire par ex. pour choisir un agent destinataire dans
+  // l'imputation d'un courrier, une action que la plupart des rôles ne couvrent pas
+  // via une permission admin dédiée. Toujours la propre organisation de l'appelant :
+  // pas de paramètre organisationId côté client, qui permettrait sinon de lire les
+  // utilisateurs d'une autre organisation.
   @Get()
-  @RequirePermission('utilisateurs', 'consulter')
-  findByOrganisation(@CurrentUser() user: AuthenticatedUser, @Query('organisationId') organisationId?: string) {
-    return this.utilisateursService.findByOrganisation(organisationId ?? user.organisationId);
+  findByOrganisation(@CurrentUser() user: AuthenticatedUser) {
+    return this.utilisateursService.findByOrganisation(user.organisationId);
   }
 
   @Get('moi')

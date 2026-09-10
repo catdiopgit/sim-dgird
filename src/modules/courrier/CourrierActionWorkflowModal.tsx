@@ -68,6 +68,21 @@ export function CourrierActionWorkflowModal({
     [entitesOrganisation],
   );
 
+  // Agents affectables pour imputation/affectation : tout membre d'une entité du
+  // périmètre d'affectation (entitesImputables), pas seulement son responsable —
+  // contrairement à personnesTransmissibles (0044), pensé pour transmission/
+  // redirection (redirige vers un responsable/supérieur hiérarchique précis, pas
+  // n'importe quel agent). Permet de couvrir le 3ᵉ cas demandé (§ imputation V5) :
+  // soi-même, un sous-service, ou un agent de sa propre direction.
+  const entitesImputablesIds = useMemo(
+    () => new Set((entitesImputables ?? []).map((e) => e.id)),
+    [entitesImputables],
+  );
+  const agentsImputables = useMemo(
+    () => (utilisateurs ?? []).filter((u) => u.entiteId && entitesImputablesIds.has(u.entiteId)),
+    [utilisateurs, entitesImputablesIds],
+  );
+
   const [cibleValeur, setCibleValeur] = useState<string | undefined>();
   const [entitesCopieIds, setEntitesCopieIds] = useState<string[]>([]);
   const [actionsDemandeesIds, setActionsDemandeesIds] = useState<string[]>([]);
@@ -85,7 +100,13 @@ export function CourrierActionWorkflowModal({
           label: `${utilisateurParId.get(p.utilisateur_id) ?? p.utilisateur_id} (${entiteParIdOrganisation.get(p.entite_id) ?? '—'})`,
         })),
       ]
-    : (entitesCibles ?? []).map((e) => ({ value: `entite:${e.id}`, label: e.libelle }));
+    : [
+        ...(entitesCibles ?? []).map((e) => ({ value: `entite:${e.id}`, label: e.libelle })),
+        ...agentsImputables.map((u) => ({
+          value: `personne:${u.id}`,
+          label: `${u.prenom} ${u.nom} (${entiteParIdOrganisation.get(u.entiteId!) ?? '—'})`,
+        })),
+      ];
 
   const reinitialiser = () => {
     setCibleValeur(undefined);
@@ -107,9 +128,15 @@ export function CourrierActionWorkflowModal({
     let entiteId: string;
     let agentId: string | null = null;
     if (type === 'personne') {
-      const personne = (personnesTransmissibles ?? []).find((p) => p.utilisateur_id === id);
-      if (!personne) return;
-      entiteId = personne.entite_id;
+      if (estTransmissionOuRedirection) {
+        const personne = (personnesTransmissibles ?? []).find((p) => p.utilisateur_id === id);
+        if (!personne) return;
+        entiteId = personne.entite_id;
+      } else {
+        const agent = agentsImputables.find((u) => u.id === id);
+        if (!agent?.entiteId) return;
+        entiteId = agent.entiteId;
+      }
       agentId = id;
     } else {
       entiteId = id;

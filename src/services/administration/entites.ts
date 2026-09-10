@@ -29,16 +29,18 @@ export interface UtilisateurOption {
   id: string;
   nom: string;
   prenom: string;
+  entiteId: string | null;
 }
 
 // Sélecteur léger réutilisé par le formulaire d'entité (responsable) et par les
-// autres volets (attribution de rôles, etc.) — pas d'endpoint dédié côté
-// backend, on retaille côté client la liste complète des utilisateurs (déjà
-// utilisée ailleurs pour l'organisation, volumes faibles ~20 utilisateurs).
+// autres volets (attribution de rôles, imputation d'un courrier à un agent
+// précis, etc.) — pas d'endpoint dédié côté backend, on retaille côté client
+// la liste complète des utilisateurs (déjà utilisée ailleurs pour
+// l'organisation, volumes faibles ~20 utilisateurs).
 export async function listUtilisateursOptions(organisationId: string): Promise<UtilisateurOption[]> {
-  const data = await api.get<Array<{ id: string; nom: string; prenom: string }>>(
+  const data = await api.get<Array<{ id: string; nom: string; prenom: string; entiteId: string | null }>>(
     '/administration/utilisateurs',
     { organisationId },
   );
-  return data.map((u) => ({ id: u.id, nom: u.nom, prenom: u.prenom }));
+  return data.map((u) => ({ id: u.id, nom: u.nom, prenom: u.prenom, entiteId: u.entiteId }));
 }

@@ -125,12 +125,22 @@ export class WorkflowEngineService {
     entiteObjet: string | null = null,
     contexte: Record<string, unknown> = {},
     manager?: EntityManager,
+    destinataireObjet: string | null = null,
   ): Promise<string> {
     if (manager) {
-      return this.executerTransitionAvec(manager, instanceId, transitionId, utilisateurId, commentaire, entiteObjet, contexte);
+      return this.executerTransitionAvec(
+        manager,
+        instanceId,
+        transitionId,
+        utilisateurId,
+        commentaire,
+        entiteObjet,
+        contexte,
+        destinataireObjet,
+      );
     }
     return this.dataSource.transaction((m) =>
-      this.executerTransitionAvec(m, instanceId, transitionId, utilisateurId, commentaire, entiteObjet, contexte),
+      this.executerTransitionAvec(m, instanceId, transitionId, utilisateurId, commentaire, entiteObjet, contexte, destinataireObjet),
     );
   }
 
@@ -142,6 +152,7 @@ export class WorkflowEngineService {
     commentaire: string | null,
     entiteObjet: string | null,
     contexte: Record<string, unknown>,
+    destinataireObjet: string | null,
   ): Promise<string> {
     const instanceRows: WorkflowInstanceRow[] = await manager.query(
       'select * from workflow_instances where id = $1 for update',
@@ -162,7 +173,13 @@ export class WorkflowEngineService {
       throw new BadRequestException("L'étape courante de l'instance ne correspond pas à cette transition");
     }
 
-    const autorise = await this.acteurDeTransitionAutorise(manager, transitionId, utilisateurId, entiteObjet);
+    const autorise = await this.acteurDeTransitionAutorise(
+      manager,
+      transitionId,
+      utilisateurId,
+      entiteObjet,
+      destinataireObjet,
+    );
     if (!autorise) throw new ForbiddenException('Action non autorisée pour cet utilisateur');
 
     if (!conditionSatisfaite(transition.condition, contexte)) {
@@ -204,6 +221,7 @@ export class WorkflowEngineService {
     utilisateurId: string,
     entiteObjet: string | null,
     contexte: Record<string, unknown>,
+    destinataireObjet: string | null = null,
   ): Promise<WorkflowTransition[]> {
     const candidates = await this.dataSource.manager.find(WorkflowTransition, {
       where: [
@@ -215,7 +233,15 @@ export class WorkflowEngineService {
     const resultats: WorkflowTransition[] = [];
     for (const transition of candidates) {
       if (!conditionSatisfaite(transition.condition, contexte)) continue;
-      if (await this.acteurDeTransitionAutorise(this.dataSource.manager, transition.id, utilisateurId, entiteObjet)) {
+      if (
+        await this.acteurDeTransitionAutorise(
+          this.dataSource.manager,
+          transition.id,
+          utilisateurId,
+          entiteObjet,
+          destinataireObjet,
+        )
+      ) {
         resultats.push(transition);
       }
     }
@@ -232,6 +258,7 @@ export class WorkflowEngineService {
     etapeSourceId: string,
     entiteObjet: string | null,
     manager?: EntityManager,
+    destinataireObjet: string | null = null,
   ): Promise<string[]> {
     const m = manager ?? this.dataSource.manager;
     const acteurs: Array<{
@@ -271,8 +298,17 @@ export class WorkflowEngineService {
             or ($1::text = 'superieur_hierarchique_courant' and $6::uuid is not null and exists (
                  select 1 from entites e join entites parent on parent.id = e.parent_entite_id
                  where e.id = $6 and parent.responsable_utilisateur_id = u.id
-               ))`,
-        [acteur.type_acteur, acteur.role_id, acteur.fonction_id, acteur.entite_id, acteur.utilisateur_id, entiteObjet],
+               ))
+            or ($1::text = 'destinataire_courant' and $7::uuid is not null and u.id = $7::uuid)`,
+        [
+          acteur.type_acteur,
+          acteur.role_id,
+          acteur.fonction_id,
+          acteur.entite_id,
+          acteur.utilisateur_id,
+          entiteObjet,
+          destinataireObjet,
+        ],
       );
       for (const row of rows) destinataires.add(row.id);
     }
@@ -295,12 +331,13 @@ export class WorkflowEngineService {
     transitionId: string,
     utilisateurId: string,
     entiteObjet: string | null,
+    destinataireObjet: string | null = null,
   ): Promise<boolean> {
     const acteurs = await manager.find(WorkflowTransitionActeur, { where: { workflowTransitionId: transitionId } });
     if (acteurs.length === 0) return true;
 
     for (const acteur of acteurs) {
-      if (await this.candidatSatisfaitActeur(manager, acteur, utilisateurId, entiteObjet)) return true;
+      if (await this.candidatSatisfaitActeur(manager, acteur, utilisateurId, entiteObjet, destinataireObjet)) return true;
     }
 
     // Délégation (§9) : pas de filtre module/entité ici, contrairement à
@@ -313,7 +350,7 @@ export class WorkflowEngineService {
     );
     for (const { delegant_id } of delegations) {
       for (const acteur of acteurs) {
-        if (await this.candidatSatisfaitActeur(manager, acteur, delegant_id, entiteObjet)) return true;
+        if (await this.candidatSatisfaitActeur(manager, acteur, delegant_id, entiteObjet, destinataireObjet)) return true;
       }
     }
     return false;
@@ -324,6 +361,7 @@ export class WorkflowEngineService {
     acteur: WorkflowTransitionActeur,
     candidatId: string,
     entiteObjet: string | null,
+    destinataireObjet: string | null = null,
   ): Promise<boolean> {
     const exists = async (sql: string, params: unknown[]): Promise<boolean> => {
       const rows = await manager.query(sql, params);
@@ -374,6 +412,11 @@ export class WorkflowEngineService {
            limit 1`,
           [entiteObjet, candidatId],
         );
+      case 'destinataire_courant':
+        // Résolu par l'appelant (ex. CourrierWorkflowService : agent affecté au
+        // courrier, sinon personne réceptrice de son entité), pas ici — le moteur
+        // reste générique et ignore ce qu'est concrètement l'objet porteur.
+        return destinataireObjet !== null && candidatId === destinataireObjet;
       default:
         return false;
     }

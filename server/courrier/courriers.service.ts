@@ -13,7 +13,7 @@ import { WorkflowInstance } from '../workflow/entities/workflow-instance.entity'
 import { WorkflowTransition } from '../workflow/entities/workflow-transition.entity';
 import { Courrier, type SensCourrier } from './entities/courrier.entity';
 import { CourrierDestinataire } from './entities/courrier-destinataire.entity';
-import { courrierVersContexte } from './courrier-contexte.util';
+import { courrierVersContexte, resoudreDestinataireCourantCourrier } from './courrier-contexte.util';
 
 export type Bannette = 'a_traiter' | 'en_retard' | 'archives' | 'sortants' | 'en_copie' | 'clotures';
 
@@ -381,6 +381,7 @@ export class CourriersService {
         user.id,
         candidat.entite_id,
         courrierVersContexte(courrier),
+        await resoudreDestinataireCourantCourrier(courrier, this.dataSource),
       );
       if (transitions.length > 0) idsRetenus.push(candidat.id);
     }

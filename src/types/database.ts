@@ -2883,7 +2883,8 @@ export type Database = {
         | 'entite_et_descendants'
         | 'utilisateur'
         | 'responsable_entite_courante'
-        | 'superieur_hierarchique_courant';
+        | 'superieur_hierarchique_courant'
+        | 'destinataire_courant';
     };
     CompositeTypes: Record<string, never>;
   };

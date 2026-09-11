@@ -7,7 +7,8 @@ export type TypeActeurWorkflow =
   | 'entite_et_descendants'
   | 'utilisateur'
   | 'responsable_entite_courante'
-  | 'superieur_hierarchique_courant';
+  | 'superieur_hierarchique_courant'
+  | 'destinataire_courant';
 
 // Table `workflow_transition_roles` (nom hérité de la v1, étendue en v2/0020 pour
 // porter tous les types d'acteur). Aucune ligne pour une transition = ouverte à
@@ -31,6 +32,7 @@ export class WorkflowTransitionActeur {
       'utilisateur',
       'responsable_entite_courante',
       'superieur_hierarchique_courant',
+      'destinataire_courant',
     ],
     enumName: 'type_acteur_workflow',
     name: 'type_acteur',
@@ -40,8 +42,9 @@ export class WorkflowTransitionActeur {
 
   // Exactement une des quatre colonnes ci-dessous doit être renseignée selon
   // typeActeur (CHECK contrainte workflow_transition_roles_type_ck côté SQL) ;
-  // les deux types 'courant' (responsable/supérieur hiérarchique) exigent que
-  // les quatre soient nulles. Revalidé côté service (WorkflowService.createActeur).
+  // les trois types 'courant' (responsable/supérieur hiérarchique/destinataire)
+  // exigent que les quatre soient nulles. Revalidé côté service
+  // (WorkflowService.createActeur).
   @Column({ type: 'uuid', name: 'role_id', nullable: true })
   roleId: string | null;
 

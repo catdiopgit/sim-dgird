@@ -72,8 +72,16 @@ export function CourrierWorkflowPanel({ courrier, organisationId }: Props) {
 
   if (chargementInstance || chargementHistorique) return <Skeleton active />;
 
-  const cibleLabel = (d: { entite_id: string | null; utilisateur_id: string | null }) =>
-    d.entite_id ? (entiteParId.get(d.entite_id) ?? '—') : d.utilisateur_id ? (utilisateurParId.get(d.utilisateur_id) ?? '—') : '—';
+  // L'agent (utilisateur_id) et l'entité (entite_id) sont tous les deux renseignés
+  // quand l'imputation cible un agent précis (imputerCourrier renseigne toujours
+  // entite_id, y compris dans ce cas) : prioriser le nom de la personne, sinon
+  // retomber sur l'entité seule (cas où seule une entité a été choisie).
+  const cibleLabel = (d: { entite_id: string | null; utilisateur_id: string | null }) => {
+    const entite = d.entite_id ? (entiteParId.get(d.entite_id) ?? '—') : null;
+    const personne = d.utilisateur_id ? (utilisateurParId.get(d.utilisateur_id) ?? '—') : null;
+    if (personne) return entite ? `${personne} (${entite})` : personne;
+    return entite ?? '—';
+  };
 
   return (
     <Card title="Workflow" style={{ marginTop: 16 }}>

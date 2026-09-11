@@ -141,9 +141,10 @@ export class WorkflowService {
     await this.acteurs.delete(id);
   }
 
-  // Reflète workflow_transition_roles_type_ck (0020) : exactement une des quatre
-  // colonnes cible pour role/fonction/entite/entite_et_descendants/utilisateur ;
-  // aucune pour les deux types 'courant' (résolus dynamiquement à l'exécution).
+  // Reflète workflow_transition_roles_type_ck (0020/0083) : exactement une des
+  // quatre colonnes cible pour role/fonction/entite/entite_et_descendants/
+  // utilisateur ; aucune pour les trois types 'courant' (résolus dynamiquement
+  // à l'exécution).
   private validerActeur(data: Partial<WorkflowTransitionActeur>): void {
     const type = data.typeActeur ?? 'role';
     const champs = {
@@ -156,7 +157,11 @@ export class WorkflowService {
       .filter(([, v]) => v != null)
       .map(([k]) => k);
 
-    if (type === 'responsable_entite_courante' || type === 'superieur_hierarchique_courant') {
+    if (
+      type === 'responsable_entite_courante' ||
+      type === 'superieur_hierarchique_courant' ||
+      type === 'destinataire_courant'
+    ) {
       if (renseignes.length > 0) {
         throw new BadRequestException(`Le type d'acteur '${type}' ne doit référencer aucune cible directe`);
       }

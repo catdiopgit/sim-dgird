@@ -16,6 +16,7 @@ interface InstanceEnRetard {
 interface EcheanceCourrierEnRetard {
   objet_id: string;
   entite_objet: string | null;
+  agent_destinataire_id: string | null;
   etape_courante_id: string;
   etape_libelle: string;
   echeance: string;
@@ -76,6 +77,8 @@ export class RetardsService {
       const destinataires = await this.workflowEngine.resolveDestinatairesEtape(
         instance.etape_courante_id,
         objet.entiteId,
+        undefined,
+        await this.destinataireCourant(objet.entiteId, objet.agentDestinataireId),
       );
       for (const destinataireId of destinataires) {
         await this.notifications.notifier(null, {
@@ -109,8 +112,8 @@ export class RetardsService {
     // redirection) dépassées, indépendamment du délai statique de l'étape.
     const moduleCourrierId = await this.moduleId('courrier');
     const echeances: EcheanceCourrierEnRetard[] = await this.dataSource.query(
-      `select c.id as objet_id, c.entite_id as entite_objet, wi.etape_courante_id, we.libelle as etape_libelle,
-              cd.echeance
+      `select c.id as objet_id, c.entite_id as entite_objet, c.agent_destinataire_id, wi.etape_courante_id,
+              we.libelle as etape_libelle, cd.echeance
        from courrier_destinataires cd
        join courriers c on c.id = cd.courrier_id
        join workflow_instances wi on wi.id = c.workflow_instance_id
@@ -133,6 +136,8 @@ export class RetardsService {
       const destinataires = await this.workflowEngine.resolveDestinatairesEtape(
         echeance.etape_courante_id,
         echeance.entite_objet,
+        undefined,
+        await this.destinataireCourant(echeance.entite_objet, echeance.agent_destinataire_id),
       );
       for (const destinataireId of destinataires) {
         await this.notifications.notifier(null, {
@@ -152,13 +157,26 @@ export class RetardsService {
 
   private async resoudreObjetPorteur(
     instanceId: string,
-  ): Promise<{ module: string; id: string; entiteId: string | null; supprimeLe: Date | null } | null> {
-    const courrier: Array<{ id: string; entite_id: string | null; supprime_le: Date | null }> = await this.dataSource.query(
-      'select id, entite_id, supprime_le from courriers where workflow_instance_id = $1',
-      [instanceId],
-    );
+  ): Promise<{
+    module: string;
+    id: string;
+    entiteId: string | null;
+    agentDestinataireId: string | null;
+    supprimeLe: Date | null;
+  } | null> {
+    const courrier: Array<{ id: string; entite_id: string | null; agent_destinataire_id: string | null; supprime_le: Date | null }> =
+      await this.dataSource.query(
+        'select id, entite_id, agent_destinataire_id, supprime_le from courriers where workflow_instance_id = $1',
+        [instanceId],
+      );
     if (courrier[0]) {
-      return { module: 'courrier', id: courrier[0].id, entiteId: courrier[0].entite_id, supprimeLe: courrier[0].supprime_le };
+      return {
+        module: 'courrier',
+        id: courrier[0].id,
+        entiteId: courrier[0].entite_id,
+        agentDestinataireId: courrier[0].agent_destinataire_id,
+        supprimeLe: courrier[0].supprime_le,
+      };
     }
 
     const ged: Array<{ id: string; entite_id: string | null; supprime_le: Date | null }> = await this.dataSource.query(
@@ -166,7 +184,13 @@ export class RetardsService {
       [instanceId],
     );
     if (ged[0]) {
-      return { module: 'ged', id: ged[0].id, entiteId: ged[0].entite_id, supprimeLe: ged[0].supprime_le };
+      return {
+        module: 'ged',
+        id: ged[0].id,
+        entiteId: ged[0].entite_id,
+        agentDestinataireId: null,
+        supprimeLe: ged[0].supprime_le,
+      };
     }
 
     const mission: Array<{ id: string; entite_id: string | null }> = await this.dataSource.query(
@@ -174,10 +198,23 @@ export class RetardsService {
       [instanceId],
     );
     if (mission[0]) {
-      return { module: 'missions', id: mission[0].id, entiteId: mission[0].entite_id, supprimeLe: null };
+      return { module: 'missions', id: mission[0].id, entiteId: mission[0].entite_id, agentDestinataireId: null, supprimeLe: null };
     }
 
     return null;
+  }
+
+  // Voir CourrierWorkflowService/CourriersService — même règle de résolution
+  // (ici dupliquée plutôt qu'importée : RetardsService raisonne en `entiteId`
+  // générique tous modules, pas en entité Courrier typée).
+  private async destinataireCourant(entiteId: string | null, agentDestinataireId: string | null): Promise<string | null> {
+    if (agentDestinataireId) return agentDestinataireId;
+    if (!entiteId) return null;
+    const rows: Array<{ personne_receptrice_id: string | null }> = await this.dataSource.query(
+      'select personne_receptrice_id from entites where id = $1',
+      [entiteId],
+    );
+    return rows[0]?.personne_receptrice_id ?? null;
   }
 
   private async dejaNotifieAujourdhui(objetModule: string, objetId: string): Promise<boolean> {

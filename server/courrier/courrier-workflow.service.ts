@@ -10,7 +10,7 @@ import { WorkflowInstance } from '../workflow/entities/workflow-instance.entity'
 import type { TypeActionCourrier } from '../workflow/entities/workflow-transition.entity';
 import { Courrier } from './entities/courrier.entity';
 import { CourrierDestinataire } from './entities/courrier-destinataire.entity';
-import { courrierVersContexte } from './courrier-contexte.util';
+import { courrierVersContexte, resoudreDestinataireCourantCourrier } from './courrier-contexte.util';
 import { CourriersService } from './courriers.service';
 
 export interface TransitionDisponible {
@@ -69,6 +69,7 @@ export class CourrierWorkflowService {
       user.id,
       courrier.entiteId,
       courrierVersContexte(courrier),
+      await resoudreDestinataireCourantCourrier(courrier, this.dataSource),
     );
 
     const resultats: TransitionDisponible[] = [];
@@ -96,8 +97,10 @@ export class CourrierWorkflowService {
     if (courrier.verrouilleLe) {
       throw new ConflictException('Courrier verrouillé (décharge ajoutée) — aucune action de workflow possible');
     }
+    const destinataireCourant = await resoudreDestinataireCourantCourrier(courrier, this.dataSource);
     const autorise =
       courrier.createdBy === user.id ||
+      destinataireCourant === user.id ||
       (await this.authorizationService.hasPermission(user.id, 'courrier', 'modifier', courrier.entiteId));
     if (!autorise) throw new ForbiddenException("Vous n'êtes pas autorisé à agir sur ce courrier");
     if (!courrier.workflowInstanceId) throw new BadRequestException("Ce courrier n'a pas de workflow associé");
@@ -109,6 +112,8 @@ export class CourrierWorkflowService {
       commentaire,
       courrier.entiteId,
       courrierVersContexte(courrier),
+      undefined,
+      destinataireCourant,
     );
   }
 
@@ -127,8 +132,10 @@ export class CourrierWorkflowService {
         throw new ConflictException('Courrier verrouillé (décharge ajoutée) — imputation impossible');
       }
 
+      const destinataireCourant = await resoudreDestinataireCourantCourrier(courrier, manager);
       const autoriseEcriture =
         courrier.createdBy === user.id ||
+        destinataireCourant === user.id ||
         (await this.authorizationService.hasPermission(user.id, 'courrier', 'modifier', courrier.entiteId));
       if (!autoriseEcriture) throw new ForbiddenException("Vous n'êtes pas autorisé à imputer ce courrier");
 
@@ -207,6 +214,7 @@ export class CourrierWorkflowService {
           courrier.entiteId,
           courrierVersContexte(courrier),
           manager,
+          destinataireCourant,
         );
         for (const destinataire of destinatairesACorreler) {
           await manager.update(CourrierDestinataire, destinataire.id, { workflowHistoriqueId: historiqueId });

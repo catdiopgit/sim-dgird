@@ -9,7 +9,8 @@ import { Tableau, type Colonne } from '../../components/ui/tableau';
 import { useDocumentsMarche } from '../../hooks/marches/useDocumentsMarche';
 import { usePhaseMarcheMutations, usePhasesMarche } from '../../hooks/marches/usePhasesMarche';
 import type { PhaseMarcheAvecStatut } from '../../services/marches/phasesMarche';
-import { BadgeStatutPhase, dateCourte } from './marcheAffichage';
+import { BadgeStatutPhase } from './marcheAffichage';
+import { dateCourte } from './format';
 import { PhaseValidationModal } from './PhaseValidationModal';
 
 interface Props {

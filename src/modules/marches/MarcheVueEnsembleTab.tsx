@@ -8,7 +8,8 @@ import { useMarcheCandidats } from '../../hooks/marches/useMarcheCandidats';
 import { usePhasesMarche } from '../../hooks/marches/usePhasesMarche';
 import { BarreAvancement } from '../projets/projetAffichage';
 import type { Marche } from '../../services/marches/marches';
-import { dateCourte, montantFcfa } from './marcheAffichage';
+import { formatMontant } from '../../utils/format';
+import { dateCourte } from './format';
 
 interface Props {
   marche: Marche;
@@ -185,7 +186,7 @@ export function MarcheVueEnsembleTab({ marche, entiteParId, typeParId, utilisate
                   <Banknote className="size-3.5" />
                   Montant attribué
                 </div>
-                <div className="mt-1.5 text-[15px] font-semibold tabular-nums">{montantFcfa(attribution?.montant_attribue)}</div>
+                <div className="mt-1.5 text-[15px] font-semibold tabular-nums">{formatMontant(attribution?.montant_attribue)}</div>
               </div>
             </div>
           </CardContent>
@@ -201,7 +202,7 @@ export function MarcheVueEnsembleTab({ marche, entiteParId, typeParId, utilisate
             <Ligne label="Type de marché">{typeParId.get(marche.type_marche_id) ?? '—'}</Ligne>
             <Ligne label="Entité porteuse">{entiteParId.get(marche.entite_id) ?? '—'}</Ligne>
             <Ligne label="Responsable">{marche.responsable_id ? (utilisateurParId.get(marche.responsable_id) ?? '—') : '—'}</Ligne>
-            <Ligne label="Montant estimatif">{montantFcfa(marche.montant_estimatif)}</Ligne>
+            <Ligne label="Montant estimatif">{formatMontant(marche.montant_estimatif)}</Ligne>
             <Ligne label="Début prévisionnel">{dateCourte(marche.date_debut_prevue)}</Ligne>
             <Ligne label="Fin prévisionnelle">{dateCourte(marche.date_fin_prevue)}</Ligne>
             <Ligne label="Prochaine échéance" className="sm:col-span-2 lg:col-span-3">

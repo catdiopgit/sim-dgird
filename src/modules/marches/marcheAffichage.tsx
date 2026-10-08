@@ -1,7 +1,6 @@
 import { Badge } from '../../components/ui/badge';
 import type { Marche } from '../../services/marches/marches';
 import type { StatutCalculePhase } from '../../services/marches/phasesMarche';
-import { fr } from '../../utils/dateFr';
 import { LIBELLES_STATUT_PHASE } from './statutPhase';
 
 // Pastille de couleur par statut calculé de phase (§13) : couleurs de statut
@@ -35,12 +34,4 @@ export function BadgeStatutMarche({ statut }: { statut: Marche['statut_cloture']
       En cours
     </Badge>
   );
-}
-
-export function dateCourte(date: string | null | undefined): string {
-  return date ? fr(date).format('DD/MM/YYYY') : '—';
-}
-
-export function montantFcfa(montant: number | null | undefined): string {
-  return montant != null ? `${montant.toLocaleString('fr-FR')} FCFA` : '—';
 }

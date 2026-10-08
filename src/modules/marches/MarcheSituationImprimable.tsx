@@ -8,7 +8,8 @@ import { useMarcheAttribution } from '../../hooks/marches/useMarcheAttribution';
 import { usePhasesMarche } from '../../hooks/marches/usePhasesMarche';
 import type { Marche } from '../../services/marches/marches';
 import type { PhaseMarcheAvecStatut } from '../../services/marches/phasesMarche';
-import { dateCourte, montantFcfa } from './marcheAffichage';
+import { formatMontant } from '../../utils/format';
+import { dateCourte } from './format';
 import { LIBELLES_STATUT_PHASE } from './statutPhase';
 
 interface Props {
@@ -145,7 +146,7 @@ export function MarcheSituationImprimable({ open, marche, entiteParId, typeParId
                       <th className={TH_LIGNE}>Attributaire</th>
                       <td className={TD}>{attribution ? (candidatParId.get(attribution.candidat_attributaire_id) ?? '—') : 'Non attribué'}</td>
                       <th className={TH_LIGNE}>Montant</th>
-                      <td className={TD}>{montantFcfa(attribution?.montant_attribue)}</td>
+                      <td className={TD}>{formatMontant(attribution?.montant_attribue)}</td>
                     </tr>
                     <tr>
                       <th className={TH_LIGNE}>Date d'attribution</th>

@@ -12,7 +12,8 @@ import { useProfile } from '../../hooks/useProfile';
 import { champBase } from '../../lib/styles';
 import { cn } from '../../lib/utils';
 import type { Marche } from '../../services/marches/marches';
-import { BadgeStatutMarche, dateCourte } from './marcheAffichage';
+import { BadgeStatutMarche } from './marcheAffichage';
+import { dateCourte } from './format';
 import { MarcheFormModal } from './MarcheFormModal';
 
 const STATUTS: { valeur: Marche['statut_cloture']; libelle: string }[] = [

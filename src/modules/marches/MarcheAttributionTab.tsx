@@ -14,7 +14,8 @@ import { Skeleton } from '../../components/ui/skeleton';
 import { useMarcheAttribution, useMarcheAttributionMutation } from '../../hooks/marches/useMarcheAttribution';
 import { useMarcheCandidats } from '../../hooks/marches/useMarcheCandidats';
 import { ariaErreur, nombreOuVide, versChampDate } from '../../lib/form';
-import { dateCourte, montantFcfa } from './marcheAffichage';
+import { formatMontant } from '../../utils/format';
+import { dateCourte } from './format';
 
 const schema = z.object({
   candidatAttributaireId: z.string().min(1, 'Requis'),
@@ -94,7 +95,7 @@ export function MarcheAttributionTab({ marcheId, peutModifier }: Props) {
           {attribution ? (
             <dl className="grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
               <Ligne label="Attributaire">{candidatParId.get(attribution.candidat_attributaire_id) ?? '—'}</Ligne>
-              <Ligne label="Montant attribué">{montantFcfa(attribution.montant_attribue)}</Ligne>
+              <Ligne label="Montant attribué">{formatMontant(attribution.montant_attribue)}</Ligne>
               <Ligne label="Date d'attribution">{dateCourte(attribution.date_attribution)}</Ligne>
               <Ligne label="Observations">{attribution.observations ?? '—'}</Ligne>
             </dl>

@@ -11,6 +11,7 @@ import { UtilisateursTab } from '../modules/administration/utilisateurs/Utilisat
 import { WorkflowsTab } from '../modules/administration/workflows/WorkflowsTab';
 import { CourrierDetailPage } from '../modules/courrier/CourrierDetailPage';
 import { CourrierListePage } from '../modules/courrier/CourrierListePage';
+import { CourrierNouveauPage } from '../modules/courrier/CourrierNouveauPage';
 import { CourrierStatistiquesPage } from '../modules/courrier/CourrierStatistiquesPage';
 import { ArchivesPage } from '../modules/ged/ArchivesPage';
 import { ArchivagePage } from '../modules/ged/archivage/ArchivagePage';
@@ -47,6 +48,7 @@ export const router = createBrowserRouter([
             path: 'courriers',
             children: [
               { index: true, element: <CourrierListePage /> },
+              { path: 'nouveau', element: <CourrierNouveauPage /> },
               { path: 'statistiques', element: <CourrierStatistiquesPage /> },
               { path: ':id', element: <CourrierDetailPage /> },
             ],

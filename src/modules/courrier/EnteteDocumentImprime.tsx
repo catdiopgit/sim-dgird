@@ -1,4 +1,3 @@
-import { Typography } from 'antd';
 import type { EnteteDocument } from '../../hooks/administration/useEnteteDocument';
 import type { Organisation } from '../../services/administration/organisations';
 
@@ -39,12 +38,14 @@ export function EnteteDocumentImprime({ organisation, entete, titre }: Props) {
         </tbody>
       </table>
 
-      <Typography.Title level={5} style={{ textAlign: 'center', margin: '0 0 4px' }}>
+      {/* Couleur héritée du document (encre sombre sur la feuille blanche),
+          jamais celle du thème de l'interface. */}
+      <div className="font-serif-title" style={{ textAlign: 'center', margin: '0 0 4px', fontSize: 16, fontWeight: 600, color: 'inherit' }}>
         {organisation?.nom ?? ''}
-      </Typography.Title>
-      <Typography.Title level={4} style={{ textAlign: 'center', margin: '0 0 12px' }}>
+      </div>
+      <div className="font-serif-title" style={{ textAlign: 'center', margin: '0 0 12px', fontSize: 20, fontWeight: 600, color: 'inherit' }}>
         {titre}
-      </Typography.Title>
+      </div>
     </>
   );
 }

@@ -1,6 +1,7 @@
-import { DeleteOutlined, InboxOutlined } from '@ant-design/icons';
-import { Button, Checkbox, List, Typography, Upload } from 'antd';
-import type { UploadProps } from 'antd';
+import { FileText, FileUp, Trash2 } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Button } from '../../../components/ui/button';
+import { cn } from '../../../lib/utils';
 
 export interface PieceJointeStagee {
   id: string;
@@ -25,57 +26,87 @@ function formatTaille(octets: number): string {
 // l'assistant — cf. plan V3 §E). L'upload réel réutilise le même service
 // (uploadPieceJointe) une fois le courrier créé.
 export function PiecesJointesStagingList({ fichiers, onChange }: Props) {
-  const uploadProps: UploadProps = {
-    multiple: true,
-    showUploadList: false,
-    beforeUpload: (file) => {
-      onChange([...fichiers, { id: crypto.randomUUID(), file, estScan: fichiers.length === 0 }]);
-      return false;
-    },
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [survol, setSurvol] = useState(false);
+
+  const ajouter = (liste: FileList | null) => {
+    if (!liste || liste.length === 0) return;
+    const nouveaux = [...liste].map((file, i) => ({
+      id: crypto.randomUUID(),
+      file,
+      // Le premier fichier déposé est proposé comme scan du courrier.
+      estScan: fichiers.length === 0 && i === 0,
+    }));
+    onChange([...fichiers, ...nouveaux]);
   };
 
   return (
-    <div>
-      <Upload.Dragger {...uploadProps}>
-        <p className="ant-upload-drag-icon">
-          <InboxOutlined />
-        </p>
-        <p className="ant-upload-text">Cliquez ou glissez-déposez le document principal et les pièces jointes</p>
-        <p className="ant-upload-hint">Plusieurs fichiers possibles. Rien n'est envoyé avant la validation finale.</p>
-      </Upload.Dragger>
+    <div className="space-y-4">
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        className="sr-only"
+        aria-label="Choisir des fichiers"
+        onChange={(e) => {
+          ajouter(e.target.files);
+          e.target.value = '';
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setSurvol(true);
+        }}
+        onDragLeave={() => setSurvol(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setSurvol(false);
+          ajouter(e.dataTransfer.files);
+        }}
+        className={cn(
+          'flex w-full cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 text-center transition-colors',
+          survol ? 'border-primary bg-accent' : 'border-input hover:border-ring hover:bg-muted/40',
+        )}
+      >
+        <FileUp className="size-7 text-muted-foreground" />
+        <span className="text-[14px] font-medium">Cliquez ou glissez-déposez le document principal et les pièces jointes</span>
+        <span className="text-[12px] text-muted-foreground">Plusieurs fichiers possibles. Rien n'est envoyé avant la validation finale.</span>
+      </button>
 
       {fichiers.length > 0 && (
-        <List
-          style={{ marginTop: 16 }}
-          size="small"
-          bordered
-          dataSource={fichiers}
-          renderItem={(item) => (
-            <List.Item
-              actions={[
-                <Checkbox
-                  key="scan"
+        <ul className="divide-y divide-border rounded-lg border border-border">
+          {fichiers.map((item) => (
+            <li key={item.id} className="flex items-center gap-3 px-3 py-2.5">
+              <FileText className="size-4 shrink-0 text-muted-foreground" />
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[13px] font-medium">{item.file.name}</div>
+                <div className="text-[12px] text-muted-foreground">{formatTaille(item.file.size)}</div>
+              </div>
+              <label className="flex shrink-0 cursor-pointer items-center gap-2 text-[13px]">
+                <input
+                  type="checkbox"
                   checked={item.estScan}
-                  onChange={(e) =>
-                    onChange(fichiers.map((f) => ({ ...f, estScan: f.id === item.id ? e.target.checked : false })))
-                  }
-                >
-                  Scan du courrier
-                </Checkbox>,
-                <Button
-                  key="suppr"
-                  type="text"
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={() => onChange(fichiers.filter((f) => f.id !== item.id))}
-                />,
-              ]}
-            >
-              <Typography.Text>{item.file.name}</Typography.Text>{' '}
-              <Typography.Text type="secondary">({formatTaille(item.file.size)})</Typography.Text>
-            </List.Item>
-          )}
-        />
+                  onChange={(e) => onChange(fichiers.map((f) => ({ ...f, estScan: f.id === item.id ? e.target.checked : false })))}
+                  className="size-4 rounded accent-[var(--primary)]"
+                />
+                Scan du courrier
+              </label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 text-crit-text hover:bg-crit/10"
+                aria-label={`Retirer ${item.file.name}`}
+                onClick={() => onChange(fichiers.filter((f) => f.id !== item.id))}
+              >
+                <Trash2 />
+              </Button>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

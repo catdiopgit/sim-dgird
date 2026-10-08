@@ -1,7 +1,11 @@
-import { Alert, Checkbox, DatePicker, Form, Input, Modal, Select, Space, Typography } from 'antd';
-import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
+import { Info } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { Champ } from '../../components/form/champ';
+import { FormDialog } from '../../components/form/form-dialog';
+import { ListeCases } from '../../components/ui/checkbox';
+import { Input, Textarea } from '../../components/ui/input';
+import { NativeSelect } from '../../components/ui/native-select';
 import { useEntites, useUtilisateursOptions } from '../../hooks/administration/useEntites';
 import { useCourrierReferentiel } from '../../hooks/courrier/useCourriers';
 import {
@@ -83,37 +87,19 @@ export function CourrierActionWorkflowModal({
     [utilisateurs, entitesImputablesIds],
   );
 
-  const [cibleValeur, setCibleValeur] = useState<string | undefined>();
+  const [cibleValeur, setCibleValeur] = useState('');
   const [entitesCopieIds, setEntitesCopieIds] = useState<string[]>([]);
   const [actionsDemandeesIds, setActionsDemandeesIds] = useState<string[]>([]);
-  const [prioriteValeurId, setPrioriteValeurId] = useState<string | undefined>(
-    courrier.priorite_valeur_id ?? undefined,
-  );
-  const [dateLimite, setDateLimite] = useState<Dayjs | null>(null);
+  const [prioriteValeurId, setPrioriteValeurId] = useState(courrier.priorite_valeur_id ?? '');
+  const [dateLimite, setDateLimite] = useState('');
   const [observation, setObservation] = useState('');
 
-  const optionsCible = estTransmissionOuRedirection
-    ? [
-        ...(entitesCibles ?? []).map((e) => ({ value: `entite:${e.id}`, label: `${e.libelle} (entité)` })),
-        ...(personnesTransmissibles ?? []).map((p) => ({
-          value: `personne:${p.utilisateur_id}`,
-          label: `${utilisateurParId.get(p.utilisateur_id) ?? p.utilisateur_id} (${entiteParIdOrganisation.get(p.entite_id) ?? '—'})`,
-        })),
-      ]
-    : [
-        ...(entitesCibles ?? []).map((e) => ({ value: `entite:${e.id}`, label: e.libelle })),
-        ...agentsImputables.map((u) => ({
-          value: `personne:${u.id}`,
-          label: `${u.prenom} ${u.nom} (${entiteParIdOrganisation.get(u.entiteId!) ?? '—'})`,
-        })),
-      ];
-
   const reinitialiser = () => {
-    setCibleValeur(undefined);
+    setCibleValeur('');
     setEntitesCopieIds([]);
     setActionsDemandeesIds([]);
-    setPrioriteValeurId(courrier.priorite_valeur_id ?? undefined);
-    setDateLimite(null);
+    setPrioriteValeurId(courrier.priorite_valeur_id ?? '');
+    setDateLimite('');
     setObservation('');
   };
 
@@ -147,7 +133,7 @@ export function CourrierActionWorkflowModal({
         p_entite_id: entiteId,
         p_agent_id: agentId,
         p_instruction: observation || null,
-        p_echeance: dateLimite ? dateLimite.format('YYYY-MM-DD') : null,
+        p_echeance: dateLimite || null,
         p_transition_id: transitionId,
         p_type_action: typeAction,
         p_entites_copie_ids: entitesCopieIds.length > 0 ? entitesCopieIds : null,
@@ -158,112 +144,110 @@ export function CourrierActionWorkflowModal({
     );
   };
 
+  const libelle = LIBELLE_ACTION[typeAction];
+
   return (
-    <Modal
+    <FormDialog
       open={open}
-      onCancel={fermer}
-      title={LIBELLE_ACTION[typeAction].toUpperCase()}
-      width={640}
-      onOk={onValider}
-      okText={`Valider l'${LIBELLE_ACTION[typeAction].toLowerCase()}`}
-      confirmLoading={imputer.isPending}
-      okButtonProps={{ disabled: !cibleValeur }}
-      destroyOnHidden
+      onClose={fermer}
+      titre={libelle}
+      description={`${courrier.numero} — ${courrier.objet}`}
+      onSubmit={(e) => {
+        e.preventDefault();
+        onValider();
+      }}
+      enCours={imputer.isPending}
+      validerDesactive={!cibleValeur}
+      libelleValider={`Valider l'${libelle.toLowerCase()}`}
+      largeur="lg"
     >
-      <Form layout="vertical">
-        <Form.Item label={estTransmissionOuRedirection ? 'Transmettre à' : 'Imputer à'} required>
-          <Select
-            placeholder="Choisir l'entité ou la personne"
-            showSearch
-            value={cibleValeur}
-            onChange={setCibleValeur}
-            filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-            options={optionsCible}
+      <Champ label={estTransmissionOuRedirection ? 'Transmettre à' : 'Imputer à'} htmlFor="action-cible" requis>
+        <NativeSelect id="action-cible" autoFocus value={cibleValeur} onChange={(e) => setCibleValeur(e.target.value)}>
+          <option value="">Choisir l'entité ou {estTransmissionOuRedirection ? 'la personne' : "l'agent"}</option>
+          <optgroup label="Entités">
+            {(entitesCibles ?? []).map((e) => (
+              <option key={e.id} value={`entite:${e.id}`}>
+                {e.libelle}
+              </option>
+            ))}
+          </optgroup>
+          {estTransmissionOuRedirection && (personnesTransmissibles ?? []).length > 0 && (
+            <optgroup label="Personnes">
+              {(personnesTransmissibles ?? []).map((p) => (
+                <option key={p.utilisateur_id} value={`personne:${p.utilisateur_id}`}>
+                  {utilisateurParId.get(p.utilisateur_id) ?? p.utilisateur_id} ({entiteParIdOrganisation.get(p.entite_id) ?? '—'})
+                </option>
+              ))}
+            </optgroup>
+          )}
+          {!estTransmissionOuRedirection && agentsImputables.length > 0 && (
+            <optgroup label="Agents">
+              {agentsImputables.map((u) => (
+                <option key={u.id} value={`personne:${u.id}`}>
+                  {u.prenom} {u.nom} ({entiteParIdOrganisation.get(u.entiteId!) ?? '—'})
+                </option>
+              ))}
+            </optgroup>
+          )}
+        </NativeSelect>
+      </Champ>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Champ label="En copie" htmlFor="action-copie" aide={entitesCopieIds.length > 0 ? `${entitesCopieIds.length} entité(s) sélectionnée(s)` : undefined}>
+          <ListeCases
+            id="action-copie"
+            options={(entitesImputables ?? []).map((e) => ({ valeur: e.id, libelle: e.libelle }))}
+            valeurs={entitesCopieIds}
+            onChange={setEntitesCopieIds}
+            vide="Aucune entité disponible"
           />
-        </Form.Item>
-
-        <Space size={24} align="start" wrap style={{ width: '100%' }}>
-          <div style={{ minWidth: 240 }}>
-            <Typography.Text strong>En copie</Typography.Text>
-            <div
-              style={{
-                border: '1px solid #d9d9d9',
-                borderRadius: 4,
-                maxHeight: 200,
-                overflowY: 'auto',
-                padding: 8,
-                marginTop: 4,
-              }}
-            >
-              <Checkbox.Group
-                style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
-                value={entitesCopieIds}
-                onChange={(v) => setEntitesCopieIds(v as string[])}
-                options={(entitesImputables ?? []).map((e) => ({ value: e.id, label: e.libelle }))}
-              />
-            </div>
-          </div>
-
-          <div style={{ minWidth: 240 }}>
-            <Typography.Text strong>Actions demandées</Typography.Text>
-            <div
-              style={{
-                border: '1px solid #d9d9d9',
-                borderRadius: 4,
-                maxHeight: 200,
-                overflowY: 'auto',
-                padding: 8,
-                marginTop: 4,
-              }}
-            >
-              <Checkbox.Group
-                style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
-                value={actionsDemandeesIds}
-                onChange={(v) => setActionsDemandeesIds(v as string[])}
-                options={(referentiel?.actionsDemandees ?? []).map((v) => ({ value: v.id, label: v.libelle }))}
-              />
-              {(referentiel?.actionsDemandees ?? []).length === 0 && (
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  Aucune action configurée (Administration &gt; Paramètres &gt; Liste de valeurs).
-                </Typography.Text>
-              )}
-            </div>
-          </div>
-        </Space>
-
-        <Space wrap style={{ marginTop: 16, width: '100%' }} align="start">
-          <Form.Item label="Priorité" style={{ marginBottom: 8 }}>
-            <Select
-              placeholder="Priorité"
-              allowClear
-              style={{ width: 180 }}
-              value={prioriteValeurId}
-              onChange={setPrioriteValeurId}
-              options={(referentiel?.priorites ?? []).map((v) => ({ value: v.id, label: v.libelle }))}
-            />
-          </Form.Item>
-          <Form.Item label="Date limite" style={{ marginBottom: 8 }}>
-            <DatePicker value={dateLimite} onChange={setDateLimite} disabledDate={(d) => d.isBefore(dayjs(), 'day')} />
-          </Form.Item>
-        </Space>
-
-        <Form.Item label="Observation">
-          <Input.TextArea
-            rows={2}
-            placeholder="Instruction ou observation concernant cette action"
-            value={observation}
-            onChange={(e) => setObservation(e.target.value)}
+        </Champ>
+        <Champ label="Actions demandées" htmlFor="action-demandees">
+          <ListeCases
+            id="action-demandees"
+            options={(referentiel?.actionsDemandees ?? []).map((v) => ({ valeur: v.id, libelle: v.libelle }))}
+            valeurs={actionsDemandeesIds}
+            onChange={setActionsDemandeesIds}
+            vide="Aucune action configurée (Administration › Paramétrage › Listes de valeurs)."
           />
-        </Form.Item>
-
-        {estTransmissionOuRedirection && typeAction === 'transmission' && (
-          <Alert
-            type="info"
-            showIcon
-            message="La transmission conserve le circuit initial : l'entité actuellement en charge du dossier n'est pas modifiée."
+        </Champ>
+        <Champ label="Priorité" htmlFor="action-priorite">
+          <NativeSelect id="action-priorite" value={prioriteValeurId} onChange={(e) => setPrioriteValeurId(e.target.value)}>
+            <option value="">—</option>
+            {(referentiel?.priorites ?? []).map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.libelle}
+              </option>
+            ))}
+          </NativeSelect>
+        </Champ>
+        <Champ label="Date limite" htmlFor="action-date-limite">
+          <Input
+            id="action-date-limite"
+            type="date"
+            min={dayjs().format('YYYY-MM-DD')}
+            value={dateLimite}
+            onChange={(e) => setDateLimite(e.target.value)}
           />
-        )}
-      </Form>
-    </Modal>
+        </Champ>
+      </div>
+
+      <Champ label="Observation" htmlFor="action-observation">
+        <Textarea
+          id="action-observation"
+          rows={2}
+          placeholder="Instruction ou observation concernant cette action"
+          value={observation}
+          onChange={(e) => setObservation(e.target.value)}
+        />
+      </Champ>
+
+      {typeAction === 'transmission' && (
+        <div className="flex gap-2.5 rounded-lg bg-info/10 p-3 text-[13px]">
+          <Info className="mt-0.5 size-4 shrink-0 text-info" />
+          La transmission conserve le circuit initial : l'entité actuellement en charge du dossier n'est pas modifiée.
+        </div>
+      )}
+    </FormDialog>
   );
 }

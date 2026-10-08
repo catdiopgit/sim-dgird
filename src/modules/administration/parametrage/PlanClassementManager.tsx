@@ -1,7 +1,16 @@
-import { FolderAddOutlined, MoreOutlined } from '@ant-design/icons';
-import { Alert, Button, Dropdown, Skeleton, Space, Tree, Typography } from 'antd';
-import type { DataNode } from 'antd/es/tree';
+import { Ellipsis, Folder, FolderPlus, FolderTree, Pencil } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { Arborescence, type NoeudArbre } from '../../../components/ui/arborescence';
+import { Button } from '../../../components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../../../components/ui/dropdown-menu';
+import { Encart } from '../../../components/ui/encart';
+import { EnTeteSection, EtatVide } from '../../../components/ui/page-header';
+import { Skeleton } from '../../../components/ui/skeleton';
 import { useDossiers } from '../../../hooks/ged/useDossiers';
 import { DossierFormModal } from '../../ged/DossierFormModal';
 import type { GedDossier } from '../../../services/ged/dossiers';
@@ -24,23 +33,7 @@ export function PlanClassementManager({ organisationId, peutModifier }: Props) {
   const { data: dossiers, isLoading } = useDossiers(organisationId);
   const [modalState, setModalState] = useState<ModalState>(null);
 
-  const menuPour = () => [
-    { key: 'ajouter-enfant', label: 'Ajouter un sous-dossier' },
-    { key: 'modifier', label: 'Renommer' },
-  ];
-
-  const gererClicMenu = (dossier: GedDossier, key: string) => {
-    switch (key) {
-      case 'ajouter-enfant':
-        setModalState({ mode: 'creer', parentId: dossier.id });
-        break;
-      case 'modifier':
-        setModalState({ mode: 'modifier', dossier });
-        break;
-    }
-  };
-
-  const arbre = useMemo<DataNode[]>(() => {
+  const arbre = useMemo<NoeudArbre[]>(() => {
     const enfantsParParent = new Map<string | null, GedDossier[]>();
     for (const d of dossiers ?? []) {
       const liste = enfantsParParent.get(d.parent_dossier_id) ?? [];
@@ -49,58 +42,68 @@ export function PlanClassementManager({ organisationId, peutModifier }: Props) {
     }
     for (const liste of enfantsParParent.values()) liste.sort((a, b) => a.libelle.localeCompare(b.libelle));
 
-    const construireNoeuds = (parentId: string | null): DataNode[] =>
+    const construireNoeuds = (parentId: string | null): NoeudArbre[] =>
       (enfantsParParent.get(parentId) ?? []).map((d) => ({
-        key: d.id,
-        title: (
-          <Space size="small">
-            <span>
-              {d.libelle} <Typography.Text type="secondary">({d.code})</Typography.Text>
-            </span>
-            {peutModifier && (
-              <Dropdown
-                menu={{ items: menuPour(), onClick: ({ key }) => gererClicMenu(d, key) }}
-                trigger={['click']}
-              >
-                <Button type="text" size="small" icon={<MoreOutlined />} onClick={(ev) => ev.stopPropagation()} />
-              </Dropdown>
-            )}
-          </Space>
+        id: d.id,
+        libelle: d.libelle,
+        contenu: (
+          <span className="flex items-center gap-2">
+            <Folder className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            <span className="font-medium">{d.libelle}</span>
+            <span className="font-mono text-[12px] text-muted-foreground">{d.code}</span>
+          </span>
         ),
-        children: construireNoeuds(d.id),
+        actions: peutModifier ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-8 text-muted-foreground" aria-label={`Actions pour ${d.libelle}`}>
+                <Ellipsis />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => setModalState({ mode: 'creer', parentId: d.id })}>
+                <FolderPlus />
+                Ajouter un sous-dossier
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setModalState({ mode: 'modifier', dossier: d })}>
+                <Pencil />
+                Renommer
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : undefined,
+        enfants: construireNoeuds(d.id),
       }));
 
     return construireNoeuds(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dossiers, peutModifier]);
 
-  if (isLoading) return <Skeleton active />;
+  if (isLoading) return <Skeleton className="h-64 w-full" />;
 
   return (
     <div>
-      <Alert
-        type="info"
-        showIcon
-        style={{ marginBottom: 16, maxWidth: 640 }}
-        message="Plan de classement"
-        description="Cet arbre de dossiers alimente le classement des documents GED (document par document) et la recherche dans les Archives. L'archiviste peut aussi créer un nouveau dossier directement au moment du classement s'il n'existe pas encore ici."
+      <EnTeteSection
+        titre="Plan de classement"
+        actions={
+          peutModifier && (
+            <Button variant="outline" onClick={() => setModalState({ mode: 'creer', parentId: null })}>
+              <FolderPlus />
+              Ajouter un dossier racine
+            </Button>
+          )
+        }
       />
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <Typography.Title level={5} style={{ margin: 0 }}>
-          Dossiers
-        </Typography.Title>
-        {peutModifier && (
-          <Button icon={<FolderAddOutlined />} onClick={() => setModalState({ mode: 'creer', parentId: null })}>
-            Ajouter un dossier racine
-          </Button>
-        )}
-      </div>
+      <Encart className="mb-4 max-w-3xl">
+        Cet arbre de dossiers alimente le classement des documents GED (document par document) et la recherche dans les
+        Archives. L'archiviste peut aussi créer un dossier directement au moment du classement s'il n'existe pas encore.
+      </Encart>
 
       {arbre.length === 0 ? (
-        <Typography.Text type="secondary">Aucun dossier pour le moment.</Typography.Text>
+        <div className="rounded-lg border border-dashed border-border">
+          <EtatVide icone={FolderTree} titre="Aucun dossier pour le moment" />
+        </div>
       ) : (
-        <Tree treeData={arbre} defaultExpandAll selectable={false} />
+        <Arborescence noeuds={arbre} libelle="Plan de classement" />
       )}
 
       <DossierFormModal

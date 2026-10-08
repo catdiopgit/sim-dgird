@@ -1,8 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Form, Input, Modal } from 'antd';
 import { useEffect } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Champ } from '../../../components/form/champ';
+import { FormDialog } from '../../../components/form/form-dialog';
+import { Input, Textarea } from '../../../components/ui/input';
+import { ariaErreur } from '../../../lib/form';
 import type { Role } from '../../../services/administration/roles';
 import { slugifier } from '../../../utils/slug';
 
@@ -23,7 +26,14 @@ interface Props {
 
 export function RoleFormModal({ open, role, confirmLoading, onCancel, onSubmit }: Props) {
   const estNouveau = !role;
-  const { control, handleSubmit, reset, setValue, watch } = useForm<RoleFormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<RoleFormValues>({
     resolver: zodResolver(schema),
     defaultValues: { code: '', libelle: '', description: '' },
   });
@@ -34,31 +44,31 @@ export function RoleFormModal({ open, role, confirmLoading, onCancel, onSubmit }
     }
   }, [open, role, reset]);
 
+  // Code proposé automatiquement à partir du libellé pour un nouveau rôle.
   const libelle = watch('libelle');
   useEffect(() => {
     if (estNouveau && libelle) setValue('code', slugifier(libelle));
   }, [libelle, estNouveau, setValue]);
 
   return (
-    <Modal
+    <FormDialog
       open={open}
-      title={estNouveau ? 'Nouveau rôle' : 'Modifier le rôle'}
-      onCancel={onCancel}
-      onOk={handleSubmit(onSubmit)}
-      confirmLoading={confirmLoading}
-      destroyOnHidden
+      onClose={onCancel}
+      titre={estNouveau ? 'Nouveau rôle' : 'Modifier le rôle'}
+      description="Les permissions du rôle se règlent ensuite dans la matrice."
+      onSubmit={handleSubmit(onSubmit)}
+      enCours={confirmLoading}
+      libelleValider={estNouveau ? 'Créer le rôle' : 'Enregistrer'}
     >
-      <Form layout="vertical">
-        <Form.Item label="Libellé">
-          <Controller name="libelle" control={control} render={({ field }) => <Input {...field} autoFocus />} />
-        </Form.Item>
-        <Form.Item label="Code">
-          <Controller name="code" control={control} render={({ field }) => <Input {...field} />} />
-        </Form.Item>
-        <Form.Item label="Description">
-          <Controller name="description" control={control} render={({ field }) => <Input.TextArea {...field} rows={2} />} />
-        </Form.Item>
-      </Form>
-    </Modal>
+      <Champ label="Libellé" htmlFor="role-libelle" requis erreur={errors.libelle?.message}>
+        <Input autoFocus {...ariaErreur('role-libelle', errors.libelle)} {...register('libelle')} />
+      </Champ>
+      <Champ label="Code" htmlFor="role-code" requis aide={estNouveau ? 'Proposé à partir du libellé.' : undefined} erreur={errors.code?.message}>
+        <Input className="font-mono" {...ariaErreur('role-code', errors.code)} {...register('code')} />
+      </Champ>
+      <Champ label="Description" htmlFor="role-description">
+        <Textarea id="role-description" rows={2} {...register('description')} />
+      </Champ>
+    </FormDialog>
   );
 }

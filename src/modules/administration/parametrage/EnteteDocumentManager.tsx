@@ -1,9 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { DeleteOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons';
-import { Alert, Button, Card, Form, Image, Input, Skeleton, Space, Typography, Upload } from 'antd';
+import { LoaderCircle, Plus, Trash2 } from 'lucide-react';
 import { useEffect } from 'react';
-import { Controller, useFieldArray, useForm } from 'react-hook-form';
+import { useFieldArray, useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Champ } from '../../../components/form/champ';
+import { ChampImage } from '../../../components/form/champ-image';
+import { Button } from '../../../components/ui/button';
+import { Encart } from '../../../components/ui/encart';
+import { Input } from '../../../components/ui/input';
+import { EnTeteSection } from '../../../components/ui/page-header';
+import { Skeleton } from '../../../components/ui/skeleton';
 import { CLE_ENTETE_DOCUMENT, useEnteteDocument, type EnteteDocument } from '../../../hooks/administration/useEnteteDocument';
 import { useUploadOrganisationImage } from '../../../hooks/administration/useOrganisation';
 import {
@@ -45,11 +51,12 @@ export function EnteteDocumentManager({ organisationId, peutModifier }: Props) {
 
   const {
     control,
+    register,
     handleSubmit,
     reset,
     watch,
     setValue,
-    formState: { isDirty },
+    formState: { isDirty, errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: versFormValues({ lignesEnTete: [], logoDroitUrl: null, piedDePage: null }),
@@ -74,80 +81,81 @@ export function EnteteDocumentManager({ organisationId, peutModifier }: Props) {
     });
   };
 
-  if (isLoading) return <Skeleton active />;
+  if (isLoading) return <Skeleton className="h-80 w-full" />;
 
   return (
-    <Card>
-      <Typography.Title level={5} style={{ marginTop: 0 }}>
-        En-tête des documents
-      </Typography.Title>
-      <Alert
-        type="info"
-        showIcon
-        style={{ marginBottom: 16, maxWidth: 640 }}
-        message="Utilisé par la fiche d'exploitation des courriers arrivés"
-        description="Le logo de gauche reste celui configuré dans Administration > Organisation. Les lignes ci-dessous s'affichent au-dessus du nom de l'organisation (ex. mention institutionnelle), et le logo droit s'affiche en vis-à-vis (ex. sceau/armoiries)."
-      />
-      <Form layout="vertical" onFinish={handleSubmit(onSubmit)}>
-        <Form.Item label="Lignes d'en-tête (au-dessus du nom de l'organisation)">
-          <Space direction="vertical" style={{ width: '100%', maxWidth: 480 }}>
-            {fields.map((field, index) => (
-              <Space.Compact block key={field.id}>
-                <Controller
-                  name={`lignes.${index}.valeur`}
-                  control={control}
-                  render={({ field }) => <Input {...field} disabled={!peutModifier} />}
-                />
-                {peutModifier && (
-                  <Button icon={<DeleteOutlined />} onClick={() => remove(index)} danger />
-                )}
-              </Space.Compact>
-            ))}
-            {peutModifier && (
-              <Button icon={<PlusOutlined />} onClick={() => append({ valeur: '' })}>
-                Ajouter une ligne
-              </Button>
-            )}
-          </Space>
-        </Form.Item>
+    <div className="max-w-2xl">
+      <EnTeteSection titre="En-tête des documents" />
+      <Encart titre="Utilisé par les documents imprimés (fiche d'exploitation, ordre de mission, statistiques)" className="mb-5">
+        Le logo de gauche est celui de l'organisation (onglet Organisation). Les lignes ci-dessous s'affichent au-dessus du
+        nom de l'organisation (mention institutionnelle) et le logo droit en vis-à-vis (sceau, armoiries).
+      </Encart>
 
-        <Form.Item label="Logo droit (sceau / armoiries)">
-          <Space align="start">
-            <Upload
-              accept="image/*"
-              showUploadList={false}
-              disabled={!peutModifier || uploadImage.isPending}
-              beforeUpload={(file) => {
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
+        <fieldset disabled={!peutModifier} className="space-y-5">
+          <legend className="sr-only">En-tête</legend>
+          <div>
+            <div className="mb-1.5 text-[13px] font-medium" id="entete-lignes-libelle">
+              Lignes d'en-tête (au-dessus du nom de l'organisation)
+            </div>
+            <div className="space-y-2" role="group" aria-labelledby="entete-lignes-libelle">
+              {fields.length === 0 && <p className="text-[13px] text-muted-foreground">Aucune ligne.</p>}
+              {fields.map((f, index) => (
+                <div key={f.id} className="flex gap-2">
+                  <Input aria-label={`Ligne ${index + 1}`} {...register(`lignes.${index}.valeur`)} />
+                  {peutModifier && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 text-muted-foreground hover:text-crit-text"
+                      onClick={() => remove(index)}
+                      aria-label={`Retirer la ligne ${index + 1}`}
+                      title="Retirer"
+                    >
+                      <Trash2 />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              {peutModifier && (
+                <Button type="button" variant="outline" size="sm" onClick={() => append({ valeur: '' })}>
+                  <Plus />
+                  Ajouter une ligne
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <Champ label="Logo droit (sceau, armoiries)" htmlFor="entete-logo-droit" erreur={errors.logoDroitUrl?.message}>
+            <ChampImage
+              id="entete-logo-droit"
+              url={logoDroitUrl || null}
+              desactive={!peutModifier}
+              enCours={uploadImage.isPending}
+              onFichier={(file) =>
                 uploadImage.mutate(file, {
                   onSuccess: (url) => setValue('logoDroitUrl', url, { shouldDirty: true }),
-                });
-                return false;
-              }}
-            >
-              <Button icon={<UploadOutlined />} loading={uploadImage.isPending} disabled={!peutModifier}>
-                Choisir une image
-              </Button>
-            </Upload>
-            {logoDroitUrl && <Image src={logoDroitUrl} alt="" height={48} style={{ objectFit: 'contain' }} />}
-          </Space>
-        </Form.Item>
+                })
+              }
+            />
+          </Champ>
 
-        <Form.Item label="Pied de page">
-          <Controller
-            name="piedDePage"
-            control={control}
-            render={({ field }) => (
-              <Input {...field} disabled={!peutModifier} placeholder="Laisser vide pour utiliser le code de l'organisation" style={{ maxWidth: 480 }} />
-            )}
-          />
-        </Form.Item>
+          <Champ label="Pied de page" htmlFor="entete-pied" aide="Laisser vide pour utiliser le code de l'organisation.">
+            <Input id="entete-pied" {...register('piedDePage')} />
+          </Champ>
+        </fieldset>
 
         {peutModifier && (
-          <Button type="primary" htmlType="submit" loading={upsert.isPending} disabled={!isDirty}>
-            Enregistrer
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button type="submit" disabled={!isDirty || upsert.isPending}>
+              {upsert.isPending && <LoaderCircle className="animate-spin" />}
+              Enregistrer
+            </Button>
+            {isDirty && <span className="text-[13px] text-muted-foreground">Modifications non enregistrées</span>}
+          </div>
         )}
-      </Form>
-    </Card>
+      </form>
+    </div>
   );
 }

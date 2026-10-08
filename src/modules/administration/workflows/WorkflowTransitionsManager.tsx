@@ -1,14 +1,24 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { PlusOutlined, TeamOutlined } from '@ant-design/icons';
-import { Button, Form, Input, Modal, Popconfirm, Select, Table, Tag, Tooltip, Typography } from 'antd';
+import { ArrowRight, ArrowRightLeft, Plus, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { ActionsLigne, BoutonModifier, BoutonSuppression } from '../../../components/form/actions-ligne';
+import { Badge } from '../../../components/ui/badge';
+import { Button } from '../../../components/ui/button';
+import { EnTeteSection } from '../../../components/ui/page-header';
+import { Tableau } from '../../../components/ui/tableau';
+import { Champ } from '../../../components/form/champ';
+import { FormDialog } from '../../../components/form/form-dialog';
+import { SectionFormulaire } from '../../../components/form/section-formulaire';
+import { Input } from '../../../components/ui/input';
+import { NativeSelect } from '../../../components/ui/native-select';
 import {
   useWorkflowEtapes,
   useWorkflowTransitionMutations,
   useWorkflowTransitions,
 } from '../../../hooks/administration/useWorkflowsAdmin';
+import { ariaErreur } from '../../../lib/form';
 import type { WorkflowTransition } from '../../../services/administration/workflows';
 import { slugifier } from '../../../utils/slug';
 import { WorkflowActeursManager } from './WorkflowActeursManager';
@@ -48,7 +58,14 @@ export function WorkflowTransitionsManager({ workflowDefinitionId, organisationI
   const etapeParId = useMemo(() => new Map((etapes ?? []).map((e) => [e.id, e.libelle])), [etapes]);
   const optionsEtapes = (etapes ?? []).map((e) => ({ value: e.id, label: e.libelle }));
 
-  const { control, handleSubmit, reset, setValue, watch } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       libelle_action: '',
@@ -116,57 +133,75 @@ export function WorkflowTransitionsManager({ workflowDefinitionId, organisationI
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <Typography.Title level={5} style={{ margin: 0 }}>
-          Transitions
-        </Typography.Title>
-        {peutModifier && (
-          <Button size="small" icon={<PlusOutlined />} onClick={() => setEdition('nouveau')}>
-            Ajouter une transition
-          </Button>
-        )}
-      </div>
-      <Table<WorkflowTransition>
-        rowKey="id"
-        size="small"
-        loading={isLoading}
-        dataSource={transitions}
-        pagination={false}
-        columns={[
-          { title: 'Action', dataIndex: 'libelle_action' },
+      <EnTeteSection
+        titre="Transitions"
+        actions={
+          peutModifier && (
+            <Button variant="outline" size="sm" onClick={() => setEdition('nouveau')}>
+              <Plus />
+              Ajouter une transition
+            </Button>
+          )
+        }
+      />
+      <Tableau<WorkflowTransition>
+        libelle="Transitions du workflow"
+        lignes={transitions}
+        cleLigne={(t) => t.id}
+        chargement={isLoading}
+        minLargeur={760}
+        vide={{ icone: ArrowRightLeft, titre: 'Aucune transition', description: 'Reliez les étapes entre elles par des actions.' }}
+        colonnes={[
+          { cle: 'action', titre: 'Action', rendu: (t) => <span className="font-medium">{t.libelle_action}</span> },
           {
-            title: 'De',
-            render: (_, t) => (t.etape_source_id ? (etapeParId.get(t.etape_source_id) ?? '—') : "N'importe où"),
+            cle: 'parcours',
+            titre: 'Parcours',
+            rendu: (t) => (
+              <span className="flex flex-wrap items-center gap-1.5">
+                {t.etape_source_id ? (
+                  (etapeParId.get(t.etape_source_id) ?? '—')
+                ) : (
+                  <span className="text-muted-foreground">N'importe où</span>
+                )}
+                <ArrowRight className="size-3.5 text-muted-foreground" aria-label="vers" />
+                {etapeParId.get(t.etape_cible_id) ?? '—'}
+              </span>
+            ),
           },
-          { title: 'Vers', render: (_, t) => etapeParId.get(t.etape_cible_id) ?? '—' },
           {
-            title: 'Type d\'action',
-            width: 120,
-            render: (_, t) =>
+            cle: 'type',
+            titre: "Type d'action",
+            className: 'w-32',
+            rendu: (t) =>
               t.type_action ? (
-                <Tag>{OPTIONS_TYPE_ACTION.find((o) => o.value === t.type_action)?.label ?? t.type_action}</Tag>
+                <Badge variant="muted" shape="pill">
+                  {OPTIONS_TYPE_ACTION.find((o) => o.value === t.type_action)?.label ?? t.type_action}
+                </Badge>
               ) : (
-                '—'
+                <span className="text-muted-foreground">—</span>
               ),
           },
           {
-            title: 'Condition',
-            render: (_, t) => {
+            cle: 'condition',
+            titre: 'Condition',
+            rendu: (t) => {
               const c = t.condition as { champ?: string; operateur?: string; valeur?: string } | null;
               return c?.champ ? (
-                <Tooltip title={JSON.stringify(c)}>
+                <code className="block max-w-[200px] truncate font-mono text-[12px]" title={JSON.stringify(c)}>
                   {c.champ} {c.operateur} {c.valeur}
-                </Tooltip>
+                </code>
               ) : (
-                '—'
+                <span className="text-muted-foreground">—</span>
               );
             },
           },
           {
-            title: 'Acteurs',
-            width: 90,
-            render: (_: unknown, t: WorkflowTransition) => (
-              <Button type="link" size="small" icon={<TeamOutlined />} onClick={() => setActeursDe(t)}>
+            cle: 'acteurs',
+            titre: 'Acteurs',
+            className: 'w-24',
+            rendu: (t) => (
+              <Button variant="ghost" size="sm" className="-ml-2" onClick={() => setActeursDe(t)} aria-label={`Acteurs de ${t.libelle_action}`}>
+                <Users />
                 Gérer
               </Button>
             ),
@@ -174,20 +209,23 @@ export function WorkflowTransitionsManager({ workflowDefinitionId, organisationI
           ...(peutModifier
             ? [
                 {
-                  title: 'Actions',
-                  key: 'actions',
-                  width: 140,
-                  render: (_: unknown, record: WorkflowTransition) => (
-                    <span>
-                      <Button type="link" size="small" onClick={() => setEdition(record)}>
-                        Modifier
-                      </Button>
-                      <Popconfirm title="Supprimer cette transition ?" onConfirm={() => remove.mutate(record.id)}>
-                        <Button type="link" size="small" danger>
-                          Supprimer
-                        </Button>
-                      </Popconfirm>
-                    </span>
+                  cle: 'actions',
+                  titre: <span className="sr-only">Actions</span>,
+                  className: 'w-20',
+                  rendu: (t: WorkflowTransition) => (
+                    <ActionsLigne>
+                      <BoutonModifier libelle={`Modifier la transition ${t.libelle_action}`} onClick={() => setEdition(t)} />
+                      <BoutonSuppression
+                        libelle={`Supprimer la transition ${t.libelle_action}`}
+                        titre="Supprimer cette transition ?"
+                        enCours={remove.isPending}
+                        onConfirmer={(fermer) => remove.mutate(t.id, { onSuccess: fermer })}
+                      >
+                        <p>
+                          L'action <strong>{t.libelle_action}</strong> ne sera plus proposée sur les dossiers de ce circuit.
+                        </p>
+                      </BoutonSuppression>
+                    </ActionsLigne>
                   ),
                 },
               ]
@@ -195,72 +233,82 @@ export function WorkflowTransitionsManager({ workflowDefinitionId, organisationI
         ]}
       />
 
-      <Modal
+      <FormDialog
         open={edition !== null}
-        title={edition === 'nouveau' ? 'Nouvelle transition' : 'Modifier la transition'}
-        onCancel={() => setEdition(null)}
-        onOk={handleSubmit(onSubmit)}
-        confirmLoading={create.isPending || update.isPending}
-        destroyOnHidden
+        onClose={() => setEdition(null)}
+        titre={edition === 'nouveau' ? 'Nouvelle transition' : 'Modifier la transition'}
+        onSubmit={handleSubmit(onSubmit)}
+        enCours={create.isPending || update.isPending}
+        libelleValider={edition === 'nouveau' ? 'Ajouter la transition' : 'Enregistrer'}
+        largeur="lg"
       >
-        <Form layout="vertical">
-          <Form.Item label="Libellé de l'action">
-            <Controller
-              name="libelle_action"
-              control={control}
-              render={({ field }) => <Input {...field} autoFocus placeholder="Ex: Valider" />}
-            />
-          </Form.Item>
-          <Form.Item label="Code">
-            <Controller name="code" control={control} render={({ field }) => <Input {...field} />} />
-          </Form.Item>
-          <Form.Item label="Étape de départ (vide = n'importe quelle étape)">
-            <Controller
-              name="etape_source_id"
-              control={control}
-              render={({ field }) => <Select {...field} allowClear options={optionsEtapes} />}
-            />
-          </Form.Item>
-          <Form.Item label="Étape d'arrivée">
-            <Controller
-              name="etape_cible_id"
-              control={control}
-              render={({ field }) => <Select {...field} options={optionsEtapes} />}
-            />
-          </Form.Item>
-          <Tooltip title="Détermine si cette transition ouvre la fenêtre modale d'action (Imputer à / En copie / Actions demandées) au lieu d'une simple confirmation — courriers arrivés uniquement.">
-            <Form.Item label="Type d'action (courriers arrivés)">
-              <Controller
-                name="type_action"
-                control={control}
-                render={({ field }) => <Select {...field} allowClear options={OPTIONS_TYPE_ACTION} placeholder="Aucun (confirmation simple)" />}
-              />
-            </Form.Item>
-          </Tooltip>
-          <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
-            Condition optionnelle (ex: priorite_valeur_id = &lt;id&gt;) — laisser le champ vide pour une
-            transition sans condition.
-          </Typography.Text>
-          <Form.Item label="Champ">
-            <Controller name="conditionChamp" control={control} render={({ field }) => <Input {...field} placeholder="Ex: priorite_valeur_id" />} />
-          </Form.Item>
-          <Form.Item label="Opérateur">
-            <Controller
-              name="conditionOperateur"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  {...field}
-                  options={['=', '<>', 'in', '>', '<', '>=', '<='].map((o) => ({ value: o, label: o }))}
-                />
-              )}
-            />
-          </Form.Item>
-          <Form.Item label="Valeur">
-            <Controller name="conditionValeur" control={control} render={({ field }) => <Input {...field} />} />
-          </Form.Item>
-        </Form>
-      </Modal>
+        <SectionFormulaire titre="Action">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Champ label="Libellé de l'action" htmlFor="transition-libelle" requis erreur={errors.libelle_action?.message}>
+              <Input autoFocus placeholder="Ex. : Valider" {...ariaErreur('transition-libelle', errors.libelle_action)} {...register('libelle_action')} />
+            </Champ>
+            <Champ label="Code" htmlFor="transition-code" requis aide={edition === 'nouveau' ? 'Proposé à partir du libellé.' : undefined} erreur={errors.code?.message}>
+              <Input className="font-mono" {...ariaErreur('transition-code', errors.code)} {...register('code')} />
+            </Champ>
+            <Champ label="Étape de départ" htmlFor="transition-source" aide="Vide = depuis n'importe quelle étape.">
+              <NativeSelect id="transition-source" {...register('etape_source_id')}>
+                <option value="">N'importe quelle étape</option>
+                {optionsEtapes.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Champ>
+            <Champ label="Étape d'arrivée" htmlFor="transition-cible" requis erreur={errors.etape_cible_id?.message}>
+              <NativeSelect {...ariaErreur('transition-cible', errors.etape_cible_id)} {...register('etape_cible_id')}>
+                <option value="">Sélectionner une étape</option>
+                {optionsEtapes.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Champ>
+          </div>
+          <Champ
+            label="Type d'action (courriers arrivés)"
+            htmlFor="transition-type"
+            aide="Ouvre la fenêtre d'action (Imputer à / En copie / Actions demandées) au lieu d'une simple confirmation."
+          >
+            <NativeSelect id="transition-type" {...register('type_action')}>
+              <option value="">Aucun (confirmation simple)</option>
+              {OPTIONS_TYPE_ACTION.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </NativeSelect>
+          </Champ>
+        </SectionFormulaire>
+        <SectionFormulaire titre="Condition (facultative)">
+          <p className="text-[13px] text-muted-foreground">
+            Ex. : <code className="font-mono">priorite_valeur_id = &lt;id&gt;</code>. Laissez le champ vide pour une transition sans condition.
+          </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_100px_1fr]">
+            <Champ label="Champ" htmlFor="transition-condition-champ">
+              <Input id="transition-condition-champ" className="font-mono" placeholder="priorite_valeur_id" {...register('conditionChamp')} />
+            </Champ>
+            <Champ label="Opérateur" htmlFor="transition-condition-operateur">
+              <NativeSelect id="transition-condition-operateur" className="font-mono" {...register('conditionOperateur')}>
+                {['=', '<>', 'in', '>', '<', '>=', '<='].map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Champ>
+            <Champ label="Valeur" htmlFor="transition-condition-valeur">
+              <Input id="transition-condition-valeur" className="font-mono" {...register('conditionValeur')} />
+            </Champ>
+          </div>
+        </SectionFormulaire>
+      </FormDialog>
 
       <WorkflowActeursManager
         open={acteursDe !== null}

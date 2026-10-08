@@ -1,24 +1,21 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { PlusOutlined } from '@ant-design/icons';
-import {
-  Button,
-  Card,
-  Col,
-  ColorPicker,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
-  Popconfirm,
-  Row,
-  Select,
-  Switch,
-  Table,
-  Typography,
-} from 'antd';
+import { ListChecks, MousePointerClick, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { ActionsLigne, BoutonModifier, BoutonSuppression } from '../../../components/form/actions-ligne';
+import { Champ } from '../../../components/form/champ';
+import { ChampCouleur } from '../../../components/form/champ-couleur';
+import { FormDialog } from '../../../components/form/form-dialog';
+import { Badge } from '../../../components/ui/badge';
+import { Button } from '../../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
+import { Input } from '../../../components/ui/input';
+import { NativeSelect } from '../../../components/ui/native-select';
+import { EnTeteSection, EtatVide } from '../../../components/ui/page-header';
+import { Switch as Interrupteur } from '../../../components/ui/switch';
+import { Tableau } from '../../../components/ui/tableau';
+import { ariaErreur } from '../../../lib/form';
 import { useModulesActions } from '../../../hooks/administration/useRolesAdmin';
 import {
   useListeValeursMutations,
@@ -27,6 +24,7 @@ import {
   useValeursListes,
 } from '../../../hooks/administration/useParametrage';
 import type { ListeValeurs, ValeurListe } from '../../../services/administration/parametrage';
+import { couleurReferentiel } from '../../../utils/couleurReferentiel';
 import { slugifier } from '../../../utils/slug';
 
 interface Props {
@@ -63,8 +61,14 @@ export function ListesValeursManager({ organisationId, peutModifier }: Props) {
   const valeurMutations = useValeurListeMutations(listeSelectionnee?.id);
   const [editionValeur, setEditionValeur] = useState<ValeurListe | 'nouveau' | null>(null);
 
-  const { control: controlListe, handleSubmit: submitListe, reset: resetListe, setValue: setValeurListe, watch: watchListe } =
-    useForm<FormListe>({ resolver: zodResolver(schemaListe), defaultValues: { libelle: '', code: '', moduleId: '' } });
+  const {
+    register: registerListe,
+    handleSubmit: submitListe,
+    reset: resetListe,
+    setValue: setValeurListe,
+    watch: watchListe,
+    formState: { errors: errorsListe },
+  } = useForm<FormListe>({ resolver: zodResolver(schemaListe), defaultValues: { libelle: '', code: '', moduleId: '' } });
 
   useEffect(() => {
     if (editionListe === 'nouveau') resetListe({ libelle: '', code: '', moduleId: '' });
@@ -90,8 +94,15 @@ export function ListesValeursManager({ organisationId, peutModifier }: Props) {
     }
   };
 
-  const { control: controlValeur, handleSubmit: submitValeur, reset: resetValeur, setValue: setValeurValeur, watch: watchValeur } =
-    useForm<FormValeur>({
+  const {
+    control: controlValeur,
+    register: registerValeur,
+    handleSubmit: submitValeur,
+    reset: resetValeur,
+    setValue: setValeurValeur,
+    watch: watchValeur,
+    formState: { errors: errorsValeur },
+  } = useForm<FormValeur>({
       resolver: zodResolver(schemaValeur),
       defaultValues: { code: '', libelle: '', description: '', couleur: '', ordre: 0, valeur_defaut: false, actif: true },
     });
@@ -139,114 +150,159 @@ export function ListesValeursManager({ organisationId, peutModifier }: Props) {
 
   return (
     <div>
-      <Typography.Title level={5}>Listes de valeurs</Typography.Title>
-      <Typography.Paragraph type="secondary">
-        Remplace les tables de statuts/priorités/types codées en dur : chaque liste regroupe des valeurs
-        réutilisables par un ou plusieurs modules.
-      </Typography.Paragraph>
-      <Row gutter={16}>
-        <Col span={10}>
-          <Card
-            size="small"
-            title="Listes"
-            extra={peutModifier && <Button size="small" icon={<PlusOutlined />} onClick={() => setEditionListe('nouveau')} />}
-          >
-            <Table<ListeValeurs>
-              rowKey="id"
-              size="small"
-              loading={isLoading}
-              dataSource={listes}
-              pagination={false}
-              onRow={(record) => ({ onClick: () => setListeSelectionnee(record), style: { cursor: 'pointer' } })}
-              columns={[
-                { title: 'Libellé', dataIndex: 'libelle' },
-                { title: 'Module', render: (_, r) => (r.module_id ? moduleParId.get(r.module_id) : 'partagée') },
+      <EnTeteSection
+        titre="Listes de valeurs"
+        description="Remplacent les statuts, priorités et types codés en dur : chaque liste regroupe des valeurs réutilisables par un ou plusieurs modules."
+      />
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <Card className="min-w-0">
+          <CardHeader className="items-center">
+            <CardTitle>Listes</CardTitle>
+            {peutModifier && (
+              <Button variant="outline" size="sm" onClick={() => setEditionListe('nouveau')}>
+                <Plus />
+                Nouvelle liste
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            <Tableau<ListeValeurs>
+              libelle="Listes de valeurs"
+              lignes={listes}
+              cleLigne={(l) => l.id}
+              chargement={isLoading}
+              minLargeur={320}
+              onLigneClic={setListeSelectionnee}
+              estActive={(l) => l.id === listeSelectionnee?.id}
+              vide={{ icone: ListChecks, titre: 'Aucune liste' }}
+              colonnes={[
+                { cle: 'libelle', titre: 'Libellé', rendu: (l) => <span className="font-medium">{l.libelle}</span> },
+                {
+                  cle: 'module',
+                  titre: 'Module',
+                  rendu: (l) =>
+                    l.module_id ? moduleParId.get(l.module_id) : <span className="text-muted-foreground">Partagée</span>,
+                },
                 ...(peutModifier
                   ? [
                       {
-                        title: '',
-                        key: 'actions',
-                        width: 90,
-                        render: (_: unknown, record: ListeValeurs) => (
-                          <span onClick={(e) => e.stopPropagation()}>
-                            <Button type="link" size="small" onClick={() => setEditionListe(record)}>
-                              Modifier
-                            </Button>
-                            <Popconfirm title="Supprimer cette liste ?" onConfirm={() => listeMutations.remove.mutate(record.id)}>
-                              <Button type="link" size="small" danger>
-                                Suppr.
-                              </Button>
-                            </Popconfirm>
-                          </span>
+                        cle: 'actions',
+                        titre: <span className="sr-only">Actions</span>,
+                        className: 'w-20',
+                        rendu: (l: ListeValeurs) => (
+                          <ActionsLigne>
+                            <BoutonModifier libelle={`Modifier la liste ${l.libelle}`} onClick={() => setEditionListe(l)} />
+                            <BoutonSuppression
+                              libelle={`Supprimer la liste ${l.libelle}`}
+                              titre="Supprimer cette liste ?"
+                              enCours={listeMutations.remove.isPending}
+                              onConfirmer={(fermer) =>
+                                listeMutations.remove.mutate(l.id, {
+                                  onSuccess: () => {
+                                    if (listeSelectionnee?.id === l.id) setListeSelectionnee(null);
+                                    fermer();
+                                  },
+                                })
+                              }
+                            >
+                              <p>
+                                La liste <strong>{l.libelle}</strong> et ses valeurs seront supprimées.
+                              </p>
+                            </BoutonSuppression>
+                          </ActionsLigne>
                         ),
                       },
                     ]
                   : []),
               ]}
             />
-          </Card>
-        </Col>
-        <Col span={14}>
-          <Card
-            size="small"
-            title={listeSelectionnee ? `Valeurs — ${listeSelectionnee.libelle}` : 'Valeurs'}
-            extra={
-              peutModifier &&
-              listeSelectionnee && (
-                <Button size="small" icon={<PlusOutlined />} onClick={() => setEditionValeur('nouveau')}>
-                  Ajouter
-                </Button>
-              )
-            }
-          >
+          </CardContent>
+        </Card>
+
+        <Card className="min-w-0">
+          <CardHeader className="items-center">
+            <CardTitle className="min-w-0 truncate">
+              {listeSelectionnee ? `Valeurs — ${listeSelectionnee.libelle}` : 'Valeurs'}
+            </CardTitle>
+            {peutModifier && listeSelectionnee && (
+              <Button variant="outline" size="sm" onClick={() => setEditionValeur('nouveau')}>
+                <Plus />
+                Ajouter une valeur
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
             {!listeSelectionnee ? (
-              <Typography.Text type="secondary">Sélectionnez une liste à gauche.</Typography.Text>
+              <div className="rounded-lg border border-dashed border-border">
+                <EtatVide
+                  icone={MousePointerClick}
+                  titre="Aucune liste sélectionnée"
+                  description="Choisissez une liste pour afficher et modifier ses valeurs."
+                />
+              </div>
             ) : (
-              <Table<ValeurListe>
-                rowKey="id"
-                size="small"
-                loading={chargementValeurs}
-                dataSource={valeurs}
-                pagination={false}
-                columns={[
-                  { title: 'Libellé', dataIndex: 'libelle' },
-                  { title: 'Code', dataIndex: 'code' },
+              <Tableau<ValeurListe>
+                libelle={`Valeurs de la liste ${listeSelectionnee.libelle}`}
+                lignes={valeurs}
+                cleLigne={(v) => v.id}
+                chargement={chargementValeurs}
+                minLargeur={480}
+                vide={{ icone: ListChecks, titre: 'Aucune valeur', description: 'Ajoutez la première valeur de cette liste.' }}
+                colonnes={[
                   {
-                    title: 'Défaut',
-                    dataIndex: 'valeur_defaut',
-                    width: 70,
-                    render: (v: boolean) => (v ? '✓' : ''),
+                    cle: 'libelle',
+                    titre: 'Libellé',
+                    rendu: (v) => (
+                      <span className="flex items-center gap-2 font-medium">
+                        <span
+                          aria-hidden
+                          className="size-2.5 shrink-0 rounded-full border border-border"
+                          style={{ background: couleurReferentiel(v.couleur) ?? 'transparent' }}
+                        />
+                        {v.libelle}
+                        {v.valeur_defaut && (
+                          <Badge variant="muted" shape="pill">
+                            par défaut
+                          </Badge>
+                        )}
+                      </span>
+                    ),
                   },
+                  { cle: 'code', titre: 'Code', rendu: (v) => <span className="font-mono text-[12px] text-muted-foreground">{v.code}</span> },
                   {
-                    title: 'Actif',
-                    dataIndex: 'actif',
-                    width: 80,
-                    render: (actif: boolean, record: ValeurListe) => (
-                      <Switch
-                        size="small"
-                        checked={actif}
+                    cle: 'actif',
+                    titre: 'Active',
+                    className: 'w-20',
+                    rendu: (v) => (
+                      <Interrupteur
+                        aria-label={`Valeur ${v.libelle} active`}
+                        checked={v.actif}
                         disabled={!peutModifier}
-                        onChange={(checked) => valeurMutations.update.mutate({ id: record.id, patch: { actif: checked } })}
+                        onCheckedChange={(checked) => valeurMutations.update.mutate({ id: v.id, patch: { actif: checked } })}
                       />
                     ),
                   },
                   ...(peutModifier
                     ? [
                         {
-                          title: '',
-                          key: 'actions',
-                          width: 90,
-                          render: (_: unknown, record: ValeurListe) => (
-                            <span>
-                              <Button type="link" size="small" onClick={() => setEditionValeur(record)}>
-                                Modifier
-                              </Button>
-                              <Popconfirm title="Supprimer cette valeur ?" onConfirm={() => valeurMutations.remove.mutate(record.id)}>
-                                <Button type="link" size="small" danger>
-                                  Suppr.
-                                </Button>
-                              </Popconfirm>
-                            </span>
+                          cle: 'actions',
+                          titre: <span className="sr-only">Actions</span>,
+                          className: 'w-20',
+                          rendu: (v: ValeurListe) => (
+                            <ActionsLigne>
+                              <BoutonModifier libelle={`Modifier la valeur ${v.libelle}`} onClick={() => setEditionValeur(v)} />
+                              <BoutonSuppression
+                                libelle={`Supprimer la valeur ${v.libelle}`}
+                                titre="Supprimer cette valeur ?"
+                                enCours={valeurMutations.remove.isPending}
+                                onConfirmer={(fermer) => valeurMutations.remove.mutate(v.id, { onSuccess: fermer })}
+                              >
+                                <p>
+                                  La valeur <strong>{v.libelle}</strong> sera supprimée. Pour la garder sur les dossiers
+                                  existants, désactivez-la plutôt.
+                                </p>
+                              </BoutonSuppression>
+                            </ActionsLigne>
                           ),
                         },
                       ]
@@ -254,90 +310,95 @@ export function ListesValeursManager({ organisationId, peutModifier }: Props) {
                 ]}
               />
             )}
-          </Card>
-        </Col>
-      </Row>
+          </CardContent>
+        </Card>
+      </div>
 
-      <Modal
+      <FormDialog
         open={editionListe !== null}
-        title={editionListe === 'nouveau' ? 'Nouvelle liste' : 'Modifier la liste'}
-        onCancel={() => setEditionListe(null)}
-        onOk={submitListe(onSubmitListe)}
-        confirmLoading={listeMutations.create.isPending || listeMutations.update.isPending}
-        destroyOnHidden
+        onClose={() => setEditionListe(null)}
+        titre={editionListe === 'nouveau' ? 'Nouvelle liste' : 'Modifier la liste'}
+        onSubmit={submitListe(onSubmitListe)}
+        enCours={listeMutations.create.isPending || listeMutations.update.isPending}
+        libelleValider={editionListe === 'nouveau' ? 'Créer la liste' : 'Enregistrer'}
       >
-        <Form layout="vertical">
-          <Form.Item label="Libellé">
-            <Controller name="libelle" control={controlListe} render={({ field }) => <Input {...field} autoFocus />} />
-          </Form.Item>
-          <Form.Item label="Code">
-            <Controller name="code" control={controlListe} render={({ field }) => <Input {...field} />} />
-          </Form.Item>
-          <Form.Item label="Module (vide = partagée entre modules)">
-            <Controller
-              name="moduleId"
-              control={controlListe}
-              render={({ field }) => (
-                <Select {...field} allowClear options={(modules.data ?? []).map((m) => ({ value: m.id, label: m.libelle }))} />
-              )}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
+        <Champ label="Libellé" htmlFor="liste-libelle" requis erreur={errorsListe.libelle?.message}>
+          <Input autoFocus {...ariaErreur('liste-libelle', errorsListe.libelle)} {...registerListe('libelle')} />
+        </Champ>
+        <Champ label="Code" htmlFor="liste-code" requis aide={editionListe === 'nouveau' ? 'Proposé à partir du libellé.' : undefined} erreur={errorsListe.code?.message}>
+          <Input className="font-mono" {...ariaErreur('liste-code', errorsListe.code)} {...registerListe('code')} />
+        </Champ>
+        <Champ label="Module" htmlFor="liste-module">
+          <NativeSelect id="liste-module" {...registerListe('moduleId')}>
+            <option value="">Partagée entre modules</option>
+            {(modules.data ?? []).map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.libelle}
+              </option>
+            ))}
+          </NativeSelect>
+        </Champ>
+      </FormDialog>
 
-      <Modal
+      <FormDialog
         open={editionValeur !== null}
-        title={editionValeur === 'nouveau' ? 'Nouvelle valeur' : 'Modifier la valeur'}
-        onCancel={() => setEditionValeur(null)}
-        onOk={submitValeur(onSubmitValeur)}
-        confirmLoading={valeurMutations.create.isPending || valeurMutations.update.isPending}
-        destroyOnHidden
+        onClose={() => setEditionValeur(null)}
+        titre={editionValeur === 'nouveau' ? 'Nouvelle valeur' : 'Modifier la valeur'}
+        description={listeSelectionnee ? `Liste « ${listeSelectionnee.libelle} »` : undefined}
+        onSubmit={submitValeur(onSubmitValeur)}
+        enCours={valeurMutations.create.isPending || valeurMutations.update.isPending}
+        libelleValider={editionValeur === 'nouveau' ? 'Ajouter la valeur' : 'Enregistrer'}
       >
-        <Form layout="vertical">
-          <Form.Item label="Libellé">
-            <Controller name="libelle" control={controlValeur} render={({ field }) => <Input {...field} autoFocus />} />
-          </Form.Item>
-          <Form.Item label="Code">
-            <Controller name="code" control={controlValeur} render={({ field }) => <Input {...field} />} />
-          </Form.Item>
-          <Form.Item label="Description">
-            <Controller name="description" control={controlValeur} render={({ field }) => <Input {...field} />} />
-          </Form.Item>
-          <Form.Item label="Couleur">
-            <Controller
-              name="couleur"
-              control={controlValeur}
-              render={({ field }) => (
-                <ColorPicker
-                  value={field.value || undefined}
-                  onChange={(couleur) => field.onChange(couleur.toHexString())}
-                />
-              )}
-            />
-          </Form.Item>
-          <Form.Item label="Ordre">
-            <Controller
-              name="ordre"
-              control={controlValeur}
-              render={({ field }) => <InputNumber {...field} onChange={(v) => field.onChange(v ?? 0)} style={{ width: '100%' }} />}
-            />
-          </Form.Item>
-          <Form.Item label="Valeur par défaut">
-            <Controller
-              name="valeur_defaut"
-              control={controlValeur}
-              render={({ field }) => <Switch checked={field.value} onChange={field.onChange} />}
-            />
-          </Form.Item>
-          <Form.Item label="Actif">
-            <Controller
-              name="actif"
-              control={controlValeur}
-              render={({ field }) => <Switch checked={field.value} onChange={field.onChange} />}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
+        <Champ label="Libellé" htmlFor="valeur-libelle" requis erreur={errorsValeur.libelle?.message}>
+          <Input autoFocus {...ariaErreur('valeur-libelle', errorsValeur.libelle)} {...registerValeur('libelle')} />
+        </Champ>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_120px]">
+          <Champ label="Code" htmlFor="valeur-code" requis aide={editionValeur === 'nouveau' ? 'Proposé à partir du libellé.' : undefined} erreur={errorsValeur.code?.message}>
+            <Input className="font-mono" {...ariaErreur('valeur-code', errorsValeur.code)} {...registerValeur('code')} />
+          </Champ>
+          <Champ label="Ordre" htmlFor="valeur-ordre" erreur={errorsValeur.ordre?.message}>
+            <Input type="number" step={1} {...ariaErreur('valeur-ordre', errorsValeur.ordre)} {...registerValeur('ordre', { setValueAs: (v) => (v === '' ? 0 : Number(v)) })} />
+          </Champ>
+        </div>
+        <Champ label="Description" htmlFor="valeur-description">
+          <Input id="valeur-description" {...registerValeur('description')} />
+        </Champ>
+        <Champ label="Couleur" htmlFor="valeur-couleur">
+          <Controller
+            name="couleur"
+            control={controlValeur}
+            render={({ field }) => <ChampCouleur id="valeur-couleur" value={field.value} onChange={field.onChange} />}
+          />
+        </Champ>
+        <div className="divide-y divide-border rounded-lg border border-border">
+          <Controller
+            name="valeur_defaut"
+            control={controlValeur}
+            render={({ field }) => (
+              <label htmlFor="valeur-defaut" className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3">
+                <span>
+                  <span className="block text-[14px] font-medium">Valeur par défaut</span>
+                  <span className="block text-[12px] text-muted-foreground">Proposée d'office dans les formulaires.</span>
+                </span>
+                <Interrupteur id="valeur-defaut" checked={field.value} onCheckedChange={field.onChange} />
+              </label>
+            )}
+          />
+          <Controller
+            name="actif"
+            control={controlValeur}
+            render={({ field }) => (
+              <label htmlFor="valeur-actif" className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3">
+                <span>
+                  <span className="block text-[14px] font-medium">Active</span>
+                  <span className="block text-[12px] text-muted-foreground">Une valeur inactive n'est plus proposée.</span>
+                </span>
+                <Interrupteur id="valeur-actif" checked={field.value} onCheckedChange={field.onChange} />
+              </label>
+            )}
+          />
+        </div>
+      </FormDialog>
     </div>
   );
 }

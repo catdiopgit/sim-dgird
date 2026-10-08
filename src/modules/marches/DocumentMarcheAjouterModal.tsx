@@ -1,13 +1,15 @@
-import { UploadOutlined } from '@ant-design/icons';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, Button, Form, Input, Modal, Select, Upload } from 'antd';
-import type { UploadFile } from 'antd';
 import { useEffect, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Champ, ChampFichier } from '../../components/form/champ';
+import { FormDialog } from '../../components/form/form-dialog';
+import { Input, Textarea } from '../../components/ui/input';
+import { NativeSelect } from '../../components/ui/native-select';
 import { useAjouterDocumentMarcheMutation } from '../../hooks/marches/useDocumentsMarche';
-import type { PhaseMarcheAvecStatut } from '../../services/marches/phasesMarche';
+import { ariaErreur } from '../../lib/form';
 import type { MarcheCandidat } from '../../services/marches/candidats';
+import type { PhaseMarcheAvecStatut } from '../../services/marches/phasesMarche';
 
 const schema = z.object({
   titre: z.string().min(1, 'Requis'),
@@ -28,20 +30,17 @@ interface Props {
 }
 
 // §9 Documents du marché — un seul appel multipart, comme pour Projets.
-export function DocumentMarcheAjouterModal({
-  open,
-  marcheId,
-  phases,
-  candidats,
-  phaseIdFixe,
-  candidatIdFixe,
-  onClose,
-}: Props) {
+export function DocumentMarcheAjouterModal({ open, marcheId, phases, candidats, phaseIdFixe, candidatIdFixe, onClose }: Props) {
   const ajouter = useAjouterDocumentMarcheMutation(marcheId);
   const [fichier, setFichier] = useState<File | null>(null);
-  const [fichierListe, setFichierListe] = useState<UploadFile[]>([]);
+  const [tentative, setTentative] = useState(false);
 
-  const { control, handleSubmit, reset } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { titre: '', description: '', phaseMarcheId: phaseIdFixe ?? '', marcheCandidatId: candidatIdFixe ?? '' },
   });
@@ -50,7 +49,7 @@ export function DocumentMarcheAjouterModal({
     if (open) {
       reset({ titre: '', description: '', phaseMarcheId: phaseIdFixe ?? '', marcheCandidatId: candidatIdFixe ?? '' });
       setFichier(null);
-      setFichierListe([]);
+      setTentative(false);
     }
   }, [open, phaseIdFixe, candidatIdFixe, reset]);
 
@@ -70,63 +69,57 @@ export function DocumentMarcheAjouterModal({
     );
   };
 
+  const choixLibre = !phaseIdFixe && !candidatIdFixe;
+
   return (
-    <Modal
+    <FormDialog
       open={open}
-      title="Ajouter un document"
-      onCancel={onClose}
-      onOk={handleSubmit(onSubmit)}
-      confirmLoading={ajouter.isPending}
-      destroyOnHidden
+      onClose={onClose}
+      titre="Ajouter un document"
+      onSubmit={(e) => {
+        setTentative(true);
+        void handleSubmit(onSubmit)(e);
+      }}
+      enCours={ajouter.isPending}
+      libelleValider="Ajouter le document"
     >
-      <Form layout="vertical">
-        <Form.Item label="Titre">
-          <Controller name="titre" control={control} render={({ field }) => <Input {...field} autoFocus />} />
-        </Form.Item>
-        <Form.Item label="Description">
-          <Controller name="description" control={control} render={({ field }) => <Input.TextArea {...field} rows={2} />} />
-        </Form.Item>
-        {phases && phases.length > 0 && !phaseIdFixe && !candidatIdFixe && (
-          <Form.Item label="Phase associée" help="Optionnel — laisser vide pour un document rattaché directement au marché">
-            <Controller
-              name="phaseMarcheId"
-              control={control}
-              render={({ field }) => (
-                <Select {...field} allowClear options={phases.map((p) => ({ value: p.id, label: p.nom }))} />
-              )}
-            />
-          </Form.Item>
-        )}
-        {candidats && candidats.length > 0 && !phaseIdFixe && !candidatIdFixe && (
-          <Form.Item label="Candidat associé" help="Optionnel — pour joindre une offre technique/financière">
-            <Controller
-              name="marcheCandidatId"
-              control={control}
-              render={({ field }) => (
-                <Select {...field} allowClear options={candidats.map((c) => ({ value: c.id, label: c.nom }))} />
-              )}
-            />
-          </Form.Item>
-        )}
-        <Form.Item label="Fichier" required>
-          <Upload
-            fileList={fichierListe}
-            beforeUpload={(f) => {
-              setFichier(f);
-              setFichierListe([{ uid: f.uid, name: f.name, status: 'done' }]);
-              return false;
-            }}
-            onRemove={() => {
-              setFichier(null);
-              setFichierListe([]);
-            }}
-            maxCount={1}
-          >
-            <Button icon={<UploadOutlined />}>Choisir un fichier</Button>
-          </Upload>
-          {!fichier && <Alert style={{ marginTop: 8 }} type="info" showIcon message="Un fichier est requis" />}
-        </Form.Item>
-      </Form>
-    </Modal>
+      <Champ label="Fichier" htmlFor="doc-marche-fichier" requis erreur={tentative && !fichier ? 'Un fichier est requis' : undefined}>
+        <ChampFichier id="doc-marche-fichier" fichier={fichier} onChange={setFichier} invalide={tentative && !fichier} />
+      </Champ>
+      <Champ label="Titre" htmlFor="doc-marche-titre" requis erreur={errors.titre?.message}>
+        <Input autoFocus {...ariaErreur('doc-marche-titre', errors.titre)} {...register('titre')} />
+      </Champ>
+      <Champ label="Description" htmlFor="doc-marche-description">
+        <Textarea id="doc-marche-description" rows={2} {...register('description')} />
+      </Champ>
+      {choixLibre && ((phases?.length ?? 0) > 0 || (candidats?.length ?? 0) > 0) && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {phases && phases.length > 0 && (
+            <Champ label="Phase associée" htmlFor="doc-marche-phase" aide="Laisser vide pour un document rattaché directement au marché">
+              <NativeSelect id="doc-marche-phase" {...register('phaseMarcheId')}>
+                <option value="">Aucune</option>
+                {phases.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nom}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Champ>
+          )}
+          {candidats && candidats.length > 0 && (
+            <Champ label="Candidat associé" htmlFor="doc-marche-candidat" aide="Pour joindre une offre technique/financière">
+              <NativeSelect id="doc-marche-candidat" {...register('marcheCandidatId')}>
+                <option value="">Aucun</option>
+                {candidats.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nom}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Champ>
+          )}
+        </div>
+      )}
+    </FormDialog>
   );
 }

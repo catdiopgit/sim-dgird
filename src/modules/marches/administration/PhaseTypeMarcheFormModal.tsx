@@ -1,16 +1,21 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Form, Input, InputNumber, Modal, Select, Switch } from 'antd';
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Champ } from '../../../components/form/champ';
+import { FormDialog } from '../../../components/form/form-dialog';
+import { Input, Textarea } from '../../../components/ui/input';
+import { NativeSelect } from '../../../components/ui/native-select';
+import { Switch } from '../../../components/ui/switch';
 import { usePhaseTypeMarcheMutations } from '../../../hooks/marches/useTypesMarche';
+import { ariaErreur } from '../../../lib/form';
 import type { PhaseTypeMarche } from '../../../services/marches/typesMarche';
 
 const schema = z.object({
   nom: z.string().min(1, 'Requis'),
   description: z.string().optional(),
   ordre: z.number().optional(),
-  duree: z.number().min(1, 'Doit être supérieur à 0'),
+  duree: z.number({ message: 'Requis' }).min(1, 'Doit être supérieur à 0'),
   uniteDuree: z.enum(['jour', 'semaine', 'mois']),
   obligatoire: z.boolean(),
   actif: z.boolean().optional(),
@@ -32,7 +37,13 @@ const DEFAUTS: FormValues = { nom: '', description: '', ordre: 0, duree: 5, unit
 export function PhaseTypeMarcheFormModal({ open, typeMarcheId, phase, onClose }: Props) {
   const { create, update } = usePhaseTypeMarcheMutations(typeMarcheId);
 
-  const { control, handleSubmit, reset } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: DEFAUTS });
+  const {
+    register,
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: DEFAUTS });
 
   useEffect(() => {
     if (!open) return;
@@ -69,72 +80,73 @@ export function PhaseTypeMarcheFormModal({ open, typeMarcheId, phase, onClose }:
   };
 
   return (
-    <Modal
+    <FormDialog
       open={open}
-      title={phase ? 'Modifier la phase' : 'Nouvelle phase'}
-      onCancel={onClose}
-      onOk={handleSubmit(onSubmit)}
-      confirmLoading={create.isPending || update.isPending}
-      destroyOnHidden
+      onClose={onClose}
+      titre={phase ? 'Modifier la phase' : 'Nouvelle phase'}
+      onSubmit={handleSubmit(onSubmit)}
+      enCours={create.isPending || update.isPending}
+      libelleValider={phase ? 'Enregistrer' : 'Ajouter la phase'}
     >
-      <Form layout="vertical">
-        <Form.Item label="Nom">
-          <Controller name="nom" control={control} render={({ field }) => <Input {...field} autoFocus />} />
-        </Form.Item>
-        <Form.Item label="Description">
-          <Controller name="description" control={control} render={({ field }) => <Input.TextArea {...field} rows={2} />} />
-        </Form.Item>
-        <Form.Item label="Ordre">
-          <Controller
-            name="ordre"
-            control={control}
-            render={({ field }) => (
-              <InputNumber {...field} style={{ width: '100%' }} onChange={(v) => field.onChange(v ?? 0)} />
-            )}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_120px]">
+        <Champ label="Nom" htmlFor="phase-type-nom" requis erreur={errors.nom?.message}>
+          <Input autoFocus {...ariaErreur('phase-type-nom', errors.nom)} {...register('nom')} />
+        </Champ>
+        <Champ label="Ordre" htmlFor="phase-type-ordre">
+          <Input id="phase-type-ordre" type="number" step={1} {...register('ordre', { setValueAs: (v) => (v === '' ? 0 : Number(v)) })} />
+        </Champ>
+      </div>
+      <Champ label="Description" htmlFor="phase-type-description">
+        <Textarea id="phase-type-description" rows={2} {...register('description')} />
+      </Champ>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Champ label="Durée prévue" htmlFor="phase-type-duree" requis erreur={errors.duree?.message}>
+          <Input
+            type="number"
+            min={1}
+            step={1}
+            {...ariaErreur('phase-type-duree', errors.duree)}
+            {...register('duree', { setValueAs: (v) => (v === '' ? undefined : Number(v)) })}
           />
-        </Form.Item>
-        <Form.Item label="Durée prévue">
-          <Controller
-            name="duree"
-            control={control}
-            render={({ field }) => (
-              <InputNumber {...field} min={1} style={{ width: '100%' }} onChange={(v) => field.onChange(v ?? 1)} />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Unité de durée">
-          <Controller
-            name="uniteDuree"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                options={[
-                  { value: 'jour', label: 'Jour(s)' },
-                  { value: 'semaine', label: 'Semaine(s)' },
-                  { value: 'mois', label: 'Mois' },
-                ]}
-              />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Obligatoire">
-          <Controller
-            name="obligatoire"
-            control={control}
-            render={({ field }) => <Switch checked={field.value} onChange={field.onChange} />}
-          />
-        </Form.Item>
+        </Champ>
+        <Champ label="Unité de durée" htmlFor="phase-type-unite">
+          <NativeSelect id="phase-type-unite" {...register('uniteDuree')}>
+            <option value="jour">Jour(s)</option>
+            <option value="semaine">Semaine(s)</option>
+            <option value="mois">Mois</option>
+          </NativeSelect>
+        </Champ>
+      </div>
+      <div className="divide-y divide-border rounded-lg border border-border">
+        <Controller
+          name="obligatoire"
+          control={control}
+          render={({ field }) => (
+            <label htmlFor="phase-type-obligatoire" className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3">
+              <span>
+                <span className="block text-[14px] font-medium">Obligatoire</span>
+                <span className="block text-[12px] text-muted-foreground">La phase doit être réalisée avant la clôture du marché.</span>
+              </span>
+              <Switch id="phase-type-obligatoire" checked={field.value} onCheckedChange={field.onChange} />
+            </label>
+          )}
+        />
         {phase && (
-          <Form.Item label="Actif">
-            <Controller
-              name="actif"
-              control={control}
-              render={({ field }) => <Switch checked={field.value} onChange={field.onChange} />}
-            />
-          </Form.Item>
+          <Controller
+            name="actif"
+            control={control}
+            render={({ field }) => (
+              <label htmlFor="phase-type-actif" className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3">
+                <span>
+                  <span className="block text-[14px] font-medium">Active</span>
+                  <span className="block text-[12px] text-muted-foreground">Une phase inactive n'est plus dupliquée dans les nouveaux marchés.</span>
+                </span>
+                <Switch id="phase-type-actif" checked={field.value ?? true} onCheckedChange={field.onChange} />
+              </label>
+            )}
+          />
         )}
-      </Form>
-    </Modal>
+      </div>
+    </FormDialog>
   );
 }

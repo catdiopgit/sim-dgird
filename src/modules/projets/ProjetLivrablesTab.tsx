@@ -1,13 +1,21 @@
-import { CheckCircleOutlined, PlusOutlined } from '@ant-design/icons';
-import { Alert, Button, Card, Popconfirm, Space, Table, Tag } from 'antd';
+import { CalendarDays, CircleCheck, Package, Pencil, Plus, TriangleAlert, User } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { BoutonSuppression } from '../../components/form/actions-ligne';
+import { Confirmation } from '../../components/form/confirm-dialog';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { EtatVide } from '../../components/ui/page-header';
+import { Skeleton } from '../../components/ui/skeleton';
 import { useContactsExecution } from '../../hooks/projets/useContactsExecution';
 import { useDocumentsProjet } from '../../hooks/projets/useDocumentsProjet';
 import { useCloturerLivrable, useLivrableMutations, useLivrables } from '../../hooks/projets/useLivrables';
+import { cn } from '../../lib/utils';
 import type { Livrable } from '../../services/projets/livrables';
 import type { ProjetsReferentiel } from '../../services/projets/referentiel';
+import { fr } from '../../utils/dateFr';
 import { LivrableClotureModal } from './LivrableClotureModal';
 import { LivrableFormModal } from './LivrableFormModal';
+import { BadgeValeur } from './projetAffichage';
 
 interface Props {
   projetId: string;
@@ -48,96 +56,128 @@ export function ProjetLivrablesTab({
   );
 
   const poidsTotal = useMemo(() => (livrables ?? []).reduce((somme, l) => somme + l.poids_pct, 0), [livrables]);
+  const actionsVisibles = peutModifier && !cloture;
 
   const nomResponsable = (l: Livrable) => {
     if (l.responsable_utilisateur_id) return utilisateurParId.get(l.responsable_utilisateur_id) ?? '—';
     if (l.responsable_contact_id) return contactParId.get(l.responsable_contact_id) ?? '—';
-    return '—';
+    return null;
   };
 
   return (
-    <Card
-      title="Livrables"
-      extra={
-        peutModifier &&
-        !cloture && (
-          <Button icon={<PlusOutlined />} onClick={() => setLivrableEnEdition('nouveau')}>
+    <Card>
+      <CardHeader>
+        <div>
+          <CardTitle>
+            Livrables
+            {livrables && livrables.length > 0 && <span className="ml-2 font-normal text-muted-foreground">{livrables.length}</span>}
+          </CardTitle>
+          {livrables && livrables.length > 0 && (
+            <p className={cn('mt-1 text-[13px]', poidsTotal === 100 ? 'text-muted-foreground' : 'font-medium text-warn-text')}>
+              Quote-parts cumulées : {poidsTotal} % {poidsTotal === 100 ? '' : '(devrait être 100 %)'}
+            </p>
+          )}
+        </div>
+        {actionsVisibles && (
+          <Button variant="outline" size="sm" onClick={() => setLivrableEnEdition('nouveau')}>
+            <Plus />
             Ajouter un livrable
           </Button>
-        )
-      }
-    >
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
-        {livrables && livrables.length > 0 && poidsTotal !== 100 && (
-          <Alert
-            type="warning"
-            showIcon
-            message={`La somme des quote-parts des livrables est de ${poidsTotal}% (devrait être 100%).`}
-          />
         )}
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-32 w-full" />
+        ) : (livrables ?? []).length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border">
+            <EtatVide icone={Package} titre="Aucun livrable" description="Le projet avance au rythme de ses livrables, chacun pondéré par sa quote-part." />
+          </div>
+        ) : (
+          <ul className="divide-y divide-border rounded-lg border border-border">
+            {(livrables ?? []).map((l) => {
+              const statut = l.statut_valeur_id ? statutParId.get(l.statut_valeur_id) : null;
+              const termine = Boolean(statut?.code && STATUTS_TERMINAUX.has(statut.code));
+              const enRetard = statut?.code === 'en-retard';
+              const responsable = nomResponsable(l);
+              return (
+                <li key={l.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{l.nom}</span>
+                      <BadgeValeur valeur={statut} />
+                      {termine && !livrablesAvecJustificatif.has(l.id) && statut?.code !== 'annule' && (
+                        <span className="inline-flex items-center gap-1 text-[12px] text-warn-text">
+                          <TriangleAlert className="size-3.5" />
+                          Sans justificatif
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted-foreground">
+                      <span className="inline-flex items-center gap-1.5">
+                        <User className="size-3.5" />
+                        {responsable ?? 'Sans responsable'}
+                      </span>
+                      <span className={cn('inline-flex items-center gap-1.5', enRetard && 'font-medium text-crit-text')}>
+                        <CalendarDays className="size-3.5" />
+                        {l.date_prevue ? fr(l.date_prevue).format('D MMM YYYY') : 'Sans échéance'}
+                      </span>
+                    </div>
+                  </div>
 
-        <Table<Livrable>
-          rowKey="id"
-          size="small"
-          loading={isLoading}
-          dataSource={livrables}
-          pagination={false}
-          columns={[
-            { title: 'Livrable', dataIndex: 'nom' },
-            { title: 'Responsable', width: 180, render: (_, l) => nomResponsable(l) },
-            { title: 'Poids', width: 90, render: (_, l) => `${l.poids_pct}%` },
-            {
-              title: 'Échéance',
-              width: 110,
-              render: (_, l) => (l.date_prevue ? new Date(l.date_prevue).toLocaleDateString('fr-FR') : '—'),
-            },
-            {
-              title: 'Statut',
-              width: 130,
-              render: (_, l) => {
-                const s = l.statut_valeur_id ? statutParId.get(l.statut_valeur_id) : null;
-                return s ? <Tag color={s.couleur ?? undefined}>{s.libelle}</Tag> : '—';
-              },
-            },
-            ...(peutModifier && !cloture
-              ? [
-                  {
-                    title: 'Actions',
-                    key: 'actions',
-                    width: 220,
-                    render: (_: unknown, l: Livrable) => {
-                      const statutCode = l.statut_valeur_id ? statutParId.get(l.statut_valeur_id)?.code : null;
-                      const termine = Boolean(statutCode && STATUTS_TERMINAUX.has(statutCode));
-                      return (
-                        <span>
-                          <Button type="link" size="small" onClick={() => setLivrableEnEdition(l)}>
-                            Modifier
-                          </Button>
-                          {!termine && (livrablesAvecJustificatif.has(l.id) ? (
-                            <Popconfirm title="Clôturer ce livrable ?" onConfirm={() => cloturer.mutate({ id: l.id })}>
-                              <Button type="link" size="small" icon={<CheckCircleOutlined />} loading={cloturer.isPending}>
+                  <div className="flex w-full items-center gap-2 sm:w-40" title="Quote-part dans l'avancement du projet">
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full bg-primary/70" style={{ width: `${Math.min(100, l.poids_pct)}%` }} />
+                    </div>
+                    <span className="w-10 text-right text-[12px] font-semibold tabular-nums">{l.poids_pct} %</span>
+                  </div>
+
+                  {actionsVisibles && (
+                    <div className="flex shrink-0 items-center gap-1">
+                      {!termine &&
+                        (livrablesAvecJustificatif.has(l.id) ? (
+                          <Confirmation
+                            titre="Clôturer ce livrable ?"
+                            libelleConfirmer="Clôturer"
+                            enCours={cloturer.isPending}
+                            onConfirmer={(fermer) => cloturer.mutate({ id: l.id }, { onSuccess: fermer })}
+                            declencheur={(ouvrir) => (
+                              <Button variant="outline" size="sm" disabled={cloturer.isPending} onClick={ouvrir}>
+                                <CircleCheck />
                                 Clôturer
                               </Button>
-                            </Popconfirm>
-                          ) : (
-                            <Button type="link" size="small" icon={<CheckCircleOutlined />} onClick={() => setLivrableAClore(l)}>
-                              Clôturer
-                            </Button>
-                          ))}
-                          <Popconfirm title="Supprimer ce livrable ?" onConfirm={() => supprimerLivrable.mutate(l.id)}>
-                            <Button type="link" size="small" danger>
-                              Supprimer
-                            </Button>
-                          </Popconfirm>
-                        </span>
-                      );
-                    },
-                  },
-                ]
-              : []),
-          ]}
-        />
-      </Space>
+                            )}
+                          >
+                            <p>
+                              Le livrable <strong>{l.nom}</strong> sera marqué comme livré, avec le justificatif déjà joint.
+                            </p>
+                          </Confirmation>
+                        ) : (
+                          <Button variant="outline" size="sm" onClick={() => setLivrableAClore(l)}>
+                            <CircleCheck />
+                            Clôturer
+                          </Button>
+                        ))}
+                      <Button variant="ghost" size="icon" className="size-8" onClick={() => setLivrableEnEdition(l)} aria-label={`Modifier ${l.nom}`} title="Modifier">
+                        <Pencil />
+                      </Button>
+                      <BoutonSuppression
+                        libelle={`Supprimer ${l.nom}`}
+                        titre="Supprimer ce livrable ?"
+                        enCours={supprimerLivrable.isPending}
+                        onConfirmer={(fermer) => supprimerLivrable.mutate(l.id, { onSuccess: fermer })}
+                      >
+                        <p>
+                          Le livrable <strong>{l.nom}</strong> sera supprimé du projet.
+                        </p>
+                      </BoutonSuppression>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </CardContent>
 
       <LivrableFormModal
         open={livrableEnEdition !== null}

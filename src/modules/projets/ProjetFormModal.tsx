@@ -1,11 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
-import dayjs from 'dayjs';
 import { useEffect } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Champ } from '../../components/form/champ';
+import { FormDialog } from '../../components/form/form-dialog';
+import { SectionFormulaire } from '../../components/form/section-formulaire';
+import { Input, Textarea } from '../../components/ui/input';
+import { NativeSelect } from '../../components/ui/native-select';
 import { useEntites, useUtilisateursOptions } from '../../hooks/administration/useEntites';
 import { useProjetMutations, useProjetsReferentiel } from '../../hooks/projets/useProjets';
+import { ariaErreur, nombreOuVide, versChampDate } from '../../lib/form';
 import type { Projet } from '../../services/projets/projets';
 
 const schema = z.object({
@@ -17,9 +21,9 @@ const schema = z.object({
   financement: z.string().optional(),
   coordonnateurId: z.string().optional(),
   lieuExecution: z.string().optional(),
-  dateDebut: z.custom<dayjs.Dayjs | null>().optional(),
-  dateFinPrevue: z.custom<dayjs.Dayjs | null>().optional(),
-  budgetPrevu: z.number().optional(),
+  dateDebut: z.string().optional(),
+  dateFinPrevue: z.string().optional(),
+  budgetPrevu: z.number().min(0, 'Montant invalide').optional(),
   statutValeurId: z.string().optional(),
   prioriteValeurId: z.string().optional(),
   organismeExecutionType: z.enum(['organisation', 'consultant', 'entreprise', 'externe']),
@@ -59,8 +63,8 @@ const DEFAUTS: FormValues = {
   financement: '',
   coordonnateurId: '',
   lieuExecution: '',
-  dateDebut: null,
-  dateFinPrevue: null,
+  dateDebut: '',
+  dateFinPrevue: '',
   budgetPrevu: undefined,
   statutValeurId: '',
   prioriteValeurId: '',
@@ -75,7 +79,13 @@ export function ProjetFormModal({ open, organisationId, projet, onClose, onCree 
   const { data: referentiel } = useProjetsReferentiel(organisationId);
   const { create, update } = useProjetMutations(organisationId);
 
-  const { control, handleSubmit, reset, watch } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: DEFAUTS,
   });
@@ -94,8 +104,8 @@ export function ProjetFormModal({ open, organisationId, projet, onClose, onCree 
             financement: projet.financement ?? '',
             coordonnateurId: projet.coordonnateur_id ?? '',
             lieuExecution: projet.lieu_execution ?? '',
-            dateDebut: projet.date_debut ? dayjs(projet.date_debut) : null,
-            dateFinPrevue: projet.date_fin_prevue ? dayjs(projet.date_fin_prevue) : null,
+            dateDebut: versChampDate(projet.date_debut),
+            dateFinPrevue: versChampDate(projet.date_fin_prevue),
             budgetPrevu: projet.budget_prevu ?? undefined,
             statutValeurId: projet.statut_valeur_id ?? '',
             prioriteValeurId: projet.priorite_valeur_id ?? '',
@@ -119,8 +129,8 @@ export function ProjetFormModal({ open, organisationId, projet, onClose, onCree 
       financement: values.financement || null,
       coordonnateur_id: values.coordonnateurId || null,
       lieu_execution: values.lieuExecution || null,
-      date_debut: values.dateDebut ? values.dateDebut.format('YYYY-MM-DD') : null,
-      date_fin_prevue: values.dateFinPrevue ? values.dateFinPrevue.format('YYYY-MM-DD') : null,
+      date_debut: values.dateDebut || null,
+      date_fin_prevue: values.dateFinPrevue || null,
       budget_prevu: values.budgetPrevu ?? null,
       statut_valeur_id: values.statutValeurId || null,
       priorite_valeur_id: values.prioriteValeurId || null,
@@ -143,146 +153,142 @@ export function ProjetFormModal({ open, organisationId, projet, onClose, onCree 
     }
   };
 
-  const optionsUtilisateurs = (utilisateurs ?? []).map((u) => ({ value: u.id, label: `${u.prenom} ${u.nom}` }));
+  const optionsUtilisateurs = (utilisateurs ?? []).map((u) => (
+    <option key={u.id} value={u.id}>
+      {u.prenom} {u.nom}
+    </option>
+  ));
 
   return (
-    <Modal
+    <FormDialog
       open={open}
-      title={projet ? 'Modifier le projet' : 'Nouveau projet'}
-      onCancel={onClose}
-      onOk={handleSubmit(onSubmit)}
-      confirmLoading={enCours}
-      destroyOnHidden
-      width={640}
+      onClose={onClose}
+      titre={projet ? 'Modifier le projet' : 'Nouveau projet'}
+      description={projet ? `${projet.code} — ${projet.nom}` : "L'avancement se calculera automatiquement à partir des livrables."}
+      onSubmit={handleSubmit(onSubmit)}
+      enCours={enCours}
+      libelleValider={projet ? 'Enregistrer' : 'Créer le projet'}
+      largeur="lg"
     >
-      <Form layout="vertical">
-        <Form.Item label="Code" help="Identifiant court, unique dans l'organisation">
-          <Controller name="code" control={control} render={({ field }) => <Input {...field} autoFocus />} />
-        </Form.Item>
-        <Form.Item label="Nom">
-          <Controller name="nom" control={control} render={({ field }) => <Input {...field} />} />
-        </Form.Item>
-        <Form.Item label="Description">
-          <Controller
-            name="description"
-            control={control}
-            render={({ field }) => <Input.TextArea {...field} rows={2} />}
-          />
-        </Form.Item>
-        <Form.Item label="Entité">
-          <Controller
-            name="entiteId"
-            control={control}
-            render={({ field }) => (
-              <Select {...field} options={(entites ?? []).map((e) => ({ value: e.id, label: e.libelle }))} />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Responsable">
-          <Controller
-            name="responsableId"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                allowClear
-                showSearch
-                filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                options={optionsUtilisateurs}
-              />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Financement">
-          <Controller name="financement" control={control} render={({ field }) => <Input {...field} />} />
-        </Form.Item>
-        <Form.Item label="Coordonnateur">
-          <Controller
-            name="coordonnateurId"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                allowClear
-                showSearch
-                filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                options={optionsUtilisateurs}
-              />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Lieu d'exécution">
-          <Controller name="lieuExecution" control={control} render={({ field }) => <Input {...field} />} />
-        </Form.Item>
-        <Form.Item label="Date de début">
-          <Controller
-            name="dateDebut"
-            control={control}
-            render={({ field }) => <DatePicker {...field} style={{ width: '100%' }} />}
-          />
-        </Form.Item>
-        <Form.Item label="Date de fin prévue">
-          <Controller
-            name="dateFinPrevue"
-            control={control}
-            render={({ field }) => <DatePicker {...field} style={{ width: '100%' }} />}
-          />
-        </Form.Item>
-        <Form.Item label="Budget prévu">
-          <Controller
-            name="budgetPrevu"
-            control={control}
-            render={({ field }) => (
-              <InputNumber {...field} min={0} style={{ width: '100%' }} onChange={(v) => field.onChange(v ?? undefined)} />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Statut">
-          <Controller
-            name="statutValeurId"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                allowClear
-                options={(referentiel?.statuts ?? []).map((v) => ({ value: v.id, label: v.libelle }))}
-              />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Priorité">
-          <Controller
-            name="prioriteValeurId"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                allowClear
-                options={(referentiel?.priorites ?? []).map((v) => ({ value: v.id, label: v.libelle }))}
-              />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Visibilité" help="Qui peut consulter ce projet (les entités/agents précis se choisissent ensuite depuis la fiche projet)">
-          <Controller
-            name="porteeVisibilite"
-            control={control}
-            render={({ field }) => <Select {...field} options={PORTEES_VISIBILITE} />}
-          />
-        </Form.Item>
-        <Form.Item label="Organisme chargé de l'exécution">
-          <Controller
-            name="organismeExecutionType"
-            control={control}
-            render={({ field }) => <Select {...field} options={TYPES_ORGANISME_EXECUTION} />}
-          />
-        </Form.Item>
-        {organismeExecutionType !== 'organisation' && (
-          <Form.Item label="Nom de l'organisme">
-            <Controller name="organismeExecutionNom" control={control} render={({ field }) => <Input {...field} />} />
-          </Form.Item>
-        )}
-      </Form>
-    </Modal>
+      <SectionFormulaire titre="Identification">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[180px_1fr]">
+          <Champ label="Code" htmlFor="projet-code" requis aide="Unique dans l'organisation" erreur={errors.code?.message}>
+            <Input autoFocus placeholder="PRJ-2026-…" {...ariaErreur('projet-code', errors.code)} {...register('code')} />
+          </Champ>
+          <Champ label="Nom" htmlFor="projet-nom" requis erreur={errors.nom?.message}>
+            <Input {...ariaErreur('projet-nom', errors.nom)} {...register('nom')} />
+          </Champ>
+        </div>
+        <Champ label="Description" htmlFor="projet-description">
+          <Textarea id="projet-description" rows={2} {...register('description')} />
+        </Champ>
+      </SectionFormulaire>
+
+      <SectionFormulaire titre="Pilotage">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Champ label="Entité porteuse" htmlFor="projet-entite" requis erreur={errors.entiteId?.message}>
+            <NativeSelect {...ariaErreur('projet-entite', errors.entiteId)} {...register('entiteId')}>
+              <option value="">Sélectionner une entité</option>
+              {(entites ?? []).map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.sigle ? `${e.sigle} — ${e.libelle}` : e.libelle}
+                </option>
+              ))}
+            </NativeSelect>
+          </Champ>
+          <Champ label="Responsable" htmlFor="projet-responsable">
+            <NativeSelect id="projet-responsable" {...register('responsableId')}>
+              <option value="">—</option>
+              {optionsUtilisateurs}
+            </NativeSelect>
+          </Champ>
+          <Champ label="Coordonnateur" htmlFor="projet-coordonnateur">
+            <NativeSelect id="projet-coordonnateur" {...register('coordonnateurId')}>
+              <option value="">—</option>
+              {optionsUtilisateurs}
+            </NativeSelect>
+          </Champ>
+          <Champ label="Statut" htmlFor="projet-statut">
+            <NativeSelect id="projet-statut" {...register('statutValeurId')}>
+              <option value="">—</option>
+              {(referentiel?.statuts ?? []).map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.libelle}
+                </option>
+              ))}
+            </NativeSelect>
+          </Champ>
+          <Champ label="Priorité" htmlFor="projet-priorite">
+            <NativeSelect id="projet-priorite" {...register('prioriteValeurId')}>
+              <option value="">—</option>
+              {(referentiel?.priorites ?? []).map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.libelle}
+                </option>
+              ))}
+            </NativeSelect>
+          </Champ>
+        </div>
+      </SectionFormulaire>
+
+      <SectionFormulaire titre="Calendrier et financement">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Champ label="Date de début" htmlFor="projet-debut">
+            <Input id="projet-debut" type="date" {...register('dateDebut')} />
+          </Champ>
+          <Champ label="Date de fin prévue" htmlFor="projet-fin">
+            <Input id="projet-fin" type="date" {...register('dateFinPrevue')} />
+          </Champ>
+          <Champ label="Budget prévu (FCFA)" htmlFor="projet-budget" erreur={errors.budgetPrevu?.message}>
+            <Input
+              type="number"
+              min={0}
+              step="any"
+              {...ariaErreur('projet-budget', errors.budgetPrevu)}
+              {...register('budgetPrevu', { setValueAs: nombreOuVide })}
+            />
+          </Champ>
+          <Champ label="Financement" htmlFor="projet-financement">
+            <Input id="projet-financement" placeholder="Bailleur, budget de l'État…" {...register('financement')} />
+          </Champ>
+          <Champ label="Lieu d'exécution" htmlFor="projet-lieu" className="sm:col-span-2">
+            <Input id="projet-lieu" {...register('lieuExecution')} />
+          </Champ>
+        </div>
+      </SectionFormulaire>
+
+      <SectionFormulaire titre="Exécution et visibilité">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Champ label="Organisme chargé de l'exécution" htmlFor="projet-organisme">
+            <NativeSelect id="projet-organisme" {...register('organismeExecutionType')}>
+              {TYPES_ORGANISME_EXECUTION.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </NativeSelect>
+          </Champ>
+          {organismeExecutionType !== 'organisation' && (
+            <Champ label="Nom de l'organisme" htmlFor="projet-organisme-nom">
+              <Input id="projet-organisme-nom" {...register('organismeExecutionNom')} />
+            </Champ>
+          )}
+          <Champ
+            label="Visibilité"
+            htmlFor="projet-visibilite"
+            className="sm:col-span-2"
+            aide="Les entités ou agents précis se choisissent ensuite depuis la fiche projet."
+          >
+            <NativeSelect id="projet-visibilite" {...register('porteeVisibilite')}>
+              {PORTEES_VISIBILITE.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </NativeSelect>
+          </Champ>
+        </div>
+      </SectionFormulaire>
+    </FormDialog>
   );
 }

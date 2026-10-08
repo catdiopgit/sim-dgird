@@ -1,23 +1,26 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
-import dayjs from 'dayjs';
 import { useEffect, useMemo } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Champ } from '../../components/form/champ';
+import { FormDialog } from '../../components/form/form-dialog';
+import { Input, Textarea } from '../../components/ui/input';
+import { NativeSelect } from '../../components/ui/native-select';
 import { useUtilisateursOptions } from '../../hooks/administration/useEntites';
 import { useContactsExecution } from '../../hooks/projets/useContactsExecution';
 import { useLivrableMutations } from '../../hooks/projets/useLivrables';
 import { useMembresProjet } from '../../hooks/projets/useMembresProjet';
 import { useProjetsReferentiel } from '../../hooks/projets/useProjets';
+import { ariaErreur, nombreOuVide, versChampDate } from '../../lib/form';
 import type { Livrable } from '../../services/projets/livrables';
 
 const schema = z.object({
   nom: z.string().min(1, 'Requis'),
   description: z.string().optional(),
   responsable: z.string().optional(),
-  poidsPct: z.number().min(0).max(100),
-  datePrevue: z.custom<dayjs.Dayjs | null>().optional(),
-  dateRemise: z.custom<dayjs.Dayjs | null>().optional(),
+  poidsPct: z.number({ message: 'Requis' }).min(0, 'Entre 0 et 100').max(100, 'Entre 0 et 100'),
+  datePrevue: z.string().optional(),
+  dateRemise: z.string().optional(),
   statutValeurId: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
@@ -35,8 +38,8 @@ const VIDE: FormValues = {
   description: '',
   responsable: '',
   poidsPct: 0,
-  datePrevue: null,
-  dateRemise: null,
+  datePrevue: '',
+  dateRemise: '',
   statutValeurId: '',
 };
 
@@ -51,7 +54,12 @@ export function LivrableFormModal({ open, organisationId, projetId, livrable, on
   const { data: referentiel } = useProjetsReferentiel(organisationId);
   const { create, update } = useLivrableMutations(projetId);
 
-  const { control, handleSubmit, reset } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: VIDE,
   });
@@ -59,23 +67,6 @@ export function LivrableFormModal({ open, organisationId, projetId, livrable, on
   const utilisateurParId = useMemo(
     () => new Map((utilisateurs ?? []).map((u) => [u.id, `${u.prenom} ${u.nom}`])),
     [utilisateurs],
-  );
-
-  const optionsResponsable = useMemo(
-    () => [
-      {
-        label: 'Membres du projet',
-        options: (membres ?? []).map((m) => ({
-          value: `membre:${m.utilisateur_id}`,
-          label: utilisateurParId.get(m.utilisateur_id) ?? m.utilisateur_id,
-        })),
-      },
-      {
-        label: "Contacts d'exécution",
-        options: (contacts ?? []).map((c) => ({ value: `contact:${c.id}`, label: c.nom })),
-      },
-    ],
-    [membres, contacts, utilisateurParId],
   );
 
   useEffect(() => {
@@ -91,8 +82,8 @@ export function LivrableFormModal({ open, organisationId, projetId, livrable, on
                 ? `contact:${livrable.responsable_contact_id}`
                 : '',
             poidsPct: livrable.poids_pct,
-            datePrevue: livrable.date_prevue ? dayjs(livrable.date_prevue) : null,
-            dateRemise: livrable.date_remise ? dayjs(livrable.date_remise) : null,
+            datePrevue: versChampDate(livrable.date_prevue),
+            dateRemise: versChampDate(livrable.date_remise),
             statutValeurId: livrable.statut_valeur_id ?? '',
           }
         : VIDE,
@@ -109,8 +100,8 @@ export function LivrableFormModal({ open, organisationId, projetId, livrable, on
       responsable_utilisateur_id: type === 'membre' ? id : null,
       responsable_contact_id: type === 'contact' ? id : null,
       poids_pct: values.poidsPct,
-      date_prevue: values.datePrevue ? values.datePrevue.format('YYYY-MM-DD') : null,
-      date_remise: values.dateRemise ? values.dateRemise.format('YYYY-MM-DD') : null,
+      date_prevue: values.datePrevue || null,
+      date_remise: values.dateRemise || null,
       statut_valeur_id: values.statutValeurId || null,
     };
     if (livrable) {
@@ -121,71 +112,68 @@ export function LivrableFormModal({ open, organisationId, projetId, livrable, on
   };
 
   return (
-    <Modal
+    <FormDialog
       open={open}
-      title={livrable ? 'Modifier le livrable' : 'Nouveau livrable'}
-      onCancel={onClose}
-      onOk={handleSubmit(onSubmit)}
-      confirmLoading={enCours}
-      destroyOnHidden
+      onClose={onClose}
+      titre={livrable ? 'Modifier le livrable' : 'Nouveau livrable'}
+      description="Chaque livrable pèse dans l'avancement global du projet selon sa quote-part."
+      onSubmit={handleSubmit(onSubmit)}
+      enCours={enCours}
+      libelleValider={livrable ? 'Enregistrer' : 'Ajouter le livrable'}
     >
-      <Form layout="vertical">
-        <Form.Item label="Nom">
-          <Controller name="nom" control={control} render={({ field }) => <Input {...field} autoFocus />} />
-        </Form.Item>
-        <Form.Item label="Description">
-          <Controller
-            name="description"
-            control={control}
-            render={({ field }) => <Input.TextArea {...field} rows={2} />}
+      <Champ label="Nom" htmlFor="livrable-nom" requis erreur={errors.nom?.message}>
+        <Input autoFocus {...ariaErreur('livrable-nom', errors.nom)} {...register('nom')} />
+      </Champ>
+      <Champ label="Description" htmlFor="livrable-description">
+        <Textarea id="livrable-description" rows={2} {...register('description')} />
+      </Champ>
+      <Champ label="Responsable" htmlFor="livrable-responsable" aide="Membre du projet ou contact de l'organisme d'exécution">
+        <NativeSelect id="livrable-responsable" {...register('responsable')}>
+          <option value="">—</option>
+          <optgroup label="Membres du projet">
+            {(membres ?? []).map((m) => (
+              <option key={m.utilisateur_id} value={`membre:${m.utilisateur_id}`}>
+                {utilisateurParId.get(m.utilisateur_id) ?? m.utilisateur_id}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Contacts d'exécution">
+            {(contacts ?? []).map((c) => (
+              <option key={c.id} value={`contact:${c.id}`}>
+                {c.nom}
+              </option>
+            ))}
+          </optgroup>
+        </NativeSelect>
+      </Champ>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Champ label="Poids (%)" htmlFor="livrable-poids" requis aide="Quote-part dans l'avancement" erreur={errors.poidsPct?.message}>
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            step="any"
+            {...ariaErreur('livrable-poids', errors.poidsPct)}
+            {...register('poidsPct', { setValueAs: nombreOuVide })}
           />
-        </Form.Item>
-        <Form.Item label="Responsable" help="Membre du projet ou contact de l'organisme d'exécution">
-          <Controller
-            name="responsable"
-            control={control}
-            render={({ field }) => (
-              <Select {...field} allowClear showSearch optionFilterProp="label" options={optionsResponsable} />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Poids (%)" help="Quote-part de ce livrable dans l'avancement global du projet">
-          <Controller
-            name="poidsPct"
-            control={control}
-            render={({ field }) => (
-              <InputNumber {...field} min={0} max={100} style={{ width: '100%' }} onChange={(v) => field.onChange(v ?? 0)} />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Date prévue">
-          <Controller
-            name="datePrevue"
-            control={control}
-            render={({ field }) => <DatePicker {...field} style={{ width: '100%' }} />}
-          />
-        </Form.Item>
-        <Form.Item label="Date de remise">
-          <Controller
-            name="dateRemise"
-            control={control}
-            render={({ field }) => <DatePicker {...field} style={{ width: '100%' }} />}
-          />
-        </Form.Item>
-        <Form.Item label="Statut">
-          <Controller
-            name="statutValeurId"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                allowClear
-                options={(referentiel?.statutsLivrable ?? []).map((v) => ({ value: v.id, label: v.libelle }))}
-              />
-            )}
-          />
-        </Form.Item>
-      </Form>
-    </Modal>
+        </Champ>
+        <Champ label="Statut" htmlFor="livrable-statut">
+          <NativeSelect id="livrable-statut" {...register('statutValeurId')}>
+            <option value="">—</option>
+            {(referentiel?.statutsLivrable ?? []).map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.libelle}
+              </option>
+            ))}
+          </NativeSelect>
+        </Champ>
+        <Champ label="Date prévue" htmlFor="livrable-date-prevue">
+          <Input id="livrable-date-prevue" type="date" {...register('datePrevue')} />
+        </Champ>
+        <Champ label="Date de remise" htmlFor="livrable-date-remise">
+          <Input id="livrable-date-remise" type="date" {...register('dateRemise')} />
+        </Champ>
+      </div>
+    </FormDialog>
   );
 }

@@ -1,126 +1,60 @@
-import { ArrowLeftOutlined, FileExcelOutlined, PrinterOutlined } from '@ant-design/icons';
-import { Button, Card, Col, DatePicker, Empty, Row, Select, Space, Statistic, Table, Tag, Typography } from 'antd';
 import dayjs, { type Dayjs } from 'dayjs';
-import { useMemo, useState, type ReactNode } from 'react';
-import {
-  Area,
-  AreaChart,
-  BarChart,
-  Bar,
-  CartesianGrid,
-  LabelList,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { ChevronLeft, ChevronRight, FileSpreadsheet, Printer } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { utils as xlsxUtils, writeFile as xlsxWriteFile } from 'xlsx';
+import { EvolutionBarres } from '../../components/stats/EvolutionBarres';
+import { BarresRepartition, ChartCard, PeriodeFiltre, StatTile, StatTiles, type PresetPeriode } from '../../components/stats/stats';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { NativeSelect } from '../../components/ui/native-select';
+import { PageHeader } from '../../components/ui/page-header';
 import { useEnteteDocument } from '../../hooks/administration/useEnteteDocument';
 import { useEntites, useUtilisateursOptions } from '../../hooks/administration/useEntites';
 import { useOrganisation } from '../../hooks/administration/useOrganisation';
 import { useProjets, useProjetsReferentiel } from '../../hooks/projets/useProjets';
 import { useStatistiquesProjets } from '../../hooks/projets/useStatistiquesProjets';
 import { useProfile } from '../../hooks/useProfile';
-import type { Projet } from '../../services/projets/projets';
-import type { StatistiquesProjetsRepartition, StatistiquesProjetsRepartitionOrganisme } from '../../services/projets/statistiques';
 import type { Database } from '../../types/database';
+import { couleurReferentiel } from '../../utils/couleurReferentiel';
+import { formatMontant, montantCourt } from '../../utils/format';
+import { serieEvolution } from '../../utils/serieEvolution';
 import { EnteteDocumentImprime } from '../courrier/EnteteDocumentImprime';
-import { ProjetStatistiquesTuiles } from './ProjetStatistiquesTuiles';
+import { BadgeValeur, BarreAvancement } from './projetAffichage';
 
-const { RangePicker } = DatePicker;
+type Organisme = Database['public']['Enums']['organisme_execution_type'];
 
-// Jetons de la palette validée par le skill dataviz — mêmes valeurs que
-// CourrierStatistiquesPage (mode clair uniquement).
-const ENCRE_SECONDAIRE = '#52514e';
-const ENCRE_MUETTE = '#898781';
-const GRILLE = '#e1e0d9';
-const SEQUENTIEL = '#2a78d6';
-
-const LIBELLES_ORGANISME: Record<Database['public']['Enums']['organisme_execution_type'], string> = {
+const LIBELLES_ORGANISME: Record<Organisme, string> = {
   organisation: "L'organisation elle-même",
   consultant: 'Consultant',
   entreprise: 'Entreprise',
   externe: 'Autre organisme externe',
 };
 
-function CardGraphique({ titre, children, vide }: { titre: string; children: ReactNode; vide: boolean }) {
-  return (
-    <Card size="small" title={titre} style={{ height: '100%' }}>
-      {vide ? <Empty description="Aucune donnée" image={Empty.PRESENTED_IMAGE_SIMPLE} /> : children}
-    </Card>
-  );
-}
-
-// Comparaison de magnitudes (pas d'identité à distinguer) -> une seule
-// teinte séquentielle, jamais une couleur par barre (skill dataviz).
-function BarreRepartition({ donnees }: { donnees: { libelle: string; total: number }[] }) {
-  const top = donnees.slice(0, 10);
-  const hauteur = Math.max(120, top.length * 36);
-  return (
-    <ResponsiveContainer width="100%" height={hauteur}>
-      <BarChart data={top} layout="vertical" margin={{ left: 8, right: 24 }}>
-        <CartesianGrid horizontal={false} stroke={GRILLE} strokeDasharray="0" />
-        <XAxis type="number" tick={{ fill: ENCRE_MUETTE, fontSize: 12 }} allowDecimals={false} />
-        <YAxis type="category" dataKey="libelle" width={160} tick={{ fill: ENCRE_SECONDAIRE, fontSize: 12 }} tickLine={false} />
-        <Tooltip cursor={{ fill: 'rgba(0,0,0,0.03)' }} />
-        <Bar dataKey="total" fill={SEQUENTIEL} barSize={20} radius={[0, 4, 4, 0]}>
-          <LabelList dataKey="total" position="right" fill={ENCRE_SECONDAIRE} fontSize={12} />
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-function CourbeEvolution({ points }: { points: { date: string; total: number }[] }) {
-  return (
-    <ResponsiveContainer width="100%" height={220}>
-      <AreaChart data={points} margin={{ left: 0, right: 16 }}>
-        <defs>
-          <linearGradient id="remplissageEvolutionProjets" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={SEQUENTIEL} stopOpacity={0.1} />
-            <stop offset="100%" stopColor={SEQUENTIEL} stopOpacity={0.1} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid vertical={false} stroke={GRILLE} strokeDasharray="0" />
-        <XAxis
-          dataKey="date"
-          tick={{ fill: ENCRE_MUETTE, fontSize: 11 }}
-          tickFormatter={(v: string) => dayjs(v).format('DD/MM')}
-          tickLine={false}
-          minTickGap={24}
-        />
-        <YAxis tick={{ fill: ENCRE_MUETTE, fontSize: 12 }} allowDecimals={false} width={32} />
-        <Tooltip labelFormatter={(v) => dayjs(String(v)).format('DD/MM/YYYY')} />
-        <Area type="monotone" dataKey="total" stroke={SEQUENTIEL} strokeWidth={2} fill="url(#remplissageEvolutionProjets)" dot={false} activeDot={{ r: 4 }} />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-}
+const PRESETS: PresetPeriode[] = [
+  { libelle: 'Cette année', periode: () => [dayjs().startOf('year'), dayjs().endOf('year').startOf('day')] },
+  { libelle: 'Année dernière', periode: () => [dayjs().subtract(1, 'year').startOf('year'), dayjs().subtract(1, 'year').endOf('year').startOf('day')] },
+];
+const TAILLE_PAGE = 10;
 
 // Page Statistiques du module Projets : indicateurs agrégés côté serveur
-// (public.fn_statistiques_projets, 0076), bornés à ce que l'utilisateur
-// courant peut voir (app.can_view_projet — même périmètre que la liste des
-// projets). Le tableau synthétique et l'export Excel réutilisent la liste
-// de projets déjà chargée par ailleurs (useProjets) filtrée côté client
-// avec les mêmes critères envoyés au serveur pour les agrégats, pour rester
-// cohérents sans un second aller-retour réseau dédié.
+// (fn_statistiques_projets, 0076) et liste filtrée côté client pour l'export.
 export function ProjetStatistiquesPage() {
-  const navigate = useNavigate();
   const { profile } = useProfile();
+  const navigate = useNavigate();
   const organisationId = profile?.organisation_id;
   const { data: organisation } = useOrganisation(organisationId);
   const entete = useEnteteDocument(organisationId);
   const { data: referentiel } = useProjetsReferentiel(organisationId);
   const { data: entites } = useEntites(organisationId);
   const { data: utilisateurs } = useUtilisateursOptions(organisationId);
-  const { data: projets, isLoading: chargementProjets } = useProjets(organisationId);
+  const { data: projets } = useProjets(organisationId);
 
   const [periode, setPeriode] = useState<[Dayjs, Dayjs] | null>(null);
-  const [statutValeurId, setStatutValeurId] = useState<string | undefined>();
-  const [responsableId, setResponsableId] = useState<string | undefined>();
-  const [organismeExecutionType, setOrganismeExecutionType] =
-    useState<Database['public']['Enums']['organisme_execution_type'] | undefined>();
+  const [statutValeurId, setStatutValeurId] = useState('');
+  const [responsableId, setResponsableId] = useState('');
+  const [organismeExecutionType, setOrganismeExecutionType] = useState<Organisme | ''>('');
+  const [page, setPage] = useState(1);
 
   const dateDebut = periode ? periode[0].format('YYYY-MM-DD') : undefined;
   const dateFin = periode ? periode[1].format('YYYY-MM-DD') : undefined;
@@ -128,9 +62,9 @@ export function ProjetStatistiquesPage() {
   const { data: statistiques, isLoading } = useStatistiquesProjets({
     dateDebut,
     dateFin,
-    statutValeurId,
-    responsableId,
-    organismeExecutionType,
+    statutValeurId: statutValeurId || undefined,
+    responsableId: responsableId || undefined,
+    organismeExecutionType: organismeExecutionType || undefined,
   });
 
   const entiteParId = useMemo(() => new Map((entites ?? []).map((e) => [e.id, e.libelle])), [entites]);
@@ -140,9 +74,8 @@ export function ProjetStatistiquesPage() {
   );
   const statutParId = useMemo(() => new Map((referentiel?.statuts ?? []).map((v) => [v.id, v])), [referentiel]);
 
-  // Mêmes critères que ceux envoyés au serveur pour les agrégats (voir
-  // useStatistiquesProjets ci-dessus) — garantit que le tableau et l'export
-  // correspondent exactement à ce que montrent les tuiles/graphiques.
+  // Même règle de filtrage que fn_statistiques_projets (date de début du
+  // projet dans la période) pour la liste et l'export.
   const projetsFiltres = useMemo(() => {
     return (projets ?? []).filter((p) => {
       if (dateDebut && (!p.date_debut || p.date_debut < dateDebut)) return false;
@@ -154,22 +87,13 @@ export function ProjetStatistiquesPage() {
     });
   }, [projets, dateDebut, dateFin, statutValeurId, responsableId, organismeExecutionType]);
 
-  const donneesParEtat = useMemo(
-    () => (statistiques?.parEtat ?? []).map((r: StatistiquesProjetsRepartition) => ({ libelle: r.libelle, total: r.total })),
-    [statistiques],
-  );
-  const donneesParOrganisme = useMemo(
-    () =>
-      (statistiques?.parOrganisme ?? []).map((r: StatistiquesProjetsRepartitionOrganisme) => ({
-        libelle: LIBELLES_ORGANISME[r.cle],
-        total: r.total,
-      })),
-    [statistiques],
-  );
-  const donneesParResponsable = useMemo(
-    () => (statistiques?.parResponsable ?? []).map((r) => ({ libelle: r.libelle, total: r.total })),
-    [statistiques],
-  );
+  const { granularite, serie } = useMemo(() => {
+    const points = statistiques?.evolution ?? [];
+    const dates = points.map((p) => dayjs(p.date));
+    const debut = periode?.[0] ?? (dates.length ? dates.reduce((a, b) => (b.isBefore(a) ? b : a)) : dayjs());
+    const fin = periode?.[1] ?? (dates.length ? dates.reduce((a, b) => (b.isAfter(a) ? b : a)) : dayjs());
+    return serieEvolution(points, debut.startOf('day'), fin.endOf('day'), false);
+  }, [statistiques, periode]);
 
   const exporterExcel = () => {
     const lignes = projetsFiltres.map((p) => ({
@@ -214,152 +138,221 @@ export function ProjetStatistiquesPage() {
     xlsxWriteFile(classeur, `statistiques-projets-${dayjs().format('YYYY-MM-DD')}.xlsx`);
   };
 
+  const s = statistiques;
+  const f = s?.financier;
+  const nbPages = Math.max(1, Math.ceil(projetsFiltres.length / TAILLE_PAGE));
+  const pageCourante = Math.min(page, nbPages);
+  const lignesPage = projetsFiltres.slice((pageCourante - 1) * TAILLE_PAGE, pageCourante * TAILLE_PAGE);
+  const selectFiltre = '[&_select]:h-9 [&_select]:text-[13px]';
+
   return (
-    <div>
-      <Space style={{ marginBottom: 12 }} wrap>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/projets')}>
-          Retour
-        </Button>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          Statistiques projets
-        </Typography.Title>
-        <Button icon={<PrinterOutlined />} onClick={() => window.print()}>
-          Imprimer
-        </Button>
-        <Button icon={<FileExcelOutlined />} onClick={exporterExcel}>
-          Exporter Excel
-        </Button>
-      </Space>
+    <div className="space-y-5">
+      <PageHeader
+        retour={{ vers: '/projets', libelle: 'Projets' }}
+        titre="Statistiques projets"
+        description="Portefeuille, exécution financière et réalisation des livrables"
+        actions={
+          <>
+            <Button variant="outline" onClick={() => window.print()}>
+              <Printer className="text-muted-foreground" />
+              Imprimer
+            </Button>
+            <Button variant="outline" onClick={exporterExcel}>
+              <FileSpreadsheet className="text-muted-foreground" />
+              Exporter Excel
+            </Button>
+          </>
+        }
+      />
 
-      <Space style={{ marginBottom: 16 }} wrap>
-        <RangePicker value={periode} onChange={(v) => setPeriode(v && v[0] && v[1] ? [v[0], v[1]] : null)} format="DD/MM/YYYY" allowClear />
-        <Select
-          allowClear
-          placeholder="État du projet"
-          style={{ width: 180 }}
-          value={statutValeurId}
-          onChange={setStatutValeurId}
-          options={(referentiel?.statuts ?? []).map((v) => ({ value: v.id, label: v.libelle }))}
-        />
-        <Select
-          allowClear
-          showSearch
-          placeholder="Responsable"
-          style={{ width: 200 }}
-          value={responsableId}
-          onChange={setResponsableId}
-          filterOption={(input, option) => (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())}
-          options={(utilisateurs ?? []).map((u) => ({ value: u.id, label: `${u.prenom} ${u.nom}` }))}
-        />
-        <Select
-          allowClear
-          placeholder="Organisme d'exécution"
-          style={{ width: 220 }}
-          value={organismeExecutionType}
-          onChange={setOrganismeExecutionType}
-          options={Object.entries(LIBELLES_ORGANISME).map(([value, label]) => ({ value, label }))}
-        />
-      </Space>
+      <div className="space-y-3">
+        <PeriodeFiltre periode={periode} onChange={setPeriode} presets={PRESETS} effacable />
+        <div className="flex flex-wrap gap-2">
+          <NativeSelect aria-label="État du projet" className={`w-48 ${selectFiltre}`} value={statutValeurId} onChange={(e) => setStatutValeurId(e.target.value)}>
+            <option value="">Tous les états</option>
+            {(referentiel?.statuts ?? []).map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.libelle}
+              </option>
+            ))}
+          </NativeSelect>
+          <NativeSelect aria-label="Responsable" className={`w-52 ${selectFiltre}`} value={responsableId} onChange={(e) => setResponsableId(e.target.value)}>
+            <option value="">Tous les responsables</option>
+            {(utilisateurs ?? []).map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.prenom} {u.nom}
+              </option>
+            ))}
+          </NativeSelect>
+          <NativeSelect
+            aria-label="Organisme d'exécution"
+            className={`w-56 ${selectFiltre}`}
+            value={organismeExecutionType}
+            onChange={(e) => setOrganismeExecutionType(e.target.value as Organisme | '')}
+          >
+            <option value="">Tous les organismes</option>
+            {Object.entries(LIBELLES_ORGANISME).map(([valeur, libelle]) => (
+              <option key={valeur} value={valeur}>
+                {libelle}
+              </option>
+            ))}
+          </NativeSelect>
+        </div>
+      </div>
 
-      <div className="zone-imprimable">
+      <div className="zone-imprimable space-y-5">
         <div className="titre-impression" style={{ display: 'none' }}>
           <EnteteDocumentImprime organisation={organisation} entete={entete} titre="STATISTIQUES PROJETS" />
           {periode && (
-            <Typography.Paragraph style={{ textAlign: 'center', marginTop: -8 }}>
+            <p className="-mt-2 text-center">
               Période du {periode[0].format('DD/MM/YYYY')} au {periode[1].format('DD/MM/YYYY')}
-            </Typography.Paragraph>
+            </p>
           )}
         </div>
 
-        <div style={{ marginBottom: 16 }}>
-          <ProjetStatistiquesTuiles statistiques={statistiques} chargement={isLoading} />
+        <StatTiles>
+          <StatTile titre="Total projets" valeur={s?.totaux.total ?? 0} chargement={isLoading} />
+          <StatTile titre="En cours" valeur={s?.totaux.enCours ?? 0} detail={`${s?.totaux.aVenir ?? 0} à venir`} chargement={isLoading} />
+          <StatTile titre="En retard" valeur={s?.totaux.enRetard ?? 0} ton={(s?.totaux.enRetard ?? 0) > 0 ? 'critique' : undefined} chargement={isLoading} />
+          <StatTile titre="Clôturés" valeur={s?.totaux.clotures ?? 0} ton="succes" chargement={isLoading} />
+          <StatTile titre="Avancement moyen" valeur={Math.round(s?.avancementMoyen ?? 0)} suffixe=" %" chargement={isLoading} />
+          <StatTile
+            titre="Financier décaissé"
+            valeur={(f?.pourcentageDecaisse ?? 0).toLocaleString('fr-FR', { maximumFractionDigits: 1 })}
+            suffixe=" %"
+            chargement={isLoading}
+          />
+        </StatTiles>
+
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+          <ChartCard titre="Évolution" description="Nouveaux projets (date de début)" chargement={isLoading} vide={(s?.evolution.length ?? 0) === 0}>
+            <EvolutionBarres serie={serie} granularite={granularite} unite={['projet', 'projets']} />
+          </ChartCard>
+          <ChartCard titre="Répartition par état" chargement={isLoading} vide={!s?.parEtat.length}>
+            <BarresRepartition donnees={(s?.parEtat ?? []).map((r) => ({ libelle: r.libelle, total: r.total, couleur: couleurReferentiel(r.couleur) }))} />
+          </ChartCard>
+          <ChartCard titre="Répartition par organisme d'exécution" chargement={isLoading} vide={!s?.parOrganisme.length}>
+            <BarresRepartition largeurLibelle={170} donnees={(s?.parOrganisme ?? []).map((r) => ({ libelle: LIBELLES_ORGANISME[r.cle], total: r.total }))} />
+          </ChartCard>
+          <ChartCard titre="Répartition par responsable" chargement={isLoading} vide={!s?.parResponsable.length}>
+            <BarresRepartition donnees={s?.parResponsable ?? []} />
+          </ChartCard>
+
+          <Card className="break-inside-avoid">
+            <CardHeader>
+              <CardTitle>Situation financière</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-[28px] font-semibold leading-none tabular-nums">
+                {f ? montantCourt(f.montantDecaisse) : '—'} <span className="text-[15px] font-medium text-muted-foreground">FCFA décaissés</span>
+              </div>
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted print:[print-color-adjust:exact]">
+                <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, f?.pourcentageDecaisse ?? 0)}%` }} />
+              </div>
+              <dl className="mt-5 grid grid-cols-1 gap-3 text-[13px] sm:grid-cols-2">
+                {[
+                  ['Montant contractuel (contrat + avenants)', f?.montantContractuel],
+                  ['Reste à décaisser', f?.resteADecaisser],
+                  ['Montant initial des projets', f?.montantProjets],
+                  ['Dont avenants', f?.montantAvenants],
+                ].map(([libelle, valeur]) => (
+                  <div key={libelle as string} className="rounded-lg bg-muted/70 p-3">
+                    <dt className="text-[12px] text-muted-foreground">{libelle}</dt>
+                    <dd className="mt-0.5 font-semibold tabular-nums">{formatMontant(valeur as number | undefined)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </CardContent>
+          </Card>
+
+          <Card className="break-inside-avoid">
+            <CardHeader>
+              <CardTitle>Livrables</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-[28px] font-semibold leading-none tabular-nums">
+                {Math.round(s?.livrables.tauxRealisation ?? 0)} % <span className="text-[15px] font-medium text-muted-foreground">réalisés</span>
+              </div>
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted print:[print-color-adjust:exact]">
+                <div className="h-full rounded-full bg-good" style={{ width: `${Math.min(100, s?.livrables.tauxRealisation ?? 0)}%` }} />
+              </div>
+              <dl className="mt-5 grid grid-cols-3 gap-3 text-[13px]">
+                {[
+                  ['Total', s?.livrables.total],
+                  ['Réalisés', s?.livrables.realises],
+                  ['En cours / non réalisés', s?.livrables.enCoursOuNonRealises],
+                ].map(([libelle, valeur]) => (
+                  <div key={libelle as string} className="rounded-lg bg-muted/70 p-3">
+                    <dt className="text-[12px] text-muted-foreground">{libelle}</dt>
+                    <dd className="mt-0.5 text-[18px] font-semibold tabular-nums">{valeur ?? 0}</dd>
+                  </div>
+                ))}
+              </dl>
+            </CardContent>
+          </Card>
         </div>
 
-        <Row gutter={[16, 16]}>
-          <Col xs={24} lg={12}>
-            <CardGraphique titre="Évolution (nouveaux projets)" vide={!isLoading && (statistiques?.evolution.length ?? 0) === 0}>
-              <CourbeEvolution points={statistiques?.evolution ?? []} />
-            </CardGraphique>
-          </Col>
-          <Col xs={24} lg={12}>
-            <CardGraphique titre="Répartition par état" vide={!isLoading && donneesParEtat.length === 0}>
-              <BarreRepartition donnees={donneesParEtat} />
-            </CardGraphique>
-          </Col>
-          <Col xs={24} lg={12}>
-            <CardGraphique titre="Répartition par organisme d'exécution" vide={!isLoading && donneesParOrganisme.length === 0}>
-              <BarreRepartition donnees={donneesParOrganisme} />
-            </CardGraphique>
-          </Col>
-          <Col xs={24} lg={12}>
-            <CardGraphique titre="Répartition par responsable" vide={!isLoading && donneesParResponsable.length === 0}>
-              <BarreRepartition donnees={donneesParResponsable} />
-            </CardGraphique>
-          </Col>
-        </Row>
-
-        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-          <Col xs={24} lg={12}>
-            <Card size="small" title="Situation financière">
-              <Row gutter={[16, 16]}>
-                <Col span={12}>
-                  <Statistic title="Montant contractuel (contrat + avenants)" value={statistiques?.financier.montantContractuel ?? 0} suffix="FCFA" />
-                </Col>
-                <Col span={12}>
-                  <Statistic title="Montant décaissé" value={statistiques?.financier.montantDecaisse ?? 0} suffix="FCFA" />
-                </Col>
-                <Col span={12}>
-                  <Statistic title="Reste à décaisser" value={statistiques?.financier.resteADecaisser ?? 0} suffix="FCFA" />
-                </Col>
-                <Col span={12}>
-                  <Statistic title="Dont avenants" value={statistiques?.financier.montantAvenants ?? 0} suffix="FCFA" />
-                </Col>
-              </Row>
-            </Card>
-          </Col>
-          <Col xs={24} lg={12}>
-            <Card size="small" title="Livrables">
-              <Row gutter={[16, 16]}>
-                <Col span={12}>
-                  <Statistic title="Total" value={statistiques?.livrables.total ?? 0} />
-                </Col>
-                <Col span={12}>
-                  <Statistic title="Réalisés" value={statistiques?.livrables.realises ?? 0} valueStyle={{ color: '#0ca30c' }} />
-                </Col>
-                <Col span={12}>
-                  <Statistic title="En cours / non réalisés" value={statistiques?.livrables.enCoursOuNonRealises ?? 0} />
-                </Col>
-                <Col span={12}>
-                  <Statistic title="Taux de réalisation" value={statistiques?.livrables.tauxRealisation ?? 0} suffix="%" />
-                </Col>
-              </Row>
-            </Card>
-          </Col>
-        </Row>
-
-        <Card size="small" title="Projets" style={{ marginTop: 16 }}>
-          <Table<Projet>
-            rowKey="id"
-            size="small"
-            loading={chargementProjets}
-            dataSource={projetsFiltres}
-            pagination={{ pageSize: 10 }}
-            columns={[
-              { title: 'Code', dataIndex: 'code', width: 120 },
-              { title: 'Nom', dataIndex: 'nom' },
-              { title: 'Entité', render: (_, p) => entiteParId.get(p.entite_id) ?? '—' },
-              {
-                title: 'Statut',
-                render: (_, p) => {
-                  const s = p.statut_valeur_id ? statutParId.get(p.statut_valeur_id) : null;
-                  return s ? <Tag color={s.couleur ?? undefined}>{s.libelle}</Tag> : '—';
-                },
-              },
-              { title: 'Responsable', render: (_, p) => (p.responsable_id ? (utilisateurParId.get(p.responsable_id) ?? '—') : '—') },
-              { title: "Organisme d'exécution", render: (_, p) => LIBELLES_ORGANISME[p.organisme_execution_type] },
-              { title: 'Avancement', width: 100, render: (_, p) => `${Math.round(p.avancement_pct)}%` },
-            ]}
-          />
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              Projets <span className="ml-1 font-normal text-muted-foreground">{projetsFiltres.length}</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-0 pb-0">
+            <div className="overflow-x-auto border-t border-border">
+              <table className="w-full min-w-[820px] text-[13px]">
+                <thead>
+                  <tr className="border-b border-border text-left text-[12px] text-muted-foreground">
+                    <th className="py-3 pl-5 pr-4 font-medium">Projet</th>
+                    <th className="py-3 pr-4 font-medium">Entité</th>
+                    <th className="py-3 pr-4 font-medium">Statut</th>
+                    <th className="py-3 pr-4 font-medium">Responsable</th>
+                    <th className="py-3 pr-4 font-medium">Organisme</th>
+                    <th className="w-40 py-3 pr-5 font-medium">Avancement</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lignesPage.map((p) => (
+                    <tr key={p.id} onClick={() => navigate(`/projets/${p.id}`)} className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/60">
+                      <td className="max-w-[300px] py-2.5 pl-5 pr-4">
+                        <div className="truncate font-medium">{p.nom}</div>
+                        <div className="font-mono text-[12px] text-muted-foreground">{p.code}</div>
+                      </td>
+                      <td className="py-2.5 pr-4">{entiteParId.get(p.entite_id) ?? '—'}</td>
+                      <td className="py-2.5 pr-4">
+                        <BadgeValeur valeur={p.statut_valeur_id ? statutParId.get(p.statut_valeur_id) : null} />
+                      </td>
+                      <td className="py-2.5 pr-4">{p.responsable_id ? (utilisateurParId.get(p.responsable_id) ?? '—') : '—'}</td>
+                      <td className="py-2.5 pr-4 text-muted-foreground">{LIBELLES_ORGANISME[p.organisme_execution_type]}</td>
+                      <td className="py-2.5 pr-5">
+                        <BarreAvancement pct={p.avancement_pct} />
+                      </td>
+                    </tr>
+                  ))}
+                  {lignesPage.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="py-10 text-center text-muted-foreground">
+                        Aucun projet pour ces critères
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {nbPages > 1 && (
+              <div className="flex items-center justify-end gap-1 border-t border-border px-5 py-3 text-[13px] text-muted-foreground print:hidden">
+                <Button variant="outline" size="icon" className="size-8" disabled={pageCourante === 1} onClick={() => setPage(pageCourante - 1)} aria-label="Page précédente">
+                  <ChevronLeft />
+                </Button>
+                <span className="px-2 tabular-nums">
+                  Page {pageCourante} / {nbPages}
+                </span>
+                <Button variant="outline" size="icon" className="size-8" disabled={pageCourante === nbPages} onClick={() => setPage(pageCourante + 1)} aria-label="Page suivante">
+                  <ChevronRight />
+                </Button>
+              </div>
+            )}
+          </CardContent>
         </Card>
       </div>
     </div>

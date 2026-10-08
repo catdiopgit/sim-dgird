@@ -1,13 +1,15 @@
-import { UploadOutlined } from '@ant-design/icons';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, Button, Form, Input, Modal, Select, Upload } from 'antd';
-import type { UploadFile } from 'antd';
 import { useEffect, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Champ, ChampFichier } from '../../components/form/champ';
+import { FormDialog } from '../../components/form/form-dialog';
+import { Input, Textarea } from '../../components/ui/input';
+import { NativeSelect } from '../../components/ui/native-select';
 import { useAjouterDocumentProjet } from '../../hooks/projets/useDocumentsProjet';
-import type { ProjetsReferentiel } from '../../services/projets/referentiel';
+import { ariaErreur } from '../../lib/form';
 import type { Livrable } from '../../services/projets/livrables';
+import type { ProjetsReferentiel } from '../../services/projets/referentiel';
 
 const schema = z.object({
   titre: z.string().min(1, 'Requis'),
@@ -29,9 +31,14 @@ interface Props {
 export function DocumentProjetAjouterModal({ open, projetId, referentiel, livrables, livrableIdFixe, onClose }: Props) {
   const ajouter = useAjouterDocumentProjet(projetId);
   const [fichier, setFichier] = useState<File | null>(null);
-  const [fichierListe, setFichierListe] = useState<UploadFile[]>([]);
+  const [tentative, setTentative] = useState(false);
 
-  const { control, handleSubmit, reset } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { titre: '', description: '', typeValeurId: '', livrableId: livrableIdFixe ?? '' },
   });
@@ -40,7 +47,7 @@ export function DocumentProjetAjouterModal({ open, projetId, referentiel, livrab
     if (open) {
       reset({ titre: '', description: '', typeValeurId: '', livrableId: livrableIdFixe ?? '' });
       setFichier(null);
-      setFichierListe([]);
+      setTentative(false);
     }
   }, [open, livrableIdFixe, reset]);
 
@@ -62,74 +69,50 @@ export function DocumentProjetAjouterModal({ open, projetId, referentiel, livrab
   };
 
   return (
-    <Modal
+    <FormDialog
       open={open}
-      title="Ajouter un document"
-      onCancel={onClose}
-      onOk={handleSubmit(onSubmit)}
-      confirmLoading={ajouter.isPending}
-      destroyOnHidden
+      onClose={onClose}
+      titre="Ajouter un document"
+      onSubmit={(e) => {
+        setTentative(true);
+        void handleSubmit(onSubmit)(e);
+      }}
+      enCours={ajouter.isPending}
+      libelleValider="Ajouter le document"
     >
-      <Form layout="vertical">
-        <Form.Item label="Titre">
-          <Controller name="titre" control={control} render={({ field }) => <Input {...field} autoFocus />} />
-        </Form.Item>
-        <Form.Item label="Description">
-          <Controller
-            name="description"
-            control={control}
-            render={({ field }) => <Input.TextArea {...field} rows={2} />}
-          />
-        </Form.Item>
-        <Form.Item label="Type de document">
-          <Controller
-            name="typeValeurId"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                allowClear
-                options={(referentiel?.typesDocument ?? []).map((v) => ({ value: v.id, label: v.libelle }))}
-              />
-            )}
-          />
-        </Form.Item>
+      <Champ label="Fichier" htmlFor="doc-projet-fichier" requis erreur={tentative && !fichier ? 'Un fichier est requis' : undefined}>
+        <ChampFichier id="doc-projet-fichier" fichier={fichier} onChange={setFichier} invalide={tentative && !fichier} />
+      </Champ>
+      <Champ label="Titre" htmlFor="doc-projet-titre" requis erreur={errors.titre?.message}>
+        <Input {...ariaErreur('doc-projet-titre', errors.titre)} {...register('titre')} />
+      </Champ>
+      <Champ label="Description" htmlFor="doc-projet-description">
+        <Textarea id="doc-projet-description" rows={2} {...register('description')} />
+      </Champ>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Champ label="Type de document" htmlFor="doc-projet-type">
+          <NativeSelect id="doc-projet-type" {...register('typeValeurId')}>
+            <option value="">—</option>
+            {(referentiel?.typesDocument ?? []).map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.libelle}
+              </option>
+            ))}
+          </NativeSelect>
+        </Champ>
         {livrables && livrables.length > 0 && !livrableIdFixe && (
-          <Form.Item label="Livrable associé" help="Optionnel — laisser vide pour un document rattaché directement au projet">
-            <Controller
-              name="livrableId"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  {...field}
-                  allowClear
-                  showSearch
-                  filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                  options={livrables.map((l) => ({ value: l.id, label: l.nom }))}
-                />
-              )}
-            />
-          </Form.Item>
+          <Champ label="Livrable associé" htmlFor="doc-projet-livrable" aide="Laisser vide pour un document du projet">
+            <NativeSelect id="doc-projet-livrable" {...register('livrableId')}>
+              <option value="">Aucun</option>
+              {livrables.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.nom}
+                </option>
+              ))}
+            </NativeSelect>
+          </Champ>
         )}
-        <Form.Item label="Fichier" required>
-          <Upload
-            fileList={fichierListe}
-            beforeUpload={(f) => {
-              setFichier(f);
-              setFichierListe([{ uid: f.uid, name: f.name, status: 'done' }]);
-              return false;
-            }}
-            onRemove={() => {
-              setFichier(null);
-              setFichierListe([]);
-            }}
-            maxCount={1}
-          >
-            <Button icon={<UploadOutlined />}>Choisir un fichier</Button>
-          </Upload>
-          {!fichier && <Alert style={{ marginTop: 8 }} type="info" showIcon message="Un fichier est requis" />}
-        </Form.Item>
-      </Form>
-    </Modal>
+      </div>
+    </FormDialog>
   );
 }

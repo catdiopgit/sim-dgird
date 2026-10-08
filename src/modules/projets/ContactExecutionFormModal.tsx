@@ -1,9 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Form, Input, Modal } from 'antd';
 import { useEffect } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Champ } from '../../components/form/champ';
+import { FormDialog } from '../../components/form/form-dialog';
+import { Input } from '../../components/ui/input';
 import { useContactExecutionMutations } from '../../hooks/projets/useContactsExecution';
+import { ariaErreur } from '../../lib/form';
 
 const schema = z.object({
   nom: z.string().min(1, 'Requis'),
@@ -27,7 +30,12 @@ const VIDE: FormValues = { nom: '', fonction: '', email: '', telephone: '' };
 export function ContactExecutionFormModal({ open, projetId, onClose }: Props) {
   const { create } = useContactExecutionMutations(projetId);
 
-  const { control, handleSubmit, reset } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: VIDE,
   });
@@ -50,28 +58,29 @@ export function ContactExecutionFormModal({ open, projetId, onClose }: Props) {
   };
 
   return (
-    <Modal
+    <FormDialog
       open={open}
-      title="Ajouter un contact d'exécution"
-      onCancel={onClose}
-      onOk={handleSubmit(onSubmit)}
-      confirmLoading={create.isPending}
-      destroyOnHidden
+      onClose={onClose}
+      titre="Ajouter un contact d'exécution"
+      description="Personne de l'organisme d'exécution, sans compte SIM."
+      onSubmit={handleSubmit(onSubmit)}
+      enCours={create.isPending}
+      libelleValider="Ajouter le contact"
     >
-      <Form layout="vertical">
-        <Form.Item label="Nom">
-          <Controller name="nom" control={control} render={({ field }) => <Input {...field} autoFocus />} />
-        </Form.Item>
-        <Form.Item label="Fonction">
-          <Controller name="fonction" control={control} render={({ field }) => <Input {...field} />} />
-        </Form.Item>
-        <Form.Item label="Email">
-          <Controller name="email" control={control} render={({ field }) => <Input {...field} />} />
-        </Form.Item>
-        <Form.Item label="Téléphone">
-          <Controller name="telephone" control={control} render={({ field }) => <Input {...field} />} />
-        </Form.Item>
-      </Form>
-    </Modal>
+      <Champ label="Nom" htmlFor="contact-nom" requis erreur={errors.nom?.message}>
+        <Input autoFocus {...ariaErreur('contact-nom', errors.nom)} {...register('nom')} />
+      </Champ>
+      <Champ label="Fonction" htmlFor="contact-fonction">
+        <Input id="contact-fonction" {...register('fonction')} />
+      </Champ>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Champ label="Email" htmlFor="contact-email">
+          <Input id="contact-email" type="email" {...register('email')} />
+        </Champ>
+        <Champ label="Téléphone" htmlFor="contact-telephone">
+          <Input id="contact-telephone" type="tel" {...register('telephone')} />
+        </Champ>
+      </div>
+    </FormDialog>
   );
 }

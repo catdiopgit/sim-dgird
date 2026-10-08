@@ -1,21 +1,21 @@
-import { CheckCircleFilled, WarningFilled } from '@ant-design/icons';
-import { Alert, Button, Card, Descriptions, Input, List, Modal, Popconfirm, Space, Tag } from 'antd';
+import { CircleCheck, Lock, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
+import { Confirmation, ConfirmDialog } from '../../components/form/confirm-dialog';
+import { Champ } from '../../components/form/champ';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Textarea } from '../../components/ui/input';
+import { Skeleton } from '../../components/ui/skeleton';
 import { useClotureMutations, useVerifierCloture } from '../../hooks/projets/useClotureProjet';
 import type { Projet } from '../../services/projets/projets';
+import { BadgeCloture } from './projetAffichage';
 
 interface Props {
   projet: Projet;
   peutDemander: boolean;
   utilisateurParId: Map<string, string>;
 }
-
-const LIBELLES_STATUT: Record<Projet['cloture_statut'], { label: string; color: string }> = {
-  aucune: { label: 'Aucune demande', color: 'default' },
-  demandee: { label: 'Demande en attente de confirmation', color: 'gold' },
-  confirmee: { label: 'Clôturé', color: 'green' },
-  rejetee: { label: 'Demande rejetée', color: 'red' },
-};
 
 // §8/§9 : checklist en direct (fn_verifier_cloture_projet) + workflow à deux
 // niveaux. Les boutons Confirmer/Rejeter restent affichés dès qu'une demande
@@ -28,91 +28,150 @@ export function ProjetClotureTab({ projet, peutDemander, utilisateurParId }: Pro
   const [motif, setMotif] = useState('');
 
   const blocages = (controles ?? []).filter((c) => c.bloquant);
-  const statutInfo = LIBELLES_STATUT[projet.cloture_statut];
+  const nom = (id: string | null) => (id ? (utilisateurParId.get(id) ?? '—') : '—');
 
   return (
-    <Card title="Clôture du projet">
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
-        <Descriptions column={2} size="small">
-          <Descriptions.Item label="Statut de clôture">
-            <Tag color={statutInfo.color}>{statutInfo.label}</Tag>
-          </Descriptions.Item>
-          <Descriptions.Item label="Demandée par">
-            {projet.cloture_demandee_par ? (utilisateurParId.get(projet.cloture_demandee_par) ?? '—') : '—'}
-          </Descriptions.Item>
-          <Descriptions.Item label="Confirmée par">
-            {projet.cloture_confirmee_par ? (utilisateurParId.get(projet.cloture_confirmee_par) ?? '—') : '—'}
-          </Descriptions.Item>
+    <Card>
+      <CardHeader>
+        <CardTitle>Clôture du projet</CardTitle>
+        {projet.cloture_statut === 'aucune' ? (
+          <Badge variant="muted" shape="pill">
+            Aucune demande
+          </Badge>
+        ) : (
+          <BadgeCloture statut={projet.cloture_statut} />
+        )}
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <dl className="grid grid-cols-1 gap-x-6 gap-y-3 text-[14px] sm:grid-cols-2">
+          <div>
+            <dt className="text-[12px] text-muted-foreground">Demandée par</dt>
+            <dd className="mt-0.5 font-medium">{nom(projet.cloture_demandee_par)}</dd>
+          </div>
+          <div>
+            <dt className="text-[12px] text-muted-foreground">Confirmée par</dt>
+            <dd className="mt-0.5 font-medium">{nom(projet.cloture_confirmee_par)}</dd>
+          </div>
           {projet.cloture_motif_rejet && (
-            <Descriptions.Item label="Motif du rejet" span={2}>
-              {projet.cloture_motif_rejet}
-            </Descriptions.Item>
+            <div className="sm:col-span-2">
+              <dt className="text-[12px] text-muted-foreground">Motif du rejet</dt>
+              <dd className="mt-0.5 whitespace-pre-line">{projet.cloture_motif_rejet}</dd>
+            </div>
           )}
-        </Descriptions>
+        </dl>
 
         {projet.cloture_statut === 'confirmee' && (
-          <Alert type="success" showIcon message="Ce projet est clôturé : toute modification normale est bloquée." />
+          <div className="flex items-start gap-2.5 rounded-lg bg-good/10 p-3 text-[13px] text-good-text">
+            <Lock className="mt-0.5 size-4 shrink-0" />
+            Ce projet est clôturé : toute modification normale est bloquée.
+          </div>
         )}
 
-        <List
-          header="Contrôles avant clôture"
-          loading={isLoading}
-          dataSource={controles ?? []}
-          renderItem={(c) => (
-            <List.Item>
-              {c.bloquant ? (
-                <WarningFilled style={{ color: '#faad14', marginRight: 8 }} />
-              ) : (
-                <CheckCircleFilled style={{ color: '#52c41a', marginRight: 8 }} />
-              )}
-              {c.message}
-            </List.Item>
+        <section>
+          <h4 className="mb-2 text-[13px] font-semibold">
+            Contrôles avant clôture
+            {!isLoading && blocages.length > 0 && (
+              <span className="ml-2 font-normal text-warn-text">
+                {blocages.length} point{blocages.length > 1 ? 's' : ''} bloquant{blocages.length > 1 ? 's' : ''}
+              </span>
+            )}
+          </h4>
+          {isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+            </div>
+          ) : (controles ?? []).length === 0 ? (
+            <p className="text-[13px] text-muted-foreground">Aucun contrôle.</p>
+          ) : (
+            <ul className="divide-y divide-border rounded-lg border border-border">
+              {(controles ?? []).map((c, i) => (
+                <li key={i} className="flex items-start gap-2.5 px-3 py-2.5 text-[13px]">
+                  {c.bloquant ? (
+                    <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warn-text" aria-label="Bloquant" />
+                  ) : (
+                    <CircleCheck className="mt-0.5 size-4 shrink-0 text-good-text" aria-label="Conforme" />
+                  )}
+                  <span>{c.message}</span>
+                </li>
+              ))}
+            </ul>
           )}
-        />
+        </section>
 
         {peutDemander && projet.cloture_statut !== 'demandee' && projet.cloture_statut !== 'confirmee' && (
-          <Popconfirm
-            title="Demander la clôture du projet ?"
-            description={blocages.length > 0 ? `${blocages.length} contrôle(s) bloquant(s) subsistent.` : undefined}
-            onConfirm={() => demander.mutate()}
+          <Confirmation
+            titre="Demander la clôture du projet ?"
+            libelleConfirmer="Demander la clôture"
+            enCours={demander.isPending}
+            onConfirmer={(fermer) => demander.mutate(undefined, { onSuccess: fermer })}
+            declencheur={(ouvrir) => (
+              <Button onClick={ouvrir} disabled={demander.isPending}>
+                Demander la clôture
+              </Button>
+            )}
           >
-            <Button type="primary" loading={demander.isPending}>
-              Demander la clôture
-            </Button>
-          </Popconfirm>
+            {blocages.length > 0 ? (
+              <p className="text-warn-text">
+                {blocages.length} contrôle{blocages.length > 1 ? 's' : ''} bloquant{blocages.length > 1 ? 's' : ''}{' '}
+                subsiste{blocages.length > 1 ? 'nt' : ''}.
+              </p>
+            ) : (
+              <p className="text-muted-foreground">La demande sera soumise au responsable pour confirmation.</p>
+            )}
+          </Confirmation>
         )}
 
         {projet.cloture_statut === 'demandee' && (
-          <Space>
-            <Popconfirm title="Confirmer la clôture du projet ?" onConfirm={() => confirmer.mutate(undefined)}>
-              <Button type="primary" loading={confirmer.isPending}>
-                Confirmer la clôture
-              </Button>
-            </Popconfirm>
-            <Button danger onClick={() => setMotifModalOuvert(true)}>
+          <div className="flex flex-wrap gap-2">
+            <Confirmation
+              titre="Confirmer la clôture du projet ?"
+              libelleConfirmer="Confirmer la clôture"
+              enCours={confirmer.isPending}
+              onConfirmer={(fermer) => confirmer.mutate(undefined, { onSuccess: fermer })}
+              declencheur={(ouvrir) => (
+                <Button onClick={ouvrir} disabled={confirmer.isPending}>
+                  Confirmer la clôture
+                </Button>
+              )}
+            >
+              <p className="text-muted-foreground">Une fois clôturé, le projet ne pourra plus être modifié normalement.</p>
+            </Confirmation>
+            <Button variant="outline" className="text-crit-text hover:text-crit-text" onClick={() => setMotifModalOuvert(true)}>
               Rejeter
             </Button>
-          </Space>
+          </div>
         )}
-      </Space>
+      </CardContent>
 
-      <Modal
+      <ConfirmDialog
         open={motifModalOuvert}
-        title="Rejeter la demande de clôture"
-        onCancel={() => setMotifModalOuvert(false)}
-        onOk={() => {
+        onClose={() => setMotifModalOuvert(false)}
+        titre="Rejeter la demande de clôture"
+        libelleConfirmer="Rejeter"
+        destructif
+        enCours={rejeter.isPending}
+        confirmerDesactive={motif.trim().length === 0}
+        onConfirmer={() =>
           rejeter.mutate(motif, {
             onSuccess: () => {
               setMotifModalOuvert(false);
               setMotif('');
             },
-          });
-        }}
-        confirmLoading={rejeter.isPending}
-        okButtonProps={{ danger: true, disabled: motif.trim().length === 0 }}
+          })
+        }
       >
-        <Input.TextArea rows={3} value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Motif du rejet (obligatoire)" />
-      </Modal>
+        <Champ label="Motif du rejet" htmlFor="cloture-motif" requis>
+          <Textarea
+            id="cloture-motif"
+            autoFocus
+            rows={3}
+            value={motif}
+            onChange={(e) => setMotif(e.target.value)}
+            placeholder="Expliquez ce qui doit être corrigé avant la clôture"
+          />
+        </Champ>
+      </ConfirmDialog>
     </Card>
   );
 }

@@ -1,5 +1,6 @@
-import { Alert, Card, Col, Descriptions, Progress, Row, Space, Statistic, Tag, Typography } from 'antd';
-import { useMemo } from 'react';
+import { Banknote, CircleCheck, CircleDashed, CircleX, FileSignature, Package, TriangleAlert, Wallet, type LucideIcon } from 'lucide-react';
+import { useMemo, type ReactNode } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { useAvenants } from '../../hooks/projets/useAvenants';
 import { useContactsExecution } from '../../hooks/projets/useContactsExecution';
 import { useDecaissements } from '../../hooks/projets/useDecaissements';
@@ -7,6 +8,8 @@ import { useDocumentsProjet } from '../../hooks/projets/useDocumentsProjet';
 import { useLivrables } from '../../hooks/projets/useLivrables';
 import type { Projet } from '../../services/projets/projets';
 import type { ProjetsReferentiel } from '../../services/projets/referentiel';
+import { fr } from '../../utils/dateFr';
+import { formatMontant, montantCourt } from '../../utils/format';
 
 interface Props {
   projet: Projet;
@@ -22,6 +25,28 @@ const LIBELLES_ORGANISME: Record<Projet['organisme_execution_type'], string> = {
   externe: 'Autre organisme externe',
 };
 
+function Tuile({ titre, valeur, detail, icone: Icone, ton }: { titre: string; valeur: ReactNode; detail?: ReactNode; icone: LucideIcon; ton?: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-4">
+      <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+        <Icone className="size-4" style={ton ? { color: ton } : undefined} />
+        {titre}
+      </div>
+      <div className="mt-2 text-[24px] font-semibold leading-none tabular-nums">{valeur}</div>
+      {detail && <div className="mt-1.5 text-[12px] text-muted-foreground">{detail}</div>}
+    </div>
+  );
+}
+
+function Ligne({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <dt className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dd className="mt-1 text-[14px]">{children ?? '—'}</dd>
+    </div>
+  );
+}
+
 // §7 Vue d'ensemble : tableau de pilotage du projet — avancement (calculé
 // automatiquement à partir des livrables, §6), situation financière
 // (décaissements vs budget), équipe de direction, et alertes sur les points
@@ -34,14 +59,11 @@ export function ProjetVueEnsembleTab({ projet, referentiel, entiteParId, utilisa
   const { data: decaissements } = useDecaissements(projet.id);
   const { data: contacts } = useContactsExecution(projet.id);
 
-  const statutParId = useMemo(() => new Map((referentiel?.statuts ?? []).map((v) => [v.id, v])), [referentiel]);
   const statutLivrableParId = useMemo(
     () => new Map((referentiel?.statutsLivrable ?? []).map((v) => [v.id, v])),
     [referentiel],
   );
   const contactParId = useMemo(() => new Map((contacts ?? []).map((c) => [c.id, c.nom])), [contacts]);
-
-  const statut = projet.statut_valeur_id ? statutParId.get(projet.statut_valeur_id) : null;
 
   const repartitionLivrables = useMemo(() => {
     const compte = { realises: 0, enCours: 0, nonRealises: 0, total: livrables?.length ?? 0, poidsTotal: 0 };
@@ -76,6 +98,7 @@ export function ProjetVueEnsembleTab({ projet, referentiel, entiteParId, utilisa
     () => (decaissements ?? [])[0] ?? null, // déjà trié par date_decaissement desc côté service
     [decaissements],
   );
+  const pctFinancier = montantContractuel ? Math.round((cumulMontant / montantContractuel) * 10000) / 100 : cumulPct;
 
   const nomChargeExecution = projet.charge_execution_utilisateur_id
     ? (utilisateurParId.get(projet.charge_execution_utilisateur_id) ?? '—')
@@ -104,117 +127,142 @@ export function ProjetVueEnsembleTab({ projet, referentiel, entiteParId, utilisa
     return liste;
   }, [livrables, repartitionLivrables, statutLivrableParId, documents, montantContractuel, cumulMontant]);
 
+  const total = repartitionLivrables.total;
+  const segments = [
+    { cle: 'realises', libelle: 'Réalisés', valeur: repartitionLivrables.realises, couleur: 'var(--st-good)', Icone: CircleCheck },
+    { cle: 'enCours', libelle: 'En cours', valeur: repartitionLivrables.enCours, couleur: 'var(--st-info)', Icone: CircleDashed },
+    { cle: 'nonRealises', libelle: 'Non réalisés', valeur: repartitionLivrables.nonRealises, couleur: 'var(--st-crit)', Icone: CircleX },
+  ];
+  const visibles = segments.filter((s) => s.valeur > 0);
+
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="middle">
-      <Card>
-        <Row gutter={[16, 16]}>
-          <Col span={6}>
-            <Typography.Text type="secondary">Statut</Typography.Text>
-            <div style={{ marginTop: 4 }}>
-              {statut ? <Tag color={statut.couleur ?? undefined}>{statut.libelle}</Tag> : '—'}
-            </div>
-          </Col>
-          <Col span={6}>
-            <Statistic title="Avancement global (calculé)" value={Math.round(projet.avancement_pct)} suffix="%" />
-          </Col>
-          <Col span={6}>
-            <Statistic title="Livrables" value={repartitionLivrables.total} />
-          </Col>
-          <Col span={6}>
-            <Statistic title="Avenants" value={avenants?.length ?? 0} />
-          </Col>
-        </Row>
-
-        <Progress
-          style={{ marginTop: 16 }}
-          percent={Math.round(projet.avancement_pct)}
-          status={projet.avancement_pct >= 100 ? 'success' : 'active'}
-        />
-
-        <Row gutter={[16, 16]} style={{ marginTop: 24 }}>
-          <Col span={8}>
-            <Statistic title="Livrables réalisés" value={repartitionLivrables.realises} valueStyle={{ color: '#3f8600' }} />
-          </Col>
-          <Col span={8}>
-            <Statistic title="Livrables en cours" value={repartitionLivrables.enCours} valueStyle={{ color: '#1677ff' }} />
-          </Col>
-          <Col span={8}>
-            <Statistic title="Livrables non réalisés" value={repartitionLivrables.nonRealises} valueStyle={{ color: '#cf1322' }} />
-          </Col>
-        </Row>
-      </Card>
-
-      <Card title="Situation financière">
-        <Row gutter={[16, 16]}>
-          <Col span={6}>
-            <Statistic title="Montant total du projet" value={montantContractuel ?? '—'} suffix={montantContractuel != null ? 'FCFA' : undefined} />
-            {montantAvenants > 0 && (
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                dont {avenants?.length ?? 0} avenant(s) : {montantAvenants.toLocaleString('fr-FR')} FCFA
-              </Typography.Text>
-            )}
-          </Col>
-          <Col span={6}>
-            <Statistic title="Montant décaissé" value={cumulMontant} suffix="FCFA" />
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              dont contrat d'origine {cumulContrat.toLocaleString('fr-FR')} / avenants {cumulAvenants.toLocaleString('fr-FR')} FCFA
-            </Typography.Text>
-          </Col>
-          <Col span={6}>
-            <Statistic
-              title="% financier décaissé"
-              value={montantContractuel ? Math.round((cumulMontant / montantContractuel) * 10000) / 100 : cumulPct}
-              suffix="%"
-            />
-          </Col>
-          <Col span={6}>
-            <Statistic title="Solde restant" value={solde ?? '—'} suffix={solde != null ? 'FCFA' : undefined} />
-          </Col>
-        </Row>
-        <Typography.Paragraph style={{ marginTop: 12 }} type="secondary">
-          Dernier décaissement :{' '}
-          {dernierDecaissement
-            ? `${dernierDecaissement.montant.toLocaleString('fr-FR')} FCFA le ${new Date(dernierDecaissement.date_decaissement).toLocaleDateString('fr-FR')}`
-            : 'aucun'}
-        </Typography.Paragraph>
-      </Card>
-
+    <div className="space-y-5">
       {alertes.length > 0 && (
-        <Alert
-          type="warning"
-          showIcon
-          message="Points nécessitant une attention"
-          description={
-            <ul style={{ margin: 0, paddingLeft: 20 }}>
+        <div role="status" className="flex gap-3 rounded-xl border border-warn/40 bg-warn/10 p-4">
+          <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warn-text" />
+          <div className="text-[13px]">
+            <div className="font-semibold text-warn-text">Points nécessitant une attention</div>
+            <ul className="mt-1 list-disc space-y-0.5 pl-4">
               {alertes.map((a) => (
                 <li key={a}>{a}</li>
               ))}
             </ul>
-          }
-        />
+          </div>
+        </div>
       )}
 
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Tuile titre="Livrables" valeur={total} icone={Package} detail={`${repartitionLivrables.realises} réalisé${repartitionLivrables.realises > 1 ? 's' : ''}`} />
+        <Tuile titre="Avenants" valeur={avenants?.length ?? 0} icone={FileSignature} detail={montantAvenants > 0 ? `${montantCourt(montantAvenants)} FCFA` : undefined} />
+        <Tuile
+          titre="Montant du projet"
+          valeur={montantContractuel != null ? montantCourt(montantContractuel) : '—'}
+          icone={Wallet}
+          detail={montantContractuel != null ? 'FCFA · contrat + avenants' : undefined}
+        />
+        <Tuile
+          titre="Solde restant"
+          valeur={solde != null ? montantCourt(solde) : '—'}
+          icone={Banknote}
+          detail={solde != null ? 'FCFA à décaisser' : undefined}
+          ton={solde != null && solde < 0 ? 'var(--st-crit)' : undefined}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Livrables</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {total === 0 ? (
+              <p className="py-6 text-center text-[13px] text-muted-foreground">Aucun livrable défini.</p>
+            ) : (
+              <>
+                <div className="mb-5 flex h-3 gap-[2px]" role="img" aria-label={segments.map((s) => `${s.libelle} ${s.valeur}`).join(', ')}>
+                  {visibles.map((s, i) => (
+                    <div
+                      key={s.cle}
+                      title={`${s.libelle} : ${s.valeur}`}
+                      className={`h-full ${i === 0 ? 'rounded-l-full' : ''} ${i === visibles.length - 1 ? 'rounded-r-full' : ''}`}
+                      style={{ width: `${(s.valeur / total) * 100}%`, minWidth: 6, background: s.couleur }}
+                    />
+                  ))}
+                </div>
+                <ul className="space-y-3">
+                  {segments.map(({ cle, libelle, valeur, couleur, Icone }) => (
+                    <li key={cle} className="flex items-center gap-3 text-[13px]">
+                      <span className="grid size-7 place-items-center rounded-md" style={{ background: `color-mix(in srgb, ${couleur} 14%, transparent)`, color: couleur }}>
+                        <Icone className="size-3.5" />
+                      </span>
+                      <span className="flex-1">{libelle}</span>
+                      <span className="font-semibold tabular-nums">{valeur}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Situation financière</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-[30px] font-semibold leading-none tabular-nums">
+              {pctFinancier.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} %
+            </div>
+            <div className="mt-1.5 text-[13px] text-muted-foreground">
+              décaissés · <span className="font-medium text-foreground">{formatMontant(cumulMontant)}</span>
+              {montantContractuel != null && <> sur {formatMontant(montantContractuel)}</>}
+            </div>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
+              <div
+                className={pctFinancier > 100 ? 'h-full rounded-full bg-crit' : 'h-full rounded-full bg-primary'}
+                style={{ width: `${Math.min(100, pctFinancier)}%` }}
+              />
+            </div>
+            <dl className="mt-5 grid grid-cols-1 gap-3 text-[13px] sm:grid-cols-2">
+              <div className="rounded-lg bg-muted/70 p-3">
+                <dt className="text-[12px] text-muted-foreground">Décaissé sur le contrat d'origine</dt>
+                <dd className="mt-0.5 font-semibold tabular-nums">{formatMontant(cumulContrat)}</dd>
+              </div>
+              <div className="rounded-lg bg-muted/70 p-3">
+                <dt className="text-[12px] text-muted-foreground">Décaissé sur avenants</dt>
+                <dd className="mt-0.5 font-semibold tabular-nums">{formatMontant(cumulAvenants)}</dd>
+              </div>
+            </dl>
+            <p className="mt-4 text-[12px] text-muted-foreground">
+              Dernier décaissement :{' '}
+              {dernierDecaissement
+                ? `${formatMontant(dernierDecaissement.montant)} le ${fr(dernierDecaissement.date_decaissement).format('D MMMM YYYY')}`
+                : 'aucun'}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
-        <Descriptions column={2} size="small">
-          <Descriptions.Item label="Entité porteuse">{entiteParId.get(projet.entite_id) ?? '—'}</Descriptions.Item>
-          <Descriptions.Item label="Responsable du projet">
-            {projet.responsable_id ? (utilisateurParId.get(projet.responsable_id) ?? '—') : '—'}
-          </Descriptions.Item>
-          <Descriptions.Item label="Organisme chargé de l'exécution">
-            {LIBELLES_ORGANISME[projet.organisme_execution_type]}
-            {projet.organisme_execution_type !== 'organisation' && projet.organisme_execution_nom
-              ? ` — ${projet.organisme_execution_nom}`
-              : ''}
-          </Descriptions.Item>
-          <Descriptions.Item label="Chargé de l'exécution">{nomChargeExecution ?? '—'}</Descriptions.Item>
-          <Descriptions.Item label="Date de début">
-            {projet.date_debut ? new Date(projet.date_debut).toLocaleDateString('fr-FR') : '—'}
-          </Descriptions.Item>
-          <Descriptions.Item label="Date de fin prévue">
-            {projet.date_fin_prevue ? new Date(projet.date_fin_prevue).toLocaleDateString('fr-FR') : '—'}
-          </Descriptions.Item>
-        </Descriptions>
+        <CardHeader>
+          <CardTitle>Pilotage</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <dl className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
+            <Ligne label="Entité porteuse">{entiteParId.get(projet.entite_id)}</Ligne>
+            <Ligne label="Responsable du projet">{projet.responsable_id ? utilisateurParId.get(projet.responsable_id) : undefined}</Ligne>
+            <Ligne label="Organisme chargé de l'exécution">
+              {LIBELLES_ORGANISME[projet.organisme_execution_type]}
+              {projet.organisme_execution_type !== 'organisation' && projet.organisme_execution_nom
+                ? ` — ${projet.organisme_execution_nom}`
+                : ''}
+            </Ligne>
+            <Ligne label="Chargé de l'exécution">{nomChargeExecution ?? undefined}</Ligne>
+            <Ligne label="Date de début">{projet.date_debut ? fr(projet.date_debut).format('D MMMM YYYY') : undefined}</Ligne>
+            <Ligne label="Date de fin prévue">{projet.date_fin_prevue ? fr(projet.date_fin_prevue).format('D MMMM YYYY') : undefined}</Ligne>
+          </dl>
+        </CardContent>
       </Card>
-    </Space>
+    </div>
   );
 }

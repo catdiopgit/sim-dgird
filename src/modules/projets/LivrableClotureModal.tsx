@@ -1,12 +1,14 @@
-import { UploadOutlined } from '@ant-design/icons';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, Button, Form, Input, Modal, Upload } from 'antd';
-import type { UploadFile } from 'antd';
+import { Info } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Champ, ChampFichier } from '../../components/form/champ';
+import { FormDialog } from '../../components/form/form-dialog';
+import { Input } from '../../components/ui/input';
 import { useAjouterDocumentProjet } from '../../hooks/projets/useDocumentsProjet';
 import { useCloturerLivrable } from '../../hooks/projets/useLivrables';
+import { ariaErreur } from '../../lib/form';
 import type { Livrable } from '../../services/projets/livrables';
 
 const schema = z.object({ titre: z.string().min(1, 'Requis') });
@@ -30,9 +32,14 @@ export function LivrableClotureModal({ open, projetId, livrable, onClose }: Prop
   const ajouterDocument = useAjouterDocumentProjet(projetId);
   const cloturer = useCloturerLivrable(projetId);
   const [fichier, setFichier] = useState<File | null>(null);
-  const [fichierListe, setFichierListe] = useState<UploadFile[]>([]);
+  const [tentative, setTentative] = useState(false);
 
-  const { control, handleSubmit, reset } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { titre: '' },
   });
@@ -41,7 +48,7 @@ export function LivrableClotureModal({ open, projetId, livrable, onClose }: Prop
     if (open) {
       reset({ titre: livrable ? `Justificatif — ${livrable.nom}` : '' });
       setFichier(null);
-      setFichierListe([]);
+      setTentative(false);
     }
   }, [open, livrable, reset]);
 
@@ -60,43 +67,28 @@ export function LivrableClotureModal({ open, projetId, livrable, onClose }: Prop
   };
 
   return (
-    <Modal
+    <FormDialog
       open={open}
-      title="Joindre un justificatif et clôturer le livrable"
-      onCancel={onClose}
-      onOk={handleSubmit(onSubmit)}
-      confirmLoading={enCours}
-      destroyOnHidden
+      onClose={onClose}
+      titre="Clôturer le livrable"
+      description={livrable?.nom}
+      onSubmit={(e) => {
+        setTentative(true);
+        void handleSubmit(onSubmit)(e);
+      }}
+      enCours={enCours}
+      libelleValider="Joindre et clôturer"
     >
-      <Alert
-        style={{ marginBottom: 16 }}
-        type="info"
-        showIcon
-        message="Ce livrable n'a pas encore de document justificatif — il est requis pour le clôturer."
-      />
-      <Form layout="vertical">
-        <Form.Item label="Titre du justificatif">
-          <Controller name="titre" control={control} render={({ field }) => <Input {...field} autoFocus />} />
-        </Form.Item>
-        <Form.Item label="Justificatif" required>
-          <Upload
-            fileList={fichierListe}
-            beforeUpload={(f) => {
-              setFichier(f);
-              setFichierListe([{ uid: f.uid, name: f.name, status: 'done' }]);
-              return false;
-            }}
-            onRemove={() => {
-              setFichier(null);
-              setFichierListe([]);
-            }}
-            maxCount={1}
-          >
-            <Button icon={<UploadOutlined />}>Choisir un fichier</Button>
-          </Upload>
-          {!fichier && <Alert style={{ marginTop: 8 }} type="info" showIcon message="Un fichier est requis" />}
-        </Form.Item>
-      </Form>
-    </Modal>
+      <div className="flex gap-2.5 rounded-lg bg-info/10 p-3 text-[13px]">
+        <Info className="mt-0.5 size-4 shrink-0 text-info" />
+        Ce livrable n'a pas encore de document justificatif : il est requis pour le clôturer.
+      </div>
+      <Champ label="Titre du justificatif" htmlFor="cloture-titre" requis erreur={errors.titre?.message}>
+        <Input autoFocus {...ariaErreur('cloture-titre', errors.titre)} {...register('titre')} />
+      </Champ>
+      <Champ label="Fichier" htmlFor="cloture-fichier" requis erreur={tentative && !fichier ? 'Un fichier est requis' : undefined}>
+        <ChampFichier id="cloture-fichier" fichier={fichier} onChange={setFichier} invalide={tentative && !fichier} />
+      </Champ>
+    </FormDialog>
   );
 }

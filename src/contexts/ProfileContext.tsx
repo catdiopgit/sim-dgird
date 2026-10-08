@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { message } from 'antd';
+import { message } from '../lib/notifications';
 import { createContext, useEffect, useMemo, type ReactNode } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { fetchProfileData, type ProfileData, type Profile } from '../services/profile';

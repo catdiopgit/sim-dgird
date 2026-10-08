@@ -19,6 +19,7 @@ import { GedPage } from '../modules/ged/GedPage';
 import { VersementDetailPage } from '../modules/ged/VersementDetailPage';
 import { MissionDetailPage } from '../modules/missions/MissionDetailPage';
 import { MissionStatistiquesPage } from '../modules/missions/MissionStatistiquesPage';
+import { MissionsAntdProvider } from '../modules/missions/MissionsAntdProvider';
 import { MissionsPage } from '../modules/missions/MissionsPage';
 import { MarcheDetailPage } from '../modules/marches/MarcheDetailPage';
 import { MarcheStatistiquesPage } from '../modules/marches/MarcheStatistiquesPage';
@@ -70,6 +71,7 @@ export const router = createBrowserRouter([
           },
           {
             path: 'missions',
+            element: <MissionsAntdProvider />,
             children: env.missionsEnabled
               ? [
                   { index: true, element: <MissionsPage /> },

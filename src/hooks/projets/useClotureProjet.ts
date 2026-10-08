@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { message } from 'antd';
+import { message } from '../../lib/notifications';
 import { confirmerCloture, demanderCloture, rejeterCloture, verifierCloture } from '../../services/projets/cloture';
 
 export function useVerifierCloture(projetId: string | undefined) {

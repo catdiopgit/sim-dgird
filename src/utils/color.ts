@@ -12,3 +12,11 @@ export function darken(hex: string, amount: number): string {
   const toHex = (v: number) => v.toString(16).padStart(2, '0');
   return `#${toHex(clamp((n >> 16) & 0xff))}${toHex(clamp((n >> 8) & 0xff))}${toHex(clamp(n & 0xff))}`;
 }
+
+/** Éclaircit une couleur hex (#RRGGBB) d'un facteur entre 0 (inchangé) et 1 (blanc). */
+export function lighten(hex: string, amount: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const mix = (v: number) => Math.max(0, Math.min(255, Math.round(v + (255 - v) * amount)));
+  const toHex = (v: number) => v.toString(16).padStart(2, '0');
+  return `#${toHex(mix((n >> 16) & 0xff))}${toHex(mix((n >> 8) & 0xff))}${toHex(mix(n & 0xff))}`;
+}

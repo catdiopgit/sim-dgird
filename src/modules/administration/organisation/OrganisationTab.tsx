@@ -10,7 +10,7 @@ import {
   useUpdateOrganisation,
   useUploadOrganisationImage,
 } from '../../../hooks/administration/useOrganisation';
-import { DEFAULT_BRAND_COLOR } from '../../../theme/buildTheme';
+import { DEFAULT_BRAND_COLOR } from '../../../theme/couleurMarque';
 import { EntitesTree } from './EntitesTree';
 import { FonctionsManager } from './FonctionsManager';
 import { TypeEntitesManager } from './TypeEntitesManager';

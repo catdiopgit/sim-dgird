@@ -1,3 +1,38 @@
+/* Refonte design (redesign-maquette/) : Tailwind v4 + tokens shadcn/ui. */
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-serif: 'Spectral', Georgia, 'Times New Roman', serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--foreground);
+  --color-popover: var(--card);
+  --color-popover-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-ring: var(--ring);
+  --color-gold: var(--gold);
+  --color-sidebar: var(--sidebar);
+  --color-destructive: var(--destructive);
+  --color-good: var(--st-good);
+  --color-info: var(--st-info);
+  --color-crit: var(--st-crit);
+  --color-warn: var(--st-warn);
+  --color-good-text: var(--good-text);
+  --color-crit-text: var(--crit-text);
+  --color-warn-text: var(--warn-text);
+}
+
 :root {
   color-scheme: light;
   font-synthesis: none;
@@ -5,14 +40,83 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-serif: 'Spectral', Georgia, 'Times New Roman', serif;
-  /* Couleur institutionnelle : valeur de repli, écrasée au runtime (voir ThemedApp
-     dans src/App.tsx) par la couleur configurée par l'organisation. */
+  /* Couleur institutionnelle : valeurs de repli, écrasées au runtime (voir
+     ThemedApp dans src/App.tsx) par la couleur configurée par l'organisation. */
   --color-primary-700: #1e5a46;
   --color-accent-gold: #b8863a;
   --color-neutral-100: #f4f5f1;
   --color-neutral-200: #e7e9e2;
+
+  --background: #f5f6f3;
+  --foreground: #161a18;
+  --card: #ffffff;
+  --muted: #f0f1ed;
+  --muted-foreground: #5d6660;
+  --border: #e3e5de;
+  --input: #d6d9cf;
+  --primary: #1e5a46;
+  --primary-foreground: #ffffff;
+  --accent: #edf3f0;
+  --accent-foreground: #143d30;
+  --ring: #1e5a46;
+  --gold: #b8863a;
+  --sidebar: #ffffff;
+  --destructive: #c23b34;
+
+  /* Graphiques et statuts (palette validée daltonisme, cf. redesign-maquette/index.html) */
+  --chart-1: #1e5a46;
+  --chart-1-soft: color-mix(in srgb, var(--chart-1) 12%, transparent);
+  --grid: #e8e9e3;
+  --axis: #898781;
+  --st-good: #0ca30c;
+  --st-info: #2a78d6;
+  --st-crit: #d03b3b;
+  --st-warn: #fab219;
+  --st-neutral: #a3a8a2;
+  --good-text: #006300;
+  --crit-text: #b3261e;
+  --warn-text: #8a5a00;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: #0d100f;
+  --foreground: #edf0ed;
+  --card: #141816;
+  --muted: #1b201d;
+  --muted-foreground: #9aa39d;
+  --border: #252b28;
+  --input: #313833;
+  --primary: #4fae88;
+  --primary-foreground: #06140e;
+  --accent: #1a2520;
+  --accent-foreground: #cfe9dd;
+  --ring: #4fae88;
+  --gold: #d4a55a;
+  --sidebar: #111513;
+  --destructive: #e66767;
+  --chart-1: #4fae88;
+  --chart-1-soft: color-mix(in srgb, var(--chart-1) 16%, transparent);
+  --grid: #232926;
+  --st-info: #3987e5;
+  --st-neutral: #5d645f;
+  --good-text: #3fcf3f;
+  --crit-text: #f08a8a;
+  --warn-text: #f5c451;
+}
+
+/* Défilement horizontal sans barre visible (onglets). Hors @layer pour
+   l'emporter sur la règle globale * { scrollbar-width } ci-dessous. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.font-serif-title {
+  font-family: var(--font-serif);
+  letter-spacing: -0.01em;
 }
 
 * {
@@ -22,18 +126,8 @@
 body {
   margin: 0;
   font-family: var(--font-sans);
-}
-
-.ant-typography,
-.ant-typography-title,
-h1.ant-typography,
-h2.ant-typography,
-h3.ant-typography,
-h4.ant-typography,
-h5.ant-typography {
-  font-family: var(--font-serif);
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  background: var(--background);
+  color: var(--foreground);
 }
 
 ::-webkit-scrollbar {
@@ -46,19 +140,19 @@ h5.ant-typography {
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #d9dcd2;
+  background-color: var(--input);
   border-radius: 8px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #b9bfb2;
+  background-color: var(--muted-foreground);
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #d9dcd2 transparent;
+  scrollbar-color: var(--input) transparent;
 }
 
 :focus-visible {
@@ -68,121 +162,8 @@ h5.ant-typography {
 }
 
 ::selection {
-  background: #bfd9cd;
+  background: var(--accent);
   color: var(--color-primary-700);
-}
-
-.ant-menu-item-selected::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 8px;
-  bottom: 8px;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-  background: var(--color-accent-gold);
-}
-
-.login-page {
-  min-height: 100vh;
-  display: flex;
-}
-
-.login-brand-panel {
-  position: relative;
-  flex: 0 0 58%;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 64px;
-  overflow: hidden;
-}
-
-.login-brand-texture {
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-  background-size: 18px 18px;
-  pointer-events: none;
-}
-
-.login-brand-texture::before,
-.login-brand-texture::after {
-  content: '';
-  position: absolute;
-  border: 1px solid rgba(184, 134, 58, 0.18);
-  border-radius: 50%;
-}
-
-.login-brand-texture::before {
-  width: 480px;
-  height: 480px;
-  right: -180px;
-  bottom: -220px;
-}
-
-.login-brand-texture::after {
-  width: 320px;
-  height: 320px;
-  right: 40px;
-  top: -140px;
-}
-
-.login-form-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-neutral-100);
-  padding: 32px;
-}
-
-@media (max-width: 1199px) {
-  .login-brand-panel {
-    flex-basis: 50%;
-  }
-}
-
-@media (max-width: 992px) {
-  .login-page {
-    flex-direction: column;
-    min-height: auto;
-  }
-
-  .login-brand-panel {
-    flex: 0 0 auto;
-    min-height: 200px;
-    padding: 32px;
-    justify-content: center;
-  }
-
-  .login-brand-panel .login-brand-details,
-  .login-brand-panel .login-brand-topbar,
-  .login-brand-panel .login-brand-orgname,
-  .login-brand-panel > span:last-child {
-    /* !important requis : .login-brand-details et .login-brand-topbar
-       portent un style inline (display: flex, voir styles.brandDetails et
-       styles.brandTopbar dans LoginPage.tsx) qui, sans cela, l'emporterait
-       sur cette règle malgré le media query. */
-    display: none !important;
-  }
-
-  .login-form-panel {
-    min-height: calc(100vh - 200px);
-  }
-}
-
-@media (max-width: 576px) {
-  .login-brand-panel {
-    min-height: 120px;
-    padding: 20px;
-  }
-
-  .login-form-panel {
-    padding: 20px;
-    min-height: calc(100vh - 120px);
-  }
 }
 
 #root {
@@ -191,9 +172,40 @@ h5.ant-typography {
 
 /* Impression ciblée (fiche d'exploitation courrier, page Statistiques…) :
    isole l'élément marqué .zone-imprimable lors de l'impression, quel que
-   soit l'endroit du DOM où il est monté (les Modal antd sont portés
+   soit l'endroit du DOM où il est monté (les fenêtres Radix sont portées
    directement sous <body>). */
 @media print {
+  /* Impression toujours sur fond clair, même en mode sombre, et couleurs des
+     barres de graphiques conservées. */
+  .dark {
+    color-scheme: light;
+    --background: #ffffff;
+    --card: #ffffff;
+    --foreground: #161a18;
+    --muted: #f0f1ed;
+    --muted-foreground: #5d6660;
+    --border: #e3e5de;
+    --grid: #e8e9e3;
+    --accent: #edf3f0;
+    --accent-foreground: #143d30;
+    --good-text: #006300;
+    --crit-text: #b3261e;
+    --warn-text: #8a5a00;
+  }
+  /* Fenêtres Radix (fiche d'exploitation…) : centrées par transform et
+     bornées en hauteur à l'écran — neutralisé à l'impression pour que la
+     zone imprimable ne soit ni décalée ni rognée. */
+  [role="dialog"],
+  [role="dialog"] *:not(.zone-imprimable) {
+    position: static !important;
+    transform: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .zone-imprimable * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
   body * {
     visibility: hidden;
   }
@@ -212,5 +224,22 @@ h5.ant-typography {
      .zone-imprimable donc invisible à l'impression. */
   .titre-impression {
     display: block !important;
+  }
+}
+
+/* Entrée des notifications (components/ui/notifications.tsx). */
+@keyframes notif-entree {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [class*='notif-entree'] {
+    animation: none !important;
   }
 }

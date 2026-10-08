@@ -1,11 +1,14 @@
-import { DownloadOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
-import { Button, Descriptions, Modal, Skeleton, Space, Typography } from 'antd';
+import { Download } from 'lucide-react';
+import { Button } from '../../components/ui/button';
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { Skeleton } from '../../components/ui/skeleton';
 import { useEffect } from 'react';
 import { obtenirUrlObjet } from '../../config/apiClient';
 import type { Document } from '../../services/ged/documents';
 import { telechargerVersion, useInfosFichierDocuments } from '../../hooks/ged/useDocuments';
 import { useTracerConsultation } from '../../hooks/ged/useConsultations';
+import { fr } from '../../utils/dateFr';
 import { formatTailleFichier, getInfosTypeFichier } from '../../utils/ged/typeFichier';
 
 interface Props {
@@ -42,6 +45,7 @@ export function DocumentPreviewModal({ document, onClose }: Props) {
 
   const { categorie, icone: Icone, couleur, libelle } = getInfosTypeFichier(infos?.type_mime, infos?.nom_fichier);
   const chargement = chargementInfos || (Boolean(infos) && chargementUrl);
+  const apercu = (categorie === 'pdf' || categorie === 'image') && urlSignee;
 
   const telecharger = () => {
     if (!infos) return;
@@ -49,42 +53,45 @@ export function DocumentPreviewModal({ document, onClose }: Props) {
   };
 
   return (
-    <Modal open onCancel={onClose} footer={null} width={800} title={document.titre}>
-      {chargement ? (
-        <Skeleton active />
-      ) : categorie === 'pdf' && urlSignee ? (
-        <iframe src={urlSignee} title={document.titre} style={{ width: '100%', height: '70vh', border: 'none' }} />
-      ) : categorie === 'image' && urlSignee ? (
-        <img
-          src={urlSignee}
-          alt={document.titre}
-          style={{ maxWidth: '100%', maxHeight: '70vh', display: 'block', margin: '0 auto' }}
-        />
-      ) : (
-        <Space direction="vertical" style={{ width: '100%' }} size={16}>
-          <Space align="center">
-            <Icone style={{ fontSize: 40, color: couleur }} />
-            <div>
-              <Typography.Text strong>{infos?.nom_fichier ?? document.titre}</Typography.Text>
-              <br />
-              <Typography.Text type="secondary">Aperçu non disponible pour ce format ({libelle}).</Typography.Text>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-4xl">
+        <DialogHeader>
+          <DialogTitle className="truncate">{document.titre}</DialogTitle>
+          <DialogDescription>
+            {libelle}
+            {infos?.taille_octets != null && ` · ${formatTailleFichier(infos.taille_octets)}`}
+            {document.date_archivage && ` · archivé le ${fr(document.date_archivage).format('D MMMM YYYY')}`}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody className={apercu ? 'bg-muted/50 p-3' : undefined}>
+          {chargement ? (
+            <Skeleton className="h-[60vh] w-full" />
+          ) : categorie === 'pdf' && urlSignee ? (
+            <iframe src={urlSignee} title={document.titre} className="h-[70vh] w-full rounded-md border-0 bg-white" />
+          ) : categorie === 'image' && urlSignee ? (
+            <img src={urlSignee} alt={document.titre} className="mx-auto block max-h-[70vh] max-w-full rounded-md" />
+          ) : (
+            <div className="flex flex-col items-center py-10 text-center">
+              <div className="grid size-16 place-items-center rounded-xl bg-muted">
+                <Icone className="size-8" style={{ color: couleur }} aria-hidden />
+              </div>
+              <div className="mt-4 break-all font-medium">{infos?.nom_fichier ?? document.titre}</div>
+              <p className="mt-1 text-[13px] text-muted-foreground">
+                Aperçu non disponible pour ce format ({libelle}). Téléchargez le fichier pour l'ouvrir.
+              </p>
             </div>
-          </Space>
-          <Descriptions column={1} size="small" bordered>
-            <Descriptions.Item label="Type">{libelle}</Descriptions.Item>
-            <Descriptions.Item label="Taille">{formatTailleFichier(infos?.taille_octets)}</Descriptions.Item>
-            <Descriptions.Item label="Archivé le">
-              {document.date_archivage ? new Date(document.date_archivage).toLocaleDateString('fr-FR') : '—'}
-            </Descriptions.Item>
-          </Descriptions>
-        </Space>
-      )}
-
-      <div style={{ marginTop: 16, textAlign: 'right' }}>
-        <Button type="primary" icon={<DownloadOutlined />} onClick={telecharger} disabled={!infos}>
-          Télécharger
-        </Button>
-      </div>
-    </Modal>
+          )}
+        </DialogBody>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Fermer
+          </Button>
+          <Button onClick={telecharger} disabled={!infos}>
+            <Download />
+            Télécharger
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

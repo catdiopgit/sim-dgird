@@ -1,10 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Form, Input, Modal, Select } from 'antd';
 import { useEffect } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Champ } from '../../components/form/champ';
+import { FormDialog } from '../../components/form/form-dialog';
+import { Input, Textarea } from '../../components/ui/input';
+import { NativeSelect } from '../../components/ui/native-select';
 import { useEntites } from '../../hooks/administration/useEntites';
 import { useCreerDossierGed, useModifierDossierGed } from '../../hooks/ged/useDossiers';
+import { ariaErreur } from '../../lib/form';
 import type { GedDossier } from '../../services/ged/dossiers';
 
 const schema = z.object({
@@ -33,7 +37,12 @@ export function DossierFormModal({ open, organisationId, dossier, parentDossierI
   const creer = useCreerDossierGed(organisationId);
   const modifier = useModifierDossierGed(organisationId);
 
-  const { control, handleSubmit, reset } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { libelle: '', code: '', entiteId: '', description: '' },
   });
@@ -42,6 +51,7 @@ export function DossierFormModal({ open, organisationId, dossier, parentDossierI
     if (open) {
       reset({
         libelle: dossier?.libelle ?? '',
+        // En édition, le code n'est pas modifiable mais reste requis par le schéma.
         code: dossier?.code ?? '',
         entiteId: dossier?.entite_id ?? '',
         description: dossier?.description ?? '',
@@ -81,50 +91,37 @@ export function DossierFormModal({ open, organisationId, dossier, parentDossierI
   };
 
   return (
-    <Modal
+    <FormDialog
       open={open}
-      title={dossier ? 'Renommer le dossier' : 'Nouveau dossier'}
-      onCancel={onClose}
-      onOk={handleSubmit(onSubmit)}
-      confirmLoading={enCours}
-      destroyOnHidden
+      onClose={onClose}
+      titre={dossier ? 'Renommer le dossier' : 'Nouveau dossier'}
+      onSubmit={handleSubmit(onSubmit)}
+      enCours={enCours}
+      libelleValider={dossier ? 'Enregistrer' : 'Créer le dossier'}
     >
-      <Form layout="vertical">
-        <Form.Item label="Libellé">
-          <Controller name="libelle" control={control} render={({ field }) => <Input {...field} autoFocus />} />
-        </Form.Item>
-
-        {!dossier && (
-          <Form.Item label="Code" help="Identifiant court, unique dans l'organisation">
-            <Controller name="code" control={control} render={({ field }) => <Input {...field} />} />
-          </Form.Item>
-        )}
-
-        {!dossier && (
-          <Form.Item label="Entité" help="Laisser vide pour un dossier transverse (partagé par toute l'organisation)">
-            <Controller
-              name="entiteId"
-              control={control}
-              render={({ field }) => (
-                <Select
-                  {...field}
-                  allowClear
-                  placeholder="Dossier transverse"
-                  options={(entites ?? []).map((e) => ({ value: e.id, label: e.libelle }))}
-                />
-              )}
-            />
-          </Form.Item>
-        )}
-
-        <Form.Item label="Description">
-          <Controller
-            name="description"
-            control={control}
-            render={({ field }) => <Input.TextArea {...field} rows={2} />}
-          />
-        </Form.Item>
-      </Form>
-    </Modal>
+      <Champ label="Libellé" htmlFor="dossier-libelle" requis erreur={errors.libelle?.message}>
+        <Input autoFocus {...ariaErreur('dossier-libelle', errors.libelle)} {...register('libelle')} />
+      </Champ>
+      {!dossier && (
+        <>
+          <Champ label="Code" htmlFor="dossier-code" requis aide="Identifiant court, unique dans l'organisation" erreur={errors.code?.message}>
+            <Input {...ariaErreur('dossier-code', errors.code)} {...register('code')} />
+          </Champ>
+          <Champ label="Entité" htmlFor="dossier-entite" aide="Laisser vide pour un dossier transverse, partagé par toute l'organisation.">
+            <NativeSelect id="dossier-entite" {...register('entiteId')}>
+              <option value="">Dossier transverse</option>
+              {(entites ?? []).map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.sigle ? `${e.sigle} — ${e.libelle}` : e.libelle}
+                </option>
+              ))}
+            </NativeSelect>
+          </Champ>
+        </>
+      )}
+      <Champ label="Description" htmlFor="dossier-description">
+        <Textarea id="dossier-description" rows={2} {...register('description')} />
+      </Champ>
+    </FormDialog>
   );
 }

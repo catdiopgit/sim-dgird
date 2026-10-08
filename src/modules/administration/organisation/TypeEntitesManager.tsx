@@ -1,9 +1,17 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { PlusOutlined } from '@ant-design/icons';
-import { Button, Form, Input, InputNumber, Modal, Popconfirm, Switch, Table, Typography } from 'antd';
+import { Network, Plus } from 'lucide-react';
+import { Champ } from '../../../components/form/champ';
+import { FormDialog } from '../../../components/form/form-dialog';
+import { Input } from '../../../components/ui/input';
+import { ariaErreur } from '../../../lib/form';
 import { useEffect, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { ActionsLigne, BoutonModifier, BoutonSuppression } from '../../../components/form/actions-ligne';
+import { Button } from '../../../components/ui/button';
+import { EnTeteSection } from '../../../components/ui/page-header';
+import { Switch as Interrupteur } from '../../../components/ui/switch';
+import { Tableau } from '../../../components/ui/tableau';
 import {
   useTypeEntiteMutations,
   useTypeEntites,
@@ -28,7 +36,14 @@ export function TypeEntitesManager({ organisationId, peutModifier }: Props) {
   const { create, update, remove } = useTypeEntiteMutations(organisationId);
   const [edition, setEdition] = useState<TypeEntite | 'nouveau' | null>(null);
 
-  const { control, handleSubmit, reset, setValue, watch } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { code: '', libelle: '', ordre: 0 },
   });
@@ -64,59 +79,62 @@ export function TypeEntitesManager({ organisationId, peutModifier }: Props) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <Typography.Title level={5} style={{ margin: 0 }}>
-          Types d'entités
-        </Typography.Title>
-        {peutModifier && (
-          <Button icon={<PlusOutlined />} onClick={() => setEdition('nouveau')}>
-            Ajouter un type
-          </Button>
-        )}
-      </div>
-      <Table
-        rowKey="id"
-        size="small"
-        loading={isLoading}
-        dataSource={typeEntites}
-        pagination={false}
-        columns={[
-          { title: 'Code', dataIndex: 'code' },
-          { title: 'Libellé', dataIndex: 'libelle' },
-          { title: 'Ordre', dataIndex: 'ordre', width: 80 },
+      <EnTeteSection
+        titre="Types d'entités"
+        description="Niveaux de l'organigramme (direction, service, bureau…), dans leur ordre hiérarchique."
+        actions={
+          peutModifier && (
+            <Button variant="outline" onClick={() => setEdition('nouveau')}>
+              <Plus />
+              Ajouter un type
+            </Button>
+          )
+        }
+      />
+      <Tableau<TypeEntite>
+        libelle="Types d'entités"
+        lignes={typeEntites}
+        cleLigne={(t) => t.id}
+        chargement={isLoading}
+        minLargeur={480}
+        vide={{ icone: Network, titre: "Aucun type d'entité" }}
+        colonnes={[
+          { cle: 'ordre', titre: 'Ordre', className: 'w-16 tabular-nums text-muted-foreground', rendu: (t) => t.ordre },
+          { cle: 'libelle', titre: 'Libellé', rendu: (t) => <span className="font-medium">{t.libelle}</span> },
+          { cle: 'code', titre: 'Code', rendu: (t) => <span className="font-mono text-[12px] text-muted-foreground">{t.code}</span> },
           {
-            title: 'Actif',
-            dataIndex: 'actif',
-            width: 90,
-            render: (actif: boolean, record: TypeEntite) => (
-              <Switch
-                size="small"
-                checked={actif}
+            cle: 'actif',
+            titre: 'Actif',
+            className: 'w-20',
+            rendu: (t) => (
+              <Interrupteur
+                aria-label={`Type ${t.libelle} actif`}
+                checked={t.actif}
                 disabled={!peutModifier}
-                onChange={(checked) => update.mutate({ id: record.id, patch: { actif: checked } })}
+                onCheckedChange={(checked) => update.mutate({ id: t.id, patch: { actif: checked } })}
               />
             ),
           },
           ...(peutModifier
             ? [
                 {
-                  title: 'Actions',
-                  key: 'actions',
-                  width: 140,
-                  render: (_: unknown, record: TypeEntite) => (
-                    <span>
-                      <Button type="link" size="small" onClick={() => setEdition(record)}>
-                        Modifier
-                      </Button>
-                      <Popconfirm
-                        title="Supprimer ce type d'entité ?"
-                        onConfirm={() => remove.mutate(record.id)}
+                  cle: 'actions',
+                  titre: <span className="sr-only">Actions</span>,
+                  className: 'w-24',
+                  rendu: (t: TypeEntite) => (
+                    <ActionsLigne>
+                      <BoutonModifier libelle={`Modifier ${t.libelle}`} onClick={() => setEdition(t)} />
+                      <BoutonSuppression
+                        libelle={`Supprimer ${t.libelle}`}
+                        titre="Supprimer ce type d'entité ?"
+                        enCours={remove.isPending}
+                        onConfirmer={(fermer) => remove.mutate(t.id, { onSuccess: fermer })}
                       >
-                        <Button type="link" size="small" danger>
-                          Supprimer
-                        </Button>
-                      </Popconfirm>
-                    </span>
+                        <p>
+                          Le type <strong>{t.libelle}</strong> sera supprimé. Pour le conserver dans l'historique, désactivez-le plutôt.
+                        </p>
+                      </BoutonSuppression>
+                    </ActionsLigne>
                   ),
                 },
               ]
@@ -124,32 +142,26 @@ export function TypeEntitesManager({ organisationId, peutModifier }: Props) {
         ]}
       />
 
-      <Modal
+      <FormDialog
         open={edition !== null}
-        title={edition === 'nouveau' ? "Nouveau type d'entité" : "Modifier le type d'entité"}
-        onCancel={() => setEdition(null)}
-        onOk={handleSubmit(onSubmit)}
-        confirmLoading={create.isPending || update.isPending}
-        destroyOnHidden
+        onClose={() => setEdition(null)}
+        titre={edition === 'nouveau' ? "Nouveau type d'entité" : "Modifier le type d'entité"}
+        onSubmit={handleSubmit(onSubmit)}
+        enCours={create.isPending || update.isPending}
+        libelleValider={edition === 'nouveau' ? 'Créer le type' : 'Enregistrer'}
       >
-        <Form layout="vertical">
-          <Form.Item label="Libellé">
-            <Controller name="libelle" control={control} render={({ field }) => <Input {...field} autoFocus />} />
-          </Form.Item>
-          <Form.Item label="Code">
-            <Controller name="code" control={control} render={({ field }) => <Input {...field} />} />
-          </Form.Item>
-          <Form.Item label="Ordre">
-            <Controller
-              name="ordre"
-              control={control}
-              render={({ field }) => (
-                <InputNumber {...field} onChange={(v) => field.onChange(v ?? 0)} style={{ width: '100%' }} />
-              )}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
+        <Champ label="Libellé" htmlFor="type-entite-libelle" requis erreur={errors.libelle?.message}>
+          <Input autoFocus {...ariaErreur('type-entite-libelle', errors.libelle)} {...register('libelle')} />
+        </Champ>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_120px]">
+          <Champ label="Code" htmlFor="type-entite-code" requis aide={edition === 'nouveau' ? 'Proposé à partir du libellé.' : undefined} erreur={errors.code?.message}>
+            <Input className="font-mono" {...ariaErreur('type-entite-code', errors.code)} {...register('code')} />
+          </Champ>
+          <Champ label="Ordre" htmlFor="type-entite-ordre" erreur={errors.ordre?.message}>
+            <Input type="number" step={1} {...ariaErreur('type-entite-ordre', errors.ordre)} {...register('ordre', { setValueAs: (v) => (v === '' ? 0 : Number(v)) })} />
+          </Champ>
+        </div>
+      </FormDialog>
     </div>
   );
 }

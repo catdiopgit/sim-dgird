@@ -1,18 +1,10 @@
-import {
-  FileExcelOutlined,
-  FileImageOutlined,
-  FileOutlined,
-  FilePdfOutlined,
-  FilePptOutlined,
-  FileWordOutlined,
-} from '@ant-design/icons';
-import type { ComponentType, CSSProperties } from 'react';
+import { File, FileImage, FileSpreadsheet, FileText, FileType2, Presentation, type LucideIcon } from 'lucide-react';
 
 export type CategorieFichier = 'pdf' | 'word' | 'excel' | 'powerpoint' | 'image' | 'autre';
 
 export interface InfosTypeFichier {
   categorie: CategorieFichier;
-  icone: ComponentType<{ style?: CSSProperties }>;
+  icone: LucideIcon;
   couleur: string;
   libelle: string;
 }
@@ -55,13 +47,13 @@ function categorieDepuisMime(typeMime: string | null | undefined): CategorieFich
   return null;
 }
 
-const CATALOGUE: Record<CategorieFichier, { icone: ComponentType<{ style?: CSSProperties }>; couleur: string; libelle: string }> = {
-  pdf: { icone: FilePdfOutlined, couleur: '#d4380d', libelle: 'PDF' },
-  word: { icone: FileWordOutlined, couleur: '#1d4ed8', libelle: 'Word' },
-  excel: { icone: FileExcelOutlined, couleur: '#15803d', libelle: 'Excel' },
-  powerpoint: { icone: FilePptOutlined, couleur: '#c2410c', libelle: 'PowerPoint' },
-  image: { icone: FileImageOutlined, couleur: '#7c3aed', libelle: 'Image' },
-  autre: { icone: FileOutlined, couleur: '#64748b', libelle: 'Fichier' },
+const CATALOGUE: Record<CategorieFichier, Omit<InfosTypeFichier, 'categorie'>> = {
+  pdf: { icone: FileType2, couleur: '#d4380d', libelle: 'PDF' },
+  word: { icone: FileText, couleur: '#1d4ed8', libelle: 'Word' },
+  excel: { icone: FileSpreadsheet, couleur: '#15803d', libelle: 'Excel' },
+  powerpoint: { icone: Presentation, couleur: '#c2410c', libelle: 'PowerPoint' },
+  image: { icone: FileImage, couleur: '#7c3aed', libelle: 'Image' },
+  autre: { icone: File, couleur: '#64748b', libelle: 'Fichier' },
 };
 
 // Détermine la catégorie d'un fichier à partir de son type MIME (priorité) ou,

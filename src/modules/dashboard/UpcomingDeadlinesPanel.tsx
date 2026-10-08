@@ -1,6 +1,8 @@
-import { Card, Empty, Skeleton, theme, Typography } from 'antd';
-import dayjs from 'dayjs';
+import { fr } from '../../utils/dateFr';
 import { useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Skeleton } from '../../components/ui/skeleton';
+import { cn } from '../../lib/utils';
 import type { EcheanceProchaine } from '../../services/dashboard/echeances';
 
 interface Props {
@@ -10,53 +12,54 @@ interface Props {
 
 export function UpcomingDeadlinesPanel({ echeances, chargement }: Props) {
   const navigate = useNavigate();
-  const { token } = theme.useToken();
-
-  if (chargement) {
-    return (
-      <Card size="small" title="Prochaines échéances" style={{ height: '100%' }}>
-        <Skeleton active paragraph={{ rows: 3 }} />
-      </Card>
-    );
-  }
-
-  const liste = (echeances ?? []).slice(0, 8);
+  const liste = [...(echeances ?? [])].sort((a, b) => a.dateEcheance.localeCompare(b.dateEcheance)).slice(0, 8);
 
   return (
-    <Card size="small" title="Prochaines échéances" style={{ height: '100%' }}>
-      {liste.length === 0 ? (
-        <Empty description="Aucune échéance prochaine" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {liste.map((e) => (
-            <div
-              key={`${e.type}-${e.id}`}
-              onClick={() => navigate(e.type === 'livrable' ? `/projets/${e.lienId}` : `/missions/${e.lienId}`)}
-              style={{ display: 'flex', gap: 12, cursor: 'pointer', alignItems: 'flex-start' }}
-            >
-              <div
-                style={{
-                  minWidth: 52,
-                  textAlign: 'center',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: e.enRetard ? token.colorError : token.colorTextSecondary,
-                  textTransform: 'uppercase',
-                }}
-              >
-                {dayjs(e.dateEcheance).format('DD MMM')}
-              </div>
-              <div>
-                <Typography.Text style={{ display: 'block', fontSize: 13 }}>{e.libelle}</Typography.Text>
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  {e.reference}
-                  {e.enRetard ? ' · Dépassée' : ''}
-                </Typography.Text>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle>Prochaines échéances</CardTitle>
+        <span className="text-[12px] text-muted-foreground">30 jours</span>
+      </CardHeader>
+      <CardContent className="px-2 pb-3">
+        {chargement ? (
+          <div className="space-y-3 px-3 py-2">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : liste.length === 0 ? (
+          <div className="py-8 text-center text-[13px] text-muted-foreground">Aucune échéance prochaine</div>
+        ) : (
+          <ul>
+            {liste.map((e) => (
+              <li key={`${e.type}-${e.id}`}>
+                <button
+                  type="button"
+                  onClick={() => navigate(e.type === 'livrable' ? `/projets/${e.lienId}` : `/missions/${e.lienId}`)}
+                  className="flex w-full cursor-pointer items-start gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-muted"
+                >
+                  <span
+                    className={cn(
+                      'w-12 shrink-0 rounded-md border py-1 text-center',
+                      e.enRetard ? 'border-crit/40 bg-crit/8 text-crit-text' : 'border-border text-muted-foreground',
+                    )}
+                  >
+                    <span className="block text-[15px] font-semibold leading-none tabular-nums">{fr(e.dateEcheance).format('D')}</span>
+                    <span className="mt-0.5 block text-[10px] uppercase">{fr(e.dateEcheance).format('MMM').replace('.', '')}</span>
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[13px] font-medium leading-snug">{e.libelle}</span>
+                    <span className="block text-[12px] text-muted-foreground">
+                      {e.reference}
+                      {e.enRetard && <span className="font-medium text-crit-text"> · Dépassée</span>}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
     </Card>
   );
 }

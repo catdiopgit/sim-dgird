@@ -11,6 +11,7 @@ import { UtilisateursTab } from '../modules/administration/utilisateurs/Utilisat
 import { WorkflowsTab } from '../modules/administration/workflows/WorkflowsTab';
 import { CourrierDetailPage } from '../modules/courrier/CourrierDetailPage';
 import { CourrierListePage } from '../modules/courrier/CourrierListePage';
+import { CourrierNouveauPage } from '../modules/courrier/CourrierNouveauPage';
 import { CourrierStatistiquesPage } from '../modules/courrier/CourrierStatistiquesPage';
 import { ArchivesPage } from '../modules/ged/ArchivesPage';
 import { ArchivagePage } from '../modules/ged/archivage/ArchivagePage';
@@ -19,6 +20,7 @@ import { GedPage } from '../modules/ged/GedPage';
 import { VersementDetailPage } from '../modules/ged/VersementDetailPage';
 import { MissionDetailPage } from '../modules/missions/MissionDetailPage';
 import { MissionStatistiquesPage } from '../modules/missions/MissionStatistiquesPage';
+import { MissionsAntdProvider } from '../modules/missions/MissionsAntdProvider';
 import { MissionsPage } from '../modules/missions/MissionsPage';
 import { MarcheDetailPage } from '../modules/marches/MarcheDetailPage';
 import { MarcheStatistiquesPage } from '../modules/marches/MarcheStatistiquesPage';
@@ -46,6 +48,7 @@ export const router = createBrowserRouter([
             path: 'courriers',
             children: [
               { index: true, element: <CourrierListePage /> },
+              { path: 'nouveau', element: <CourrierNouveauPage /> },
               { path: 'statistiques', element: <CourrierStatistiquesPage /> },
               { path: ':id', element: <CourrierDetailPage /> },
             ],
@@ -70,6 +73,7 @@ export const router = createBrowserRouter([
           },
           {
             path: 'missions',
+            element: <MissionsAntdProvider />,
             children: env.missionsEnabled
               ? [
                   { index: true, element: <MissionsPage /> },

@@ -1,12 +1,14 @@
-import { UploadOutlined } from '@ant-design/icons';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, Button, Form, Input, Modal, Select, Upload } from 'antd';
-import type { UploadFile } from 'antd';
 import { useEffect, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Champ, ChampFichier } from '../../components/form/champ';
+import { FormDialog } from '../../components/form/form-dialog';
+import { Input, Textarea } from '../../components/ui/input';
+import { NativeSelect } from '../../components/ui/native-select';
 import { useAjouterDocumentVersement } from '../../hooks/ged/useDocuments';
 import { useConfidentialitesGed } from '../../hooks/ged/useGedReferentiel';
+import { ariaErreur } from '../../lib/form';
 import type { Document } from '../../services/ged/documents';
 
 const schema = z.object({
@@ -24,6 +26,8 @@ interface Props {
   onAjoute: (document: Document) => void;
 }
 
+const VIDE: FormValues = { titre: '', description: '', confidentialiteValeurId: '' };
+
 // Ajoute un document au versement en brouillon (GED V2) : le classement
 // (dossier du plan de classement, mots-clés, renommage) reste une action
 // ultérieure et facultative pour l'agent — c'est l'archiviste qui classe
@@ -32,20 +36,33 @@ export function DocumentAjouterModal({ open, organisationId, versementId, onClos
   const { data: confidentialites } = useConfidentialitesGed(organisationId);
   const ajouter = useAjouterDocumentVersement(versementId);
   const [fichier, setFichier] = useState<File | null>(null);
-  const [fichierListe, setFichierListe] = useState<UploadFile[]>([]);
+  const [tentative, setTentative] = useState(false);
 
-  const { control, handleSubmit, reset } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    getValues,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { titre: '', description: '', confidentialiteValeurId: '' },
+    defaultValues: VIDE,
   });
 
   useEffect(() => {
     if (open) {
-      reset({ titre: '', description: '', confidentialiteValeurId: '' });
+      reset(VIDE);
       setFichier(null);
-      setFichierListe([]);
+      setTentative(false);
     }
   }, [open, reset]);
+
+  const choisirFichier = (f: File | null) => {
+    setFichier(f);
+    // Titre proposé à partir du nom du fichier s'il n'a pas encore été saisi.
+    if (f && !getValues('titre')) setValue('titre', f.name.replace(/\.[^.]+$/, ''), { shouldValidate: tentative });
+  };
 
   const onSubmit = (values: FormValues) => {
     if (!fichier) return;
@@ -64,60 +81,37 @@ export function DocumentAjouterModal({ open, organisationId, versementId, onClos
   };
 
   return (
-    <Modal
+    <FormDialog
       open={open}
-      title="Ajouter un document"
-      onCancel={onClose}
-      onOk={handleSubmit(onSubmit)}
-      confirmLoading={ajouter.isPending}
-      destroyOnHidden
+      onClose={onClose}
+      titre="Ajouter un document"
+      description="Le fichier devient la première version du document."
+      onSubmit={(e) => {
+        setTentative(true);
+        void handleSubmit(onSubmit)(e);
+      }}
+      enCours={ajouter.isPending}
+      libelleValider="Ajouter le document"
     >
-      <Form layout="vertical">
-        <Form.Item label="Titre">
-          <Controller name="titre" control={control} render={({ field }) => <Input {...field} autoFocus />} />
-        </Form.Item>
-
-        <Form.Item label="Description">
-          <Controller
-            name="description"
-            control={control}
-            render={({ field }) => <Input.TextArea {...field} rows={2} />}
-          />
-        </Form.Item>
-
-        <Form.Item label="Confidentialité">
-          <Controller
-            name="confidentialiteValeurId"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                allowClear
-                options={(confidentialites ?? []).map((v) => ({ value: v.id, label: v.libelle }))}
-              />
-            )}
-          />
-        </Form.Item>
-
-        <Form.Item label="Fichier (première version)" required>
-          <Upload
-            fileList={fichierListe}
-            beforeUpload={(f) => {
-              setFichier(f);
-              setFichierListe([{ uid: f.uid, name: f.name, status: 'done' }]);
-              return false;
-            }}
-            onRemove={() => {
-              setFichier(null);
-              setFichierListe([]);
-            }}
-            maxCount={1}
-          >
-            <Button icon={<UploadOutlined />}>Choisir un fichier</Button>
-          </Upload>
-          {!fichier && <Alert style={{ marginTop: 8 }} type="info" showIcon message="Un fichier est requis" />}
-        </Form.Item>
-      </Form>
-    </Modal>
+      <Champ label="Fichier" htmlFor="document-fichier" requis erreur={tentative && !fichier ? 'Un fichier est requis' : undefined}>
+        <ChampFichier id="document-fichier" fichier={fichier} onChange={choisirFichier} invalide={tentative && !fichier} />
+      </Champ>
+      <Champ label="Titre" htmlFor="document-titre" requis erreur={errors.titre?.message}>
+        <Input {...ariaErreur('document-titre', errors.titre)} {...register('titre')} />
+      </Champ>
+      <Champ label="Description" htmlFor="document-description">
+        <Textarea id="document-description" rows={2} {...register('description')} />
+      </Champ>
+      <Champ label="Confidentialité" htmlFor="document-confidentialite">
+        <NativeSelect id="document-confidentialite" {...register('confidentialiteValeurId')}>
+          <option value="">—</option>
+          {(confidentialites ?? []).map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.libelle}
+            </option>
+          ))}
+        </NativeSelect>
+      </Champ>
+    </FormDialog>
   );
 }

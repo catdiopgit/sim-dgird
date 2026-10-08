@@ -1,9 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Form, Input, Modal, Select } from 'antd';
 import { useEffect } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Champ } from '../../components/form/champ';
+import { FormDialog } from '../../components/form/form-dialog';
+import { Input, Textarea } from '../../components/ui/input';
+import { NativeSelect } from '../../components/ui/native-select';
 import { useMarcheCandidatMutations } from '../../hooks/marches/useMarcheCandidats';
+import { ariaErreur } from '../../lib/form';
 import type { MarcheCandidat } from '../../services/marches/candidats';
 
 const schema = z.object({
@@ -27,7 +31,12 @@ const DEFAUTS: FormValues = { nom: '', type: 'entreprise', coordonnees: '', info
 export function MarcheCandidatFormModal({ open, marcheId, candidat, onClose }: Props) {
   const { create, update } = useMarcheCandidatMutations(marcheId);
 
-  const { control, handleSubmit, reset } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: DEFAUTS,
   });
@@ -63,44 +72,31 @@ export function MarcheCandidatFormModal({ open, marcheId, candidat, onClose }: P
   };
 
   return (
-    <Modal
+    <FormDialog
       open={open}
-      title={candidat ? 'Modifier le candidat' : 'Nouveau candidat'}
-      onCancel={onClose}
-      onOk={handleSubmit(onSubmit)}
-      confirmLoading={enCours}
-      destroyOnHidden
+      onClose={onClose}
+      titre={candidat ? 'Modifier le candidat' : 'Nouveau candidat'}
+      onSubmit={handleSubmit(onSubmit)}
+      enCours={enCours}
+      libelleValider={candidat ? 'Enregistrer' : 'Ajouter le candidat'}
     >
-      <Form layout="vertical">
-        <Form.Item label="Nom / raison sociale">
-          <Controller name="nom" control={control} render={({ field }) => <Input {...field} autoFocus />} />
-        </Form.Item>
-        <Form.Item label="Type">
-          <Controller
-            name="type"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                options={[
-                  { value: 'entreprise', label: 'Entreprise' },
-                  { value: 'consultant', label: 'Consultant' },
-                ]}
-              />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Coordonnées">
-          <Controller name="coordonnees" control={control} render={({ field }) => <Input.TextArea {...field} rows={2} />} />
-        </Form.Item>
-        <Form.Item label="Informations complémentaires">
-          <Controller
-            name="informationsComplementaires"
-            control={control}
-            render={({ field }) => <Input.TextArea {...field} rows={2} />}
-          />
-        </Form.Item>
-      </Form>
-    </Modal>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_180px]">
+        <Champ label="Nom / raison sociale" htmlFor="candidat-nom" requis erreur={errors.nom?.message}>
+          <Input autoFocus {...ariaErreur('candidat-nom', errors.nom)} {...register('nom')} />
+        </Champ>
+        <Champ label="Type" htmlFor="candidat-type" requis>
+          <NativeSelect id="candidat-type" {...register('type')}>
+            <option value="entreprise">Entreprise</option>
+            <option value="consultant">Consultant</option>
+          </NativeSelect>
+        </Champ>
+      </div>
+      <Champ label="Coordonnées" htmlFor="candidat-coordonnees">
+        <Textarea id="candidat-coordonnees" rows={2} {...register('coordonnees')} />
+      </Champ>
+      <Champ label="Informations complémentaires" htmlFor="candidat-infos">
+        <Textarea id="candidat-infos" rows={2} {...register('informationsComplementaires')} />
+      </Champ>
+    </FormDialog>
   );
 }

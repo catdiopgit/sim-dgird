@@ -1,8 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Form, Input, Modal, Select } from 'antd';
 import { useEffect } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Champ } from '../../../components/form/champ';
+import { FormDialog } from '../../../components/form/form-dialog';
+import { Input } from '../../../components/ui/input';
+import { NativeSelect } from '../../../components/ui/native-select';
+import { ariaErreur } from '../../../lib/form';
 import type { UtilisateurOption } from '../../../services/administration/entites';
 import type { TypeEntite } from '../../../services/administration/typeEntites';
 import { slugifier } from '../../../utils/slug';
@@ -40,7 +44,14 @@ export function EntiteFormModal({
   onCancel,
   onSubmit,
 }: Props) {
-  const { control, handleSubmit, reset, setValue, watch } = useForm<EntiteFormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<EntiteFormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       type_entite_id: '',
@@ -73,70 +84,59 @@ export function EntiteFormModal({
     }
   }, [libelle, estNouveau, setValue]);
 
+  const optionsUtilisateurs = utilisateursOptions.map((u) => (
+    <option key={u.id} value={u.id}>
+      {u.prenom} {u.nom}
+    </option>
+  ));
+
   return (
-    <Modal
+    <FormDialog
       open={open}
-      title={titre}
-      onCancel={onCancel}
-      onOk={handleSubmit(onSubmit)}
-      confirmLoading={confirmLoading}
-      destroyOnHidden
+      onClose={onCancel}
+      titre={titre}
+      onSubmit={handleSubmit(onSubmit)}
+      enCours={confirmLoading}
+      libelleValider={estNouveau ? "Créer l'entité" : 'Enregistrer'}
+      largeur="lg"
     >
-      <Form layout="vertical">
-        <Form.Item label="Type d'entité">
-          <Controller
-            name="type_entite_id"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                options={typeEntites.map((t) => ({ value: t.id, label: t.libelle }))}
-                placeholder="Sélectionner un type"
-              />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Libellé">
-          <Controller name="libelle" control={control} render={({ field }) => <Input {...field} autoFocus />} />
-        </Form.Item>
-        <Form.Item label="Code">
-          <Controller name="code" control={control} render={({ field }) => <Input {...field} />} />
-        </Form.Item>
-        <Form.Item label="Sigle">
-          <Controller name="sigle" control={control} render={({ field }) => <Input {...field} />} />
-        </Form.Item>
-        <Form.Item label="Responsable">
-          <Controller
-            name="responsable_utilisateur_id"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                allowClear
-                placeholder="Aucun"
-                options={utilisateursOptions.map((u) => ({ value: u.id, label: `${u.prenom} ${u.nom}` }))}
-              />
-            )}
-          />
-        </Form.Item>
-        <Form.Item
+      <Champ label="Type d'entité" htmlFor="entite-type" requis erreur={errors.type_entite_id?.message}>
+        <NativeSelect {...ariaErreur('entite-type', errors.type_entite_id)} {...register('type_entite_id')}>
+          <option value="">Sélectionner un type</option>
+          {typeEntites.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.libelle}
+            </option>
+          ))}
+        </NativeSelect>
+      </Champ>
+      <Champ label="Libellé" htmlFor="entite-libelle" requis erreur={errors.libelle?.message}>
+        <Input autoFocus {...ariaErreur('entite-libelle', errors.libelle)} {...register('libelle')} />
+      </Champ>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Champ label="Code" htmlFor="entite-code" requis aide={estNouveau ? 'Proposé à partir du libellé.' : undefined} erreur={errors.code?.message}>
+          <Input className="font-mono" {...ariaErreur('entite-code', errors.code)} {...register('code')} />
+        </Champ>
+        <Champ label="Sigle" htmlFor="entite-sigle">
+          <Input id="entite-sigle" {...register('sigle')} />
+        </Champ>
+        <Champ label="Responsable" htmlFor="entite-responsable">
+          <NativeSelect id="entite-responsable" {...register('responsable_utilisateur_id')}>
+            <option value="">Aucun</option>
+            {optionsUtilisateurs}
+          </NativeSelect>
+        </Champ>
+        <Champ
           label="Personne réceptrice des courriers"
-          tooltip="Reçoit automatiquement une copie/notification des courriers imputés à cette entité. Distinct du responsable : souvent un secrétariat plutôt que le chef de l'entité."
+          htmlFor="entite-receptrice"
+          aide="Reçoit une copie des courriers imputés à l'entité (souvent un secrétariat)."
         >
-          <Controller
-            name="personne_receptrice_id"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                allowClear
-                placeholder="Aucune"
-                options={utilisateursOptions.map((u) => ({ value: u.id, label: `${u.prenom} ${u.nom}` }))}
-              />
-            )}
-          />
-        </Form.Item>
-      </Form>
-    </Modal>
+          <NativeSelect id="entite-receptrice" {...register('personne_receptrice_id')}>
+            <option value="">Aucune</option>
+            {optionsUtilisateurs}
+          </NativeSelect>
+        </Champ>
+      </div>
+    </FormDialog>
   );
 }

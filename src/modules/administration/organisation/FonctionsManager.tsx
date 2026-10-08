@@ -1,9 +1,17 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { PlusOutlined } from '@ant-design/icons';
-import { Button, Form, Input, Modal, Popconfirm, Switch, Table, Typography } from 'antd';
+import { BriefcaseBusiness, Plus } from 'lucide-react';
+import { Champ } from '../../../components/form/champ';
+import { FormDialog } from '../../../components/form/form-dialog';
+import { Input } from '../../../components/ui/input';
+import { ariaErreur } from '../../../lib/form';
 import { useEffect, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { ActionsLigne, BoutonModifier, BoutonSuppression } from '../../../components/form/actions-ligne';
+import { Button } from '../../../components/ui/button';
+import { EnTeteSection } from '../../../components/ui/page-header';
+import { Switch as Interrupteur } from '../../../components/ui/switch';
+import { Tableau } from '../../../components/ui/tableau';
 import { useFonctionMutations, useFonctions } from '../../../hooks/administration/useFonctions';
 import type { Fonction } from '../../../services/administration/fonctions';
 import { slugifier } from '../../../utils/slug';
@@ -24,7 +32,14 @@ export function FonctionsManager({ organisationId, peutModifier }: Props) {
   const { create, update, remove } = useFonctionMutations(organisationId);
   const [edition, setEdition] = useState<Fonction | 'nouveau' | null>(null);
 
-  const { control, handleSubmit, reset, setValue, watch } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { code: '', libelle: '' },
   });
@@ -60,55 +75,61 @@ export function FonctionsManager({ organisationId, peutModifier }: Props) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <Typography.Title level={5} style={{ margin: 0 }}>
-          Fonctions
-        </Typography.Title>
-        {peutModifier && (
-          <Button icon={<PlusOutlined />} onClick={() => setEdition('nouveau')}>
-            Ajouter une fonction
-          </Button>
-        )}
-      </div>
-      <Table
-        rowKey="id"
-        size="small"
-        loading={isLoading}
-        dataSource={fonctions}
-        pagination={false}
-        columns={[
-          { title: 'Code', dataIndex: 'code' },
-          { title: 'Libellé', dataIndex: 'libelle' },
+      <EnTeteSection
+        titre="Fonctions"
+        description="Postes occupés par les utilisateurs (directeur, chef de service, agent…)."
+        actions={
+          peutModifier && (
+            <Button variant="outline" onClick={() => setEdition('nouveau')}>
+              <Plus />
+              Ajouter une fonction
+            </Button>
+          )
+        }
+      />
+      <Tableau<Fonction>
+        libelle="Fonctions"
+        lignes={fonctions}
+        cleLigne={(f) => f.id}
+        chargement={isLoading}
+        minLargeur={480}
+        vide={{ icone: BriefcaseBusiness, titre: 'Aucune fonction' }}
+        colonnes={[
+          { cle: 'libelle', titre: 'Libellé', rendu: (f) => <span className="font-medium">{f.libelle}</span> },
+          { cle: 'code', titre: 'Code', rendu: (f) => <span className="font-mono text-[12px] text-muted-foreground">{f.code}</span> },
           {
-            title: 'Actif',
-            dataIndex: 'actif',
-            width: 90,
-            render: (actif: boolean, record: Fonction) => (
-              <Switch
-                size="small"
-                checked={actif}
+            cle: 'actif',
+            titre: 'Active',
+            className: 'w-20',
+            rendu: (f) => (
+              <Interrupteur
+                aria-label={`Fonction ${f.libelle} active`}
+                checked={f.actif}
                 disabled={!peutModifier}
-                onChange={(checked) => update.mutate({ id: record.id, patch: { actif: checked } })}
+                onCheckedChange={(checked) => update.mutate({ id: f.id, patch: { actif: checked } })}
               />
             ),
           },
           ...(peutModifier
             ? [
                 {
-                  title: 'Actions',
-                  key: 'actions',
-                  width: 140,
-                  render: (_: unknown, record: Fonction) => (
-                    <span>
-                      <Button type="link" size="small" onClick={() => setEdition(record)}>
-                        Modifier
-                      </Button>
-                      <Popconfirm title="Supprimer cette fonction ?" onConfirm={() => remove.mutate(record.id)}>
-                        <Button type="link" size="small" danger>
-                          Supprimer
-                        </Button>
-                      </Popconfirm>
-                    </span>
+                  cle: 'actions',
+                  titre: <span className="sr-only">Actions</span>,
+                  className: 'w-24',
+                  rendu: (f: Fonction) => (
+                    <ActionsLigne>
+                      <BoutonModifier libelle={`Modifier ${f.libelle}`} onClick={() => setEdition(f)} />
+                      <BoutonSuppression
+                        libelle={`Supprimer ${f.libelle}`}
+                        titre="Supprimer cette fonction ?"
+                        enCours={remove.isPending}
+                        onConfirmer={(fermer) => remove.mutate(f.id, { onSuccess: fermer })}
+                      >
+                        <p>
+                          La fonction <strong>{f.libelle}</strong> sera supprimée. Pour la conserver dans l'historique, désactivez-la plutôt.
+                        </p>
+                      </BoutonSuppression>
+                    </ActionsLigne>
                   ),
                 },
               ]
@@ -116,23 +137,21 @@ export function FonctionsManager({ organisationId, peutModifier }: Props) {
         ]}
       />
 
-      <Modal
+      <FormDialog
         open={edition !== null}
-        title={edition === 'nouveau' ? 'Nouvelle fonction' : 'Modifier la fonction'}
-        onCancel={() => setEdition(null)}
-        onOk={handleSubmit(onSubmit)}
-        confirmLoading={create.isPending || update.isPending}
-        destroyOnHidden
+        onClose={() => setEdition(null)}
+        titre={edition === 'nouveau' ? 'Nouvelle fonction' : 'Modifier la fonction'}
+        onSubmit={handleSubmit(onSubmit)}
+        enCours={create.isPending || update.isPending}
+        libelleValider={edition === 'nouveau' ? 'Créer la fonction' : 'Enregistrer'}
       >
-        <Form layout="vertical">
-          <Form.Item label="Libellé">
-            <Controller name="libelle" control={control} render={({ field }) => <Input {...field} autoFocus />} />
-          </Form.Item>
-          <Form.Item label="Code">
-            <Controller name="code" control={control} render={({ field }) => <Input {...field} />} />
-          </Form.Item>
-        </Form>
-      </Modal>
+        <Champ label="Libellé" htmlFor="fonction-libelle" requis erreur={errors.libelle?.message}>
+          <Input autoFocus {...ariaErreur('fonction-libelle', errors.libelle)} {...register('libelle')} />
+        </Champ>
+        <Champ label="Code" htmlFor="fonction-code" requis aide={edition === 'nouveau' ? 'Proposé à partir du libellé.' : undefined} erreur={errors.code?.message}>
+          <Input className="font-mono" {...ariaErreur('fonction-code', errors.code)} {...register('code')} />
+        </Champ>
+      </FormDialog>
     </div>
   );
 }

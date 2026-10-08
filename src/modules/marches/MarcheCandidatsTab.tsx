@@ -1,6 +1,10 @@
-import { PlusOutlined, UploadOutlined } from '@ant-design/icons';
-import { Button, Card, Popconfirm, Table, Tag } from 'antd';
+import { Building2, Plus, Upload, Users } from 'lucide-react';
 import { useState } from 'react';
+import { ActionsLigne, BoutonModifier, BoutonSuppression } from '../../components/form/actions-ligne';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Tableau, type Colonne } from '../../components/ui/tableau';
 import { useMarcheCandidatMutations, useMarcheCandidats } from '../../hooks/marches/useMarcheCandidats';
 import type { MarcheCandidat } from '../../services/marches/candidats';
 import { DocumentMarcheAjouterModal } from './DocumentMarcheAjouterModal';
@@ -20,57 +24,83 @@ export function MarcheCandidatsTab({ marcheId, peutModifier }: Props) {
   const [candidatEnEdition, setCandidatEnEdition] = useState<MarcheCandidat | 'nouveau' | null>(null);
   const [candidatPourOffre, setCandidatPourOffre] = useState<MarcheCandidat | null>(null);
 
+  const colonnes: Colonne<MarcheCandidat>[] = [
+    {
+      cle: 'nom',
+      titre: 'Nom / raison sociale',
+      rendu: (c) => (
+        <span className="flex items-center gap-2.5">
+          <Building2 className="size-4 shrink-0 text-muted-foreground" />
+          <span className="font-medium">{c.nom}</span>
+        </span>
+      ),
+    },
+    {
+      cle: 'type',
+      titre: 'Type',
+      className: 'w-32',
+      rendu: (c) => <Badge variant="muted">{c.type === 'entreprise' ? 'Entreprise' : 'Consultant'}</Badge>,
+    },
+    {
+      cle: 'coordonnees',
+      titre: 'Coordonnées',
+      rendu: (c) => (c.coordonnees ? <span className="whitespace-pre-line">{c.coordonnees}</span> : <span className="text-muted-foreground">—</span>),
+    },
+    ...(peutModifier
+      ? [
+          {
+            cle: 'actions',
+            titre: <span className="sr-only">Actions</span>,
+            className: 'w-px whitespace-nowrap',
+            rendu: (c: MarcheCandidat) => (
+              <ActionsLigne>
+                <Button variant="ghost" size="sm" onClick={() => setCandidatPourOffre(c)}>
+                  <Upload className="text-muted-foreground" />
+                  Ajouter une offre
+                </Button>
+                <BoutonModifier libelle={`Modifier ${c.nom}`} onClick={() => setCandidatEnEdition(c)} />
+                <BoutonSuppression
+                  libelle={`Supprimer ${c.nom}`}
+                  titre="Supprimer ce candidat ?"
+                  enCours={remove.isPending}
+                  onConfirmer={(fermer) => remove.mutate(c.id, { onSuccess: fermer })}
+                >
+                  <p>
+                    <b>{c.nom}</b> sera retiré des candidats de ce marché.
+                  </p>
+                </BoutonSuppression>
+              </ActionsLigne>
+            ),
+          },
+        ]
+      : []),
+  ];
+
   return (
-    <Card
-      title="Entreprises et consultants"
-      extra={
-        peutModifier && (
-          <Button icon={<PlusOutlined />} onClick={() => setCandidatEnEdition('nouveau')}>
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          Entreprises et consultants
+          {candidats && candidats.length > 0 && <span className="ml-2 font-normal text-muted-foreground">{candidats.length}</span>}
+        </CardTitle>
+        {peutModifier && (
+          <Button variant="outline" size="sm" onClick={() => setCandidatEnEdition('nouveau')}>
+            <Plus />
             Ajouter un candidat
           </Button>
-        )
-      }
-    >
-      <Table<MarcheCandidat>
-        rowKey="id"
-        size="small"
-        loading={isLoading}
-        dataSource={candidats}
-        pagination={false}
-        columns={[
-          { title: 'Nom / raison sociale', dataIndex: 'nom' },
-          {
-            title: 'Type',
-            width: 130,
-            render: (_, c) => <Tag>{c.type === 'entreprise' ? 'Entreprise' : 'Consultant'}</Tag>,
-          },
-          { title: 'Coordonnées', dataIndex: 'coordonnees', render: (v) => v ?? '—' },
-          ...(peutModifier
-            ? [
-                {
-                  title: 'Actions',
-                  key: 'actions',
-                  width: 260,
-                  render: (_: unknown, c: MarcheCandidat) => (
-                    <span>
-                      <Button type="link" size="small" icon={<UploadOutlined />} onClick={() => setCandidatPourOffre(c)}>
-                        Ajouter une offre
-                      </Button>
-                      <Button type="link" size="small" onClick={() => setCandidatEnEdition(c)}>
-                        Modifier
-                      </Button>
-                      <Popconfirm title="Supprimer ce candidat ?" onConfirm={() => remove.mutate(c.id)}>
-                        <Button type="link" size="small" danger>
-                          Supprimer
-                        </Button>
-                      </Popconfirm>
-                    </span>
-                  ),
-                },
-              ]
-            : []),
-        ]}
-      />
+        )}
+      </CardHeader>
+      <CardContent>
+        <Tableau
+          libelle="Candidats du marché"
+          colonnes={colonnes}
+          lignes={candidats}
+          cleLigne={(c) => c.id}
+          chargement={isLoading}
+          minLargeur={640}
+          vide={{ icone: Users, titre: 'Aucun candidat', description: 'Enregistrez les entreprises et consultants participant à la procédure.' }}
+        />
+      </CardContent>
 
       <MarcheCandidatFormModal
         open={candidatEnEdition !== null}

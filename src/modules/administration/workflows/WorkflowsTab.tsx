@@ -1,15 +1,25 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { PlusOutlined } from '@ant-design/icons';
-import { Button, Divider, Form, Input, Modal, Popconfirm, Select, Skeleton, Switch, Table, Tag, Typography } from 'antd';
+import { Plus, Star, Workflow } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { ActionsLigne, BoutonModifier, BoutonSuppression } from '../../../components/form/actions-ligne';
+import { Badge } from '../../../components/ui/badge';
+import { Button } from '../../../components/ui/button';
+import { NativeSelect } from '../../../components/ui/native-select';
+import { Skeleton } from '../../../components/ui/skeleton';
+import { Switch as Interrupteur } from '../../../components/ui/switch';
+import { Tableau } from '../../../components/ui/tableau';
+import { Champ } from '../../../components/form/champ';
+import { FormDialog } from '../../../components/form/form-dialog';
+import { Input, Textarea } from '../../../components/ui/input';
 import { useModulesActions } from '../../../hooks/administration/useRolesAdmin';
 import {
   useWorkflowDefinitionMutations,
   useWorkflowDefinitions,
 } from '../../../hooks/administration/useWorkflowsAdmin';
 import { useProfile } from '../../../hooks/useProfile';
+import { ariaErreur } from '../../../lib/form';
 import type { WorkflowDefinition } from '../../../services/administration/workflows';
 import { slugifier } from '../../../utils/slug';
 import { WorkflowAssociationsManager } from './WorkflowAssociationsManager';
@@ -43,7 +53,14 @@ export function WorkflowsTab() {
   const [edition, setEdition] = useState<WorkflowDefinition | 'nouveau' | null>(null);
   const [selection, setSelection] = useState<WorkflowDefinition | null>(null);
 
-  const { control, handleSubmit, reset, setValue, watch } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { libelle: '', code: '', description: '' },
   });
@@ -73,80 +90,118 @@ export function WorkflowsTab() {
     }
   };
 
-  if (!organisationId) return <Skeleton active />;
+  if (!organisationId) return <Skeleton className="h-64 w-full" />;
 
   return (
-    <div>
-      <Typography.Paragraph type="secondary">
-        Un workflow définit le circuit (étapes, transitions, acteurs autorisés) suivi par les
-        courriers, documents ou missions. Aucun circuit n'est codé en dur : tout se configure ici.
-      </Typography.Paragraph>
+    <div className="space-y-4">
+      <p className="max-w-3xl text-[13px] text-muted-foreground">
+        Un workflow définit le circuit (étapes, transitions, acteurs autorisés) suivi par les courriers, documents ou
+        missions. Aucun circuit n'est codé en dur : tout se configure ici.
+      </p>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <Select
-          value={moduleId}
-          onChange={(v) => { setModuleId(v); setSelection(null); }}
-          style={{ width: 220 }}
-          options={(modules.data ?? []).map((m) => ({ value: m.id, label: m.libelle }))}
-        />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <NativeSelect
+          aria-label="Module"
+          className="h-9 w-full text-[13px] sm:w-56"
+          value={moduleId ?? ''}
+          onChange={(e) => {
+            setModuleId(e.target.value);
+            setSelection(null);
+          }}
+        >
+          {(modules.data ?? []).map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.libelle}
+            </option>
+          ))}
+        </NativeSelect>
         {peutModifier && (
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setEdition('nouveau')}>
+          <Button onClick={() => setEdition('nouveau')}>
+            <Plus />
             Nouveau workflow
           </Button>
         )}
       </div>
 
-      <Table<WorkflowDefinition>
-        rowKey="id"
-        size="small"
-        loading={isLoading}
-        dataSource={definitions}
-        pagination={false}
-        onRow={(record) => ({ onClick: () => setSelection(record), style: { cursor: 'pointer' } })}
-        rowClassName={(record) => (selection?.id === record.id ? 'ant-table-row-selected' : '')}
-        columns={[
-          { title: 'Libellé', dataIndex: 'libelle' },
-          { title: 'Code', dataIndex: 'code' },
+      <Tableau<WorkflowDefinition>
+        libelle="Workflows du module"
+        lignes={definitions}
+        cleLigne={(d) => d.id}
+        chargement={isLoading}
+        minLargeur={600}
+        onLigneClic={setSelection}
+        estActive={(d) => d.id === selection?.id}
+        vide={{ icone: Workflow, titre: 'Aucun workflow pour ce module' }}
+        colonnes={[
           {
-            title: 'Actif',
-            dataIndex: 'actif',
-            width: 90,
-            render: (v: boolean, r: WorkflowDefinition) => (
-              <Switch size="small" checked={v} disabled={!peutModifier} onChange={(c) => update.mutate({ id: r.id, patch: { actif: c } })} />
+            cle: 'libelle',
+            titre: 'Libellé',
+            rendu: (d) => (
+              <span className="flex flex-wrap items-center gap-2">
+                <span className="font-medium">{d.libelle}</span>
+                {d.est_defaut && (
+                  <Badge variant="success" shape="pill">
+                    Par défaut
+                  </Badge>
+                )}
+              </span>
             ),
           },
+          { cle: 'code', titre: 'Code', rendu: (d) => <span className="font-mono text-[12px] text-muted-foreground">{d.code}</span> },
           {
-            title: 'Par défaut',
-            dataIndex: 'est_defaut',
-            width: 100,
-            render: (v: boolean, r: WorkflowDefinition) =>
-              v ? (
-                <Tag color="green">défaut</Tag>
-              ) : (
-                peutModifier && (
-                  <Button size="small" loading={setDefault.isPending} onClick={() => setDefault.mutate(r.id)}>
-                    Définir par défaut
-                  </Button>
-                )
-              ),
+            cle: 'actif',
+            titre: 'Actif',
+            className: 'w-20',
+            rendu: (d) => (
+              <span onClick={(e) => e.stopPropagation()} className="inline-flex">
+                <Interrupteur
+                  aria-label={`Workflow ${d.libelle} actif`}
+                  checked={d.actif}
+                  disabled={!peutModifier}
+                  onCheckedChange={(c) => update.mutate({ id: d.id, patch: { actif: c } })}
+                />
+              </span>
+            ),
           },
           ...(peutModifier
             ? [
                 {
-                  title: 'Actions',
-                  key: 'actions',
-                  width: 140,
-                  render: (_: unknown, record: WorkflowDefinition) => (
-                    <span onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-                      <Button type="link" size="small" onClick={() => setEdition(record)}>
-                        Modifier
-                      </Button>
-                      <Popconfirm title="Supprimer ce workflow ?" onConfirm={() => remove.mutate(record.id)}>
-                        <Button type="link" size="small" danger>
-                          Supprimer
+                  cle: 'actions',
+                  titre: <span className="sr-only">Actions</span>,
+                  className: 'w-px whitespace-nowrap',
+                  rendu: (d: WorkflowDefinition) => (
+                    <ActionsLigne>
+                      {!d.est_defaut && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground"
+                          disabled={setDefault.isPending}
+                          onClick={() => setDefault.mutate(d.id)}
+                        >
+                          <Star />
+                          Définir par défaut
                         </Button>
-                      </Popconfirm>
-                    </span>
+                      )}
+                      <BoutonModifier libelle={`Modifier ${d.libelle}`} onClick={() => setEdition(d)} />
+                      <BoutonSuppression
+                        libelle={`Supprimer ${d.libelle}`}
+                        titre="Supprimer ce workflow ?"
+                        enCours={remove.isPending}
+                        onConfirmer={(fermer) =>
+                          remove.mutate(d.id, {
+                            onSuccess: () => {
+                              if (selection?.id === d.id) setSelection(null);
+                              fermer();
+                            },
+                          })
+                        }
+                      >
+                        <p>
+                          Le workflow <strong>{d.libelle}</strong>, ses étapes et ses transitions seront supprimés.
+                        </p>
+                      </BoutonSuppression>
+                    </ActionsLigne>
                   ),
                 },
               ]
@@ -154,49 +209,54 @@ export function WorkflowsTab() {
         ]}
       />
 
+      {!selection && (definitions ?? []).length > 0 && (
+        <p className="text-[13px] text-muted-foreground">Sélectionnez un workflow pour configurer son circuit.</p>
+      )}
+
       {selection && moduleId && (
-        <>
-          <Divider />
-          <Typography.Title level={4}>{selection.libelle}</Typography.Title>
+        <section aria-label={`Configuration du workflow ${selection.libelle}`} className="space-y-8 border-t border-border pt-6">
+          <h2 className="font-serif-title text-[22px] font-semibold leading-tight">{selection.libelle}</h2>
           <WorkflowDiagram workflowDefinitionId={selection.id} peutModifier={peutModifier} />
-          <Divider />
           <WorkflowEtapesManager workflowDefinitionId={selection.id} peutModifier={peutModifier} />
-          <Divider />
           <WorkflowTransitionsManager
             workflowDefinitionId={selection.id}
             organisationId={organisationId}
             peutModifier={peutModifier}
           />
-          <Divider />
           <WorkflowAssociationsManager
             workflowDefinitionId={selection.id}
             organisationId={organisationId}
             moduleId={moduleId}
             peutModifier={peutModifier}
           />
-        </>
+        </section>
       )}
 
-      <Modal
+      <FormDialog
         open={edition !== null}
-        title={edition === 'nouveau' ? 'Nouveau workflow' : 'Modifier le workflow'}
-        onCancel={() => setEdition(null)}
-        onOk={handleSubmit(onSubmit)}
-        confirmLoading={create.isPending || update.isPending}
-        destroyOnHidden
+        onClose={() => setEdition(null)}
+        titre={edition === 'nouveau' ? 'Nouveau workflow' : 'Modifier le workflow'}
+        description={edition === 'nouveau' ? 'Les étapes et transitions se configurent ensuite.' : undefined}
+        onSubmit={handleSubmit(onSubmit)}
+        enCours={create.isPending || update.isPending}
+        libelleValider={edition === 'nouveau' ? 'Créer le workflow' : 'Enregistrer'}
       >
-        <Form layout="vertical">
-          <Form.Item label="Libellé">
-            <Controller name="libelle" control={control} render={({ field }) => <Input {...field} autoFocus />} />
-          </Form.Item>
-          <Form.Item label="Code">
-            <Controller name="code" control={control} render={({ field }) => <Input {...field} disabled={edition !== 'nouveau'} />} />
-          </Form.Item>
-          <Form.Item label="Description">
-            <Controller name="description" control={control} render={({ field }) => <Input.TextArea {...field} rows={2} />} />
-          </Form.Item>
-        </Form>
-      </Modal>
+        <Champ label="Libellé" htmlFor="workflow-libelle" requis erreur={errors.libelle?.message}>
+          <Input autoFocus {...ariaErreur('workflow-libelle', errors.libelle)} {...register('libelle')} />
+        </Champ>
+        <Champ
+          label="Code"
+          htmlFor="workflow-code"
+          requis
+          erreur={errors.code?.message}
+          aide={edition === 'nouveau' ? 'Proposé à partir du libellé.' : "Le code d'un workflow existant n'est pas modifiable."}
+        >
+          <Input className="font-mono" disabled={edition !== 'nouveau'} {...ariaErreur('workflow-code', errors.code)} {...register('code')} />
+        </Champ>
+        <Champ label="Description" htmlFor="workflow-description">
+          <Textarea id="workflow-description" rows={2} {...register('description')} />
+        </Champ>
+      </FormDialog>
     </div>
   );
 }

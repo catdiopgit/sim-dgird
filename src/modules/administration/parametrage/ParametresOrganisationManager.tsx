@@ -1,9 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { PlusOutlined } from '@ant-design/icons';
-import { Button, Form, Input, Modal, Popconfirm, Table, Typography } from 'antd';
+import { Plus, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { ActionsLigne, BoutonModifier, BoutonSuppression } from '../../../components/form/actions-ligne';
+import { Button } from '../../../components/ui/button';
+import { EnTeteSection } from '../../../components/ui/page-header';
+import { Tableau } from '../../../components/ui/tableau';
+import { Champ } from '../../../components/form/champ';
+import { FormDialog } from '../../../components/form/form-dialog';
+import { Input, Textarea } from '../../../components/ui/input';
+import { ariaErreur } from '../../../lib/form';
 import {
   useParametreOrganisationMutations,
   useParametresOrganisation,
@@ -34,7 +41,12 @@ export function ParametresOrganisationManager({ organisationId, peutModifier }: 
   const { upsert, remove } = useParametreOrganisationMutations(organisationId);
   const [edition, setEdition] = useState<ParametreOrganisation | 'nouveau' | null>(null);
 
-  const { control, handleSubmit, reset } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { cle: '', valeurJson: '', description: '' },
   });
@@ -56,43 +68,58 @@ export function ParametresOrganisationManager({ organisationId, peutModifier }: 
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <Typography.Title level={5} style={{ margin: 0 }}>
-          Paramètres de l'organisation
-        </Typography.Title>
-        {peutModifier && (
-          <Button icon={<PlusOutlined />} onClick={() => setEdition('nouveau')}>
-            Ajouter un paramètre
-          </Button>
-        )}
-      </div>
-      <Table<ParametreOrganisation>
-        rowKey="id"
-        size="small"
-        loading={isLoading}
-        dataSource={parametres}
-        pagination={false}
-        columns={[
-          { title: 'Clé', dataIndex: 'cle' },
-          { title: 'Valeur', render: (_, r) => JSON.stringify(r.valeur) },
-          { title: 'Description', dataIndex: 'description' },
+      <EnTeteSection
+        titre="Paramètres de l'organisation"
+        description="Réglages techniques stockés en JSON et lus par les modules."
+        actions={
+          peutModifier && (
+            <Button variant="outline" onClick={() => setEdition('nouveau')}>
+              <Plus />
+              Ajouter un paramètre
+            </Button>
+          )
+        }
+      />
+      <Tableau<ParametreOrganisation>
+        libelle="Paramètres de l'organisation"
+        lignes={parametres}
+        cleLigne={(p) => p.id}
+        chargement={isLoading}
+        minLargeur={560}
+        vide={{ icone: SlidersHorizontal, titre: 'Aucun paramètre' }}
+        colonnes={[
+          { cle: 'cle', titre: 'Clé', rendu: (p) => <span className="font-mono text-[12px] font-medium">{p.cle}</span> },
+          {
+            cle: 'valeur',
+            titre: 'Valeur',
+            rendu: (p) => (
+              <code className="block max-w-[280px] truncate rounded bg-muted px-1.5 py-0.5 font-mono text-[12px]" title={JSON.stringify(p.valeur)}>
+                {JSON.stringify(p.valeur)}
+              </code>
+            ),
+          },
+          { cle: 'description', titre: 'Description', rendu: (p) => <span className="text-muted-foreground">{p.description ?? '—'}</span> },
           ...(peutModifier
             ? [
                 {
-                  title: 'Actions',
-                  key: 'actions',
-                  width: 140,
-                  render: (_: unknown, record: ParametreOrganisation) => (
-                    <span>
-                      <Button type="link" size="small" onClick={() => setEdition(record)}>
-                        Modifier
-                      </Button>
-                      <Popconfirm title="Supprimer ce paramètre ?" onConfirm={() => remove.mutate(record.id)}>
-                        <Button type="link" size="small" danger>
-                          Supprimer
-                        </Button>
-                      </Popconfirm>
-                    </span>
+                  cle: 'actions',
+                  titre: <span className="sr-only">Actions</span>,
+                  className: 'w-20',
+                  rendu: (p: ParametreOrganisation) => (
+                    <ActionsLigne>
+                      <BoutonModifier libelle={`Modifier ${p.cle}`} onClick={() => setEdition(p)} />
+                      <BoutonSuppression
+                        libelle={`Supprimer ${p.cle}`}
+                        titre="Supprimer ce paramètre ?"
+                        enCours={remove.isPending}
+                        onConfirmer={(fermer) => remove.mutate(p.id, { onSuccess: fermer })}
+                      >
+                        <p>
+                          Le paramètre <code className="font-mono">{p.cle}</code> sera supprimé ; les modules qui le lisent
+                          reprendront leur valeur par défaut.
+                        </p>
+                      </BoutonSuppression>
+                    </ActionsLigne>
                   ),
                 },
               ]
@@ -100,34 +127,24 @@ export function ParametresOrganisationManager({ organisationId, peutModifier }: 
         ]}
       />
 
-      <Modal
+      <FormDialog
         open={edition !== null}
-        title={edition === 'nouveau' ? 'Nouveau paramètre' : 'Modifier le paramètre'}
-        onCancel={() => setEdition(null)}
-        onOk={handleSubmit(onSubmit)}
-        confirmLoading={upsert.isPending}
-        destroyOnHidden
+        onClose={() => setEdition(null)}
+        titre={edition === 'nouveau' ? 'Nouveau paramètre' : 'Modifier le paramètre'}
+        onSubmit={handleSubmit(onSubmit)}
+        enCours={upsert.isPending}
+        libelleValider={edition === 'nouveau' ? 'Ajouter le paramètre' : 'Enregistrer'}
       >
-        <Form layout="vertical">
-          <Form.Item label="Clé">
-            <Controller
-              name="cle"
-              control={control}
-              render={({ field }) => <Input {...field} disabled={edition !== 'nouveau'} autoFocus />}
-            />
-          </Form.Item>
-          <Form.Item label="Valeur (JSON)">
-            <Controller
-              name="valeurJson"
-              control={control}
-              render={({ field }) => <Input.TextArea {...field} rows={3} placeholder='"texte", 42, true, {"a":1}' />}
-            />
-          </Form.Item>
-          <Form.Item label="Description">
-            <Controller name="description" control={control} render={({ field }) => <Input {...field} />} />
-          </Form.Item>
-        </Form>
-      </Modal>
+        <Champ label="Clé" htmlFor="parametre-cle" requis erreur={errors.cle?.message} aide={edition !== 'nouveau' ? "La clé d'un paramètre existant n'est pas modifiable." : undefined}>
+          <Input className="font-mono" autoFocus={edition === 'nouveau'} disabled={edition !== 'nouveau'} {...ariaErreur('parametre-cle', errors.cle)} {...register('cle')} />
+        </Champ>
+        <Champ label="Valeur (JSON)" htmlFor="parametre-valeur" requis erreur={errors.valeurJson?.message} aide={'Exemples : "texte", 42, true, {"a":1}'}>
+          <Textarea className="font-mono text-[13px]" rows={3} autoFocus={edition !== 'nouveau'} {...ariaErreur('parametre-valeur', errors.valeurJson)} {...register('valeurJson')} />
+        </Champ>
+        <Champ label="Description" htmlFor="parametre-description">
+          <Input id="parametre-description" {...register('description')} />
+        </Champ>
+      </FormDialog>
     </div>
   );
 }

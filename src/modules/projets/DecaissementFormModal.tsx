@@ -1,19 +1,23 @@
-import { UploadOutlined } from '@ant-design/icons';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, Button, DatePicker, Form, Input, InputNumber, Modal, Select, Upload } from 'antd';
-import type { UploadFile } from 'antd';
 import dayjs from 'dayjs';
+import { Info } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Champ, ChampFichier } from '../../components/form/champ';
+import { FormDialog } from '../../components/form/form-dialog';
+import { Input, Textarea } from '../../components/ui/input';
+import { NativeSelect } from '../../components/ui/native-select';
 import { useDecaissementMutations } from '../../hooks/projets/useDecaissements';
+import { ariaErreur, nombreOuVide } from '../../lib/form';
 import type { Avenant } from '../../services/projets/avenants';
+import { formatMontant } from '../../utils/format';
 
 const schema = z.object({
   origine: z.string(),
-  pourcentage: z.number().min(0.01, 'Requis').max(100),
-  montant: z.number().min(0.01, 'Requis'),
-  dateDecaissement: z.custom<dayjs.Dayjs>(),
+  pourcentage: z.number({ message: 'Requis' }).min(0.01, 'Requis').max(100, 'Au plus 100 %'),
+  montant: z.number({ message: 'Requis' }).min(0.01, 'Requis'),
+  dateDecaissement: z.string().min(1, 'Requis'),
   observations: z.string().optional(),
   titreJustificatif: z.string().min(1, 'Requis'),
 });
@@ -29,14 +33,16 @@ interface Props {
 
 const ORIGINE_CONTRAT = 'contrat';
 
-const VIDE: FormValues = {
+const vide = (): FormValues => ({
   origine: ORIGINE_CONTRAT,
   pourcentage: 0,
   montant: 0,
-  dateDecaissement: dayjs(),
+  dateDecaissement: dayjs().format('YYYY-MM-DD'),
   observations: '',
   titreJustificatif: '',
-};
+});
+
+const arrondi2 = (v: number) => Math.round(v * 100) / 100;
 
 // §2/§4 Gestion des décaissements : origine (contrat d'origine ou un
 // avenant précis, pour un suivi séparé des cumuls — app.fn_verifier_decaissement,
@@ -45,11 +51,18 @@ const VIDE: FormValues = {
 export function DecaissementFormModal({ open, projetId, budgetPrevu, avenants, onClose }: Props) {
   const { create } = useDecaissementMutations(projetId);
   const [fichier, setFichier] = useState<File | null>(null);
-  const [fichierListe, setFichierListe] = useState<UploadFile[]>([]);
+  const [tentative, setTentative] = useState(false);
 
-  const { control, handleSubmit, reset, watch, setValue } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: VIDE,
+    defaultValues: vide(),
   });
 
   const origine = watch('origine');
@@ -60,19 +73,11 @@ export function DecaissementFormModal({ open, projetId, budgetPrevu, avenants, o
     return avenant?.montant ?? null;
   }, [origine, budgetPrevu, avenants]);
 
-  const optionsOrigine = useMemo(
-    () => [
-      { value: ORIGINE_CONTRAT, label: "Contrat d'origine" },
-      ...(avenants ?? []).map((a) => ({ value: a.id, label: `${a.reference} — ${a.objet}` })),
-    ],
-    [avenants],
-  );
-
   useEffect(() => {
     if (open) {
-      reset(VIDE);
+      reset(vide());
       setFichier(null);
-      setFichierListe([]);
+      setTentative(false);
     }
   }, [open, reset]);
 
@@ -85,7 +90,7 @@ export function DecaissementFormModal({ open, projetId, budgetPrevu, avenants, o
           avenant_id: values.origine === ORIGINE_CONTRAT ? null : values.origine,
           pourcentage: values.pourcentage,
           montant: values.montant,
-          date_decaissement: values.dateDecaissement.format('YYYY-MM-DD'),
+          date_decaissement: values.dateDecaissement,
           observations: values.observations || null,
         },
         fichier,
@@ -95,100 +100,94 @@ export function DecaissementFormModal({ open, projetId, budgetPrevu, avenants, o
     );
   };
 
+  const champPourcentage = register('pourcentage', { setValueAs: nombreOuVide });
+  const champMontant = register('montant', { setValueAs: nombreOuVide });
+
   return (
-    <Modal
+    <FormDialog
       open={open}
-      title="Ajouter un décaissement"
-      onCancel={onClose}
-      onOk={handleSubmit(onSubmit)}
-      confirmLoading={create.isPending}
-      destroyOnHidden
+      onClose={onClose}
+      titre="Ajouter un décaissement"
+      description="Montant et pourcentage se calculent l'un l'autre à partir du montant de l'origine choisie."
+      onSubmit={(e) => {
+        setTentative(true);
+        void handleSubmit(onSubmit)(e);
+      }}
+      enCours={create.isPending}
+      libelleValider="Ajouter le décaissement"
     >
-      <Form layout="vertical">
-        <Form.Item label="Origine" help="Contrat d'origine ou avenant concerné — sert de base au calcul montant / pourcentage">
-          <Controller name="origine" control={control} render={({ field }) => <Select {...field} options={optionsOrigine} />} />
-        </Form.Item>
-        {montantBase == null && (
-          <Alert
-            style={{ marginBottom: 16 }}
-            type="info"
-            showIcon
-            message="Aucun montant de référence pour cette origine : montant et pourcentage restent indépendants."
-          />
-        )}
-        <Form.Item label="Pourcentage (%)">
-          <Controller
-            name="pourcentage"
-            control={control}
-            render={({ field }) => (
-              <InputNumber
-                {...field}
-                min={0}
-                max={100}
-                style={{ width: '100%' }}
-                onChange={(v) => {
-                  const pct = v ?? 0;
-                  field.onChange(pct);
-                  if (montantBase != null) setValue('montant', Math.round((pct / 100) * montantBase * 100) / 100);
-                }}
-              />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Montant">
-          <Controller
-            name="montant"
-            control={control}
-            render={({ field }) => (
-              <InputNumber
-                {...field}
-                min={0}
-                style={{ width: '100%' }}
-                onChange={(v) => {
-                  const montant = v ?? 0;
-                  field.onChange(montant);
-                  if (montantBase) setValue('pourcentage', Math.round((montant / montantBase) * 100 * 100) / 100);
-                }}
-              />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Date du décaissement">
-          <Controller
-            name="dateDecaissement"
-            control={control}
-            render={({ field }) => <DatePicker {...field} style={{ width: '100%' }} />}
-          />
-        </Form.Item>
-        <Form.Item label="Observations">
-          <Controller
-            name="observations"
-            control={control}
-            render={({ field }) => <Input.TextArea {...field} rows={2} />}
-          />
-        </Form.Item>
-        <Form.Item label="Titre du justificatif">
-          <Controller name="titreJustificatif" control={control} render={({ field }) => <Input {...field} />} />
-        </Form.Item>
-        <Form.Item label="Justificatif" required>
-          <Upload
-            fileList={fichierListe}
-            beforeUpload={(f) => {
-              setFichier(f);
-              setFichierListe([{ uid: f.uid, name: f.name, status: 'done' }]);
-              return false;
+      <Champ
+        label="Origine"
+        htmlFor="decaissement-origine"
+        aide={montantBase != null ? `Montant de référence : ${formatMontant(montantBase)}` : undefined}
+      >
+        <NativeSelect id="decaissement-origine" {...register('origine')}>
+          <option value={ORIGINE_CONTRAT}>Contrat d'origine</option>
+          {(avenants ?? []).map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.reference} — {a.objet}
+            </option>
+          ))}
+        </NativeSelect>
+      </Champ>
+
+      {montantBase == null && (
+        <div className="flex gap-2.5 rounded-lg bg-info/10 p-3 text-[13px]">
+          <Info className="mt-0.5 size-4 shrink-0 text-info" />
+          Aucun montant de référence pour cette origine : montant et pourcentage restent indépendants.
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Champ label="Pourcentage (%)" htmlFor="decaissement-pct" requis erreur={errors.pourcentage?.message}>
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            step="any"
+            {...ariaErreur('decaissement-pct', errors.pourcentage)}
+            {...champPourcentage}
+            onChange={(e) => {
+              void champPourcentage.onChange(e);
+              const pct = Number(e.target.value) || 0;
+              if (montantBase != null) setValue('montant', arrondi2((pct / 100) * montantBase));
             }}
-            onRemove={() => {
-              setFichier(null);
-              setFichierListe([]);
+          />
+        </Champ>
+        <Champ label="Montant (FCFA)" htmlFor="decaissement-montant" requis erreur={errors.montant?.message}>
+          <Input
+            type="number"
+            min={0}
+            step="any"
+            {...ariaErreur('decaissement-montant', errors.montant)}
+            {...champMontant}
+            onChange={(e) => {
+              void champMontant.onChange(e);
+              const montant = Number(e.target.value) || 0;
+              if (montantBase) setValue('pourcentage', arrondi2((montant / montantBase) * 100));
             }}
-            maxCount={1}
-          >
-            <Button icon={<UploadOutlined />}>Choisir un fichier</Button>
-          </Upload>
-          {!fichier && <Alert style={{ marginTop: 8 }} type="info" showIcon message="Un justificatif est requis" />}
-        </Form.Item>
-      </Form>
-    </Modal>
+          />
+        </Champ>
+        <Champ label="Date du décaissement" htmlFor="decaissement-date" requis erreur={errors.dateDecaissement?.message}>
+          <Input type="date" {...ariaErreur('decaissement-date', errors.dateDecaissement)} {...register('dateDecaissement')} />
+        </Champ>
+      </div>
+
+      <Champ label="Observations" htmlFor="decaissement-observations">
+        <Textarea id="decaissement-observations" rows={2} {...register('observations')} />
+      </Champ>
+
+      <div className="rounded-lg border border-border p-4">
+        <div className="mb-3 text-[13px] font-semibold">Justificatif</div>
+        <div className="space-y-4">
+          <Champ label="Titre du justificatif" htmlFor="decaissement-titre" requis erreur={errors.titreJustificatif?.message}>
+            <Input placeholder="Ex. Facture n° 2026-045" {...ariaErreur('decaissement-titre', errors.titreJustificatif)} {...register('titreJustificatif')} />
+          </Champ>
+          <Champ label="Fichier" htmlFor="decaissement-fichier" requis erreur={tentative && !fichier ? 'Un justificatif est requis' : undefined}>
+            <ChampFichier id="decaissement-fichier" fichier={fichier} onChange={setFichier} invalide={tentative && !fichier} />
+          </Champ>
+        </div>
+      </div>
+    </FormDialog>
   );
 }

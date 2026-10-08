@@ -11,11 +11,3 @@ export const LIBELLES_STATUT_PHASE: Record<StatutCalculePhase, string> = {
   realisee_retard: 'Réalisée en retard',
 };
 
-export const COULEURS_STATUT_PHASE: Record<StatutCalculePhase, string> = {
-  a_venir: 'default',
-  en_cours: 'blue',
-  en_retard: 'red',
-  realisee_a_temps: 'green',
-  realisee_avance: 'cyan',
-  realisee_retard: 'orange',
-};

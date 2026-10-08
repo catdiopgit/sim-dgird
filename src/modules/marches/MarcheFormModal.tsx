@@ -1,12 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd';
-import dayjs from 'dayjs';
 import { useEffect } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Champ } from '../../components/form/champ';
+import { FormDialog } from '../../components/form/form-dialog';
+import { SectionFormulaire } from '../../components/form/section-formulaire';
+import { Input, Textarea } from '../../components/ui/input';
+import { NativeSelect } from '../../components/ui/native-select';
 import { useEntites, useUtilisateursOptions } from '../../hooks/administration/useEntites';
 import { useMarcheMutations } from '../../hooks/marches/useMarches';
 import { useTypesMarche } from '../../hooks/marches/useTypesMarche';
+import { ariaErreur, nombreOuVide, versChampDate } from '../../lib/form';
 import type { Marche } from '../../services/marches/marches';
 
 const schema = z.object({
@@ -16,9 +20,9 @@ const schema = z.object({
   entiteId: z.string().min(1, 'Requis'),
   typeMarcheId: z.string().min(1, 'Requis'),
   responsableId: z.string().optional(),
-  dateDebutPrevue: z.custom<dayjs.Dayjs | null>().optional(),
-  dateFinPrevue: z.custom<dayjs.Dayjs | null>().optional(),
-  montantEstimatif: z.number().optional(),
+  dateDebutPrevue: z.string().optional(),
+  dateFinPrevue: z.string().optional(),
+  montantEstimatif: z.number().min(0, 'Montant invalide').optional(),
   observations: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
@@ -38,8 +42,8 @@ const DEFAUTS: FormValues = {
   entiteId: '',
   typeMarcheId: '',
   responsableId: '',
-  dateDebutPrevue: null,
-  dateFinPrevue: null,
+  dateDebutPrevue: '',
+  dateFinPrevue: '',
   montantEstimatif: undefined,
   observations: '',
 };
@@ -54,7 +58,12 @@ export function MarcheFormModal({ open, organisationId, marche, onClose, onCree 
   const { data: types } = useTypesMarche();
   const { create, update } = useMarcheMutations();
 
-  const { control, handleSubmit, reset } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: DEFAUTS,
   });
@@ -70,8 +79,8 @@ export function MarcheFormModal({ open, organisationId, marche, onClose, onCree 
             entiteId: marche.entite_id,
             typeMarcheId: marche.type_marche_id,
             responsableId: marche.responsable_id ?? '',
-            dateDebutPrevue: marche.date_debut_prevue ? dayjs(marche.date_debut_prevue) : null,
-            dateFinPrevue: marche.date_fin_prevue ? dayjs(marche.date_fin_prevue) : null,
+            dateDebutPrevue: versChampDate(marche.date_debut_prevue),
+            dateFinPrevue: versChampDate(marche.date_fin_prevue),
             montantEstimatif: marche.montant_estimatif ?? undefined,
             observations: marche.observations ?? '',
           }
@@ -89,8 +98,8 @@ export function MarcheFormModal({ open, organisationId, marche, onClose, onCree 
       entite_id: values.entiteId,
       type_marche_id: values.typeMarcheId,
       responsable_id: values.responsableId || null,
-      date_debut_prevue: values.dateDebutPrevue ? values.dateDebutPrevue.format('YYYY-MM-DD') : null,
-      date_fin_prevue: values.dateFinPrevue ? values.dateFinPrevue.format('YYYY-MM-DD') : null,
+      date_debut_prevue: values.dateDebutPrevue || null,
+      date_fin_prevue: values.dateFinPrevue || null,
       montant_estimatif: values.montantEstimatif ?? null,
       observations: values.observations || null,
     };
@@ -109,95 +118,104 @@ export function MarcheFormModal({ open, organisationId, marche, onClose, onCree 
     }
   };
 
-  const optionsUtilisateurs = (utilisateurs ?? []).map((u) => ({ value: u.id, label: `${u.prenom} ${u.nom}` }));
-
   return (
-    <Modal
+    <FormDialog
       open={open}
-      title={marche ? 'Modifier le marché' : 'Nouveau marché'}
-      onCancel={onClose}
-      onOk={handleSubmit(onSubmit)}
-      confirmLoading={enCours}
-      destroyOnHidden
-      width={640}
+      onClose={onClose}
+      titre={marche ? 'Modifier le marché' : 'Nouveau marché'}
+      description={marche ? `${marche.reference} — ${marche.objet}` : 'Les phases sont planifiées automatiquement à partir de la date de début.'}
+      onSubmit={handleSubmit(onSubmit)}
+      enCours={enCours}
+      libelleValider={marche ? 'Enregistrer' : 'Créer le marché'}
+      largeur="lg"
     >
-      <Form layout="vertical">
-        <Form.Item label="Référence">
-          <Controller name="reference" control={control} render={({ field }) => <Input {...field} autoFocus />} />
-        </Form.Item>
-        <Form.Item label="Objet">
-          <Controller name="objet" control={control} render={({ field }) => <Input {...field} />} />
-        </Form.Item>
-        <Form.Item label="Description">
-          <Controller name="description" control={control} render={({ field }) => <Input.TextArea {...field} rows={2} />} />
-        </Form.Item>
-        <Form.Item label="Type de marché">
-          <Controller
-            name="typeMarcheId"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                disabled={Boolean(marche)}
-                options={(types ?? []).filter((t) => t.actif || t.id === marche?.type_marche_id).map((t) => ({ value: t.id, label: t.libelle }))}
-              />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Entité porteuse">
-          <Controller
-            name="entiteId"
-            control={control}
-            render={({ field }) => (
-              <Select {...field} options={(entites ?? []).map((e) => ({ value: e.id, label: e.libelle }))} />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Responsable / agent chargé du marché">
-          <Controller
-            name="responsableId"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                allowClear
-                showSearch
-                filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                options={optionsUtilisateurs}
-              />
-            )}
-          />
-        </Form.Item>
-        <Form.Item
-          label="Date de début prévisionnelle"
-          help="Déclenche la planification automatique des phases dès qu'elle est renseignée"
-        >
-          <Controller
-            name="dateDebutPrevue"
-            control={control}
-            render={({ field }) => <DatePicker {...field} style={{ width: '100%' }} />}
-          />
-        </Form.Item>
-        <Form.Item label="Date de fin prévisionnelle" help="Calculée automatiquement après planification, modifiable si besoin">
-          <Controller
-            name="dateFinPrevue"
-            control={control}
-            render={({ field }) => <DatePicker {...field} style={{ width: '100%' }} />}
-          />
-        </Form.Item>
-        <Form.Item label="Montant estimatif">
-          <Controller
-            name="montantEstimatif"
-            control={control}
-            render={({ field }) => (
-              <InputNumber {...field} min={0} style={{ width: '100%' }} onChange={(v) => field.onChange(v ?? undefined)} />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Observations">
-          <Controller name="observations" control={control} render={({ field }) => <Input.TextArea {...field} rows={2} />} />
-        </Form.Item>
-      </Form>
-    </Modal>
+      <SectionFormulaire titre="Identification">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[200px_1fr]">
+          <Champ label="Référence" htmlFor="marche-reference" requis erreur={errors.reference?.message}>
+            <Input autoFocus {...ariaErreur('marche-reference', errors.reference)} {...register('reference')} />
+          </Champ>
+          <Champ label="Objet" htmlFor="marche-objet" requis erreur={errors.objet?.message}>
+            <Input {...ariaErreur('marche-objet', errors.objet)} {...register('objet')} />
+          </Champ>
+        </div>
+        <Champ label="Description" htmlFor="marche-description">
+          <Textarea id="marche-description" rows={2} {...register('description')} />
+        </Champ>
+      </SectionFormulaire>
+
+      <SectionFormulaire titre="Pilotage">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Champ
+            label="Type de marché"
+            htmlFor="marche-type"
+            requis
+            erreur={errors.typeMarcheId?.message}
+            aide={marche ? 'Non modifiable après création' : undefined}
+          >
+            <NativeSelect disabled={Boolean(marche)} {...ariaErreur('marche-type', errors.typeMarcheId)} {...register('typeMarcheId')}>
+              <option value="">Sélectionner un type</option>
+              {(types ?? [])
+                .filter((t) => t.actif || t.id === marche?.type_marche_id)
+                .map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.libelle}
+                  </option>
+                ))}
+            </NativeSelect>
+          </Champ>
+          <Champ label="Entité porteuse" htmlFor="marche-entite" requis erreur={errors.entiteId?.message}>
+            <NativeSelect {...ariaErreur('marche-entite', errors.entiteId)} {...register('entiteId')}>
+              <option value="">Sélectionner une entité</option>
+              {(entites ?? []).map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.libelle}
+                </option>
+              ))}
+            </NativeSelect>
+          </Champ>
+          <Champ label="Responsable / agent chargé du marché" htmlFor="marche-responsable" className="sm:col-span-2">
+            <NativeSelect id="marche-responsable" {...register('responsableId')}>
+              <option value="">—</option>
+              {(utilisateurs ?? []).map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.prenom} {u.nom}
+                </option>
+              ))}
+            </NativeSelect>
+          </Champ>
+        </div>
+      </SectionFormulaire>
+
+      <SectionFormulaire titre="Calendrier et montant">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Champ
+            label="Date de début prévisionnelle"
+            htmlFor="marche-debut"
+            aide="Déclenche la planification automatique des phases dès qu'elle est renseignée"
+          >
+            <Input id="marche-debut" type="date" {...register('dateDebutPrevue')} />
+          </Champ>
+          <Champ
+            label="Date de fin prévisionnelle"
+            htmlFor="marche-fin"
+            aide="Calculée automatiquement après planification, modifiable si besoin"
+          >
+            <Input id="marche-fin" type="date" {...register('dateFinPrevue')} />
+          </Champ>
+          <Champ label="Montant estimatif (FCFA)" htmlFor="marche-montant" erreur={errors.montantEstimatif?.message}>
+            <Input
+              type="number"
+              min={0}
+              step="any"
+              {...ariaErreur('marche-montant', errors.montantEstimatif)}
+              {...register('montantEstimatif', { setValueAs: nombreOuVide })}
+            />
+          </Champ>
+        </div>
+        <Champ label="Observations" htmlFor="marche-observations">
+          <Textarea id="marche-observations" rows={2} {...register('observations')} />
+        </Champ>
+      </SectionFormulaire>
+    </FormDialog>
   );
 }

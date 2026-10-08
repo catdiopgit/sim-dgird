@@ -1,5 +1,9 @@
-import { Button, Card, Popconfirm, Skeleton, Space, Timeline, Typography } from 'antd';
+import { CircleCheck, GitBranch } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { Confirmation } from '../../components/form/confirm-dialog';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Skeleton } from '../../components/ui/skeleton';
 import { useEntites, useUtilisateursOptions } from '../../hooks/administration/useEntites';
 import { useCourrierReferentiel } from '../../hooks/courrier/useCourriers';
 import {
@@ -10,8 +14,10 @@ import {
   useWorkflowHistorique,
   useWorkflowInstance,
 } from '../../hooks/courrier/useWorkflow';
+import { cn } from '../../lib/utils';
 import type { Courrier } from '../../services/courrier/courriers';
 import type { TransitionDisponible, TypeActionCourrier } from '../../services/courrier/workflow';
+import { fr } from '../../utils/dateFr';
 import { CourrierActionWorkflowModal } from './CourrierActionWorkflowModal';
 
 interface Props {
@@ -70,8 +76,7 @@ export function CourrierWorkflowPanel({ courrier, organisationId }: Props) {
     return map;
   }, [actionsHistorique]);
 
-  if (chargementInstance || chargementHistorique) return <Skeleton active />;
-
+  const enCours = instance?.statut_instance === 'en_cours';
   // L'agent (utilisateur_id) et l'entité (entite_id) sont tous les deux renseignés
   // quand l'imputation cible un agent précis (imputerCourrier renseigne toujours
   // entite_id, y compris dans ce cas) : prioriser le nom de la personne, sinon
@@ -84,97 +89,133 @@ export function CourrierWorkflowPanel({ courrier, organisationId }: Props) {
   };
 
   return (
-    <Card title="Workflow" style={{ marginTop: 16 }}>
-      <Space style={{ marginBottom: 16 }} wrap>
-        {!chargementTransitions &&
-          (transitionsDisponibles ?? []).length === 0 &&
-          instance?.statut_instance === 'en_cours' && (
-            <Typography.Text type="secondary">Aucune action disponible pour vous à cette étape.</Typography.Text>
-          )}
-        {instance?.statut_instance !== 'en_cours' && (
-          <Typography.Text type="secondary">Workflow terminé.</Typography.Text>
-        )}
-        {(transitionsDisponibles ?? []).map((t) =>
-          // V5 §3-§9 : sur un courrier arrivé, une transition tagguée d'un
-          // type_action (donnée de configuration, cf. Administration >
-          // Workflows) ouvre la fenêtre modale d'action au lieu d'une simple
-          // confirmation — pour tout autre cas (départ/interne, ou transition
-          // non tagguée), comportement inchangé.
-          courrier.sens === 'entrant' && t.type_action ? (
-            <Button key={t.transition_id} onClick={() => setActionOuverte(t)}>
-              {t.libelle_action}
-            </Button>
-          ) : (
-            <Popconfirm
-              key={t.transition_id}
-              title={`Confirmer l'action « ${t.libelle_action} » ?`}
-              onConfirm={() => executer.mutate({ transitionId: t.transition_id })}
-            >
-              <Button loading={executer.isPending}>{t.libelle_action}</Button>
-            </Popconfirm>
-          ),
-        )}
-      </Space>
-
-      <Timeline
-        items={(historique ?? []).map((h) => {
-          const actions = actionsParHistorique.get(h.id);
-          const principal = actions?.find((a) => a.type_diffusion === 'principal');
-          const copies = actions?.filter((a) => a.type_diffusion === 'copie') ?? [];
-
-          return {
-            content: principal ? (
-              <div>
-                <div>
-                  <strong>{principal.type_action ? LIBELLE_TYPE_ACTION[principal.type_action] : etapeParId.get(h.etape_suivante_id)?.libelle}</strong>
-                </div>
-                <div style={{ fontSize: 13 }}>
-                  Entité/personne principale : {cibleLabel(principal)}
-                </div>
-                {copies.length > 0 && (
-                  <div style={{ fontSize: 13 }}>En copie : {copies.map(cibleLabel).join(', ')}</div>
-                )}
-                {principal.actions_demandees_ids.length > 0 && (
-                  <div style={{ fontSize: 13 }}>
-                    Actions demandées :{' '}
-                    {principal.actions_demandees_ids.map((id) => actionDemandeeParId.get(id) ?? id).join(', ')}
-                  </div>
-                )}
-                {principal.echeance && (
-                  <div style={{ fontSize: 13 }}>
-                    Échéance : {new Date(principal.echeance).toLocaleDateString('fr-FR')}
-                  </div>
-                )}
-                {principal.instruction && <div style={{ fontSize: 13 }}>Observation : {principal.instruction}</div>}
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  {h.utilisateur_id ? `Effectué par ${utilisateurParId.get(h.utilisateur_id) ?? ''} — ` : ''}
-                  {new Date(h.date_action).toLocaleString('fr-FR')}
-                </Typography.Text>
+    <Card>
+      <CardHeader>
+        <CardTitle>Circuit de traitement</CardTitle>
+        <GitBranch className="size-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {chargementInstance || chargementHistorique ? (
+          <Skeleton className="h-40 w-full" />
+        ) : (
+          <>
+            {/* Étape courante + actions disponibles */}
+            <div className={cn('rounded-lg p-4', enCours ? 'bg-accent' : 'bg-good/10')}>
+              <div className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
+                {enCours ? 'Étape actuelle' : 'Statut'}
               </div>
-            ) : (
-              // transition_id null = événement système, pas une transition configurée :
-              // soit le démarrage du workflow (etape_precedente_id null — libellé dédié
-              // pour un courrier départ), soit une clôture (ex. décharge, cf.
-              // fn_ajouter_decharge_courrier) où le commentaire porte le libellé de
-              // l'événement puisque l'étape n'a pas changé.
-              <div>
-                <div>
-                  {!h.transition_id && !h.etape_precedente_id && courrier.sens === 'sortant'
-                    ? 'Enregistrement courrier départ'
-                    : !h.transition_id && h.commentaire
-                      ? h.commentaire
-                      : (etapeParId.get(h.etape_suivante_id)?.libelle ?? h.etape_suivante_id)}
-                </div>
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  {new Date(h.date_action).toLocaleString('fr-FR')}
-                  {h.utilisateur_id ? ` — ${utilisateurParId.get(h.utilisateur_id) ?? ''}` : ''}
-                  {h.transition_id && h.commentaire ? ` — ${h.commentaire}` : ''}
-                </Typography.Text>
+              <div className={cn('mt-1 flex items-center gap-2 font-semibold', enCours ? 'text-accent-foreground' : 'text-good-text')}>
+                {!enCours && <CircleCheck className="size-4" />}
+                {enCours ? (courrier.etape_libelle ?? '—') : 'Workflow terminé'}
               </div>
-            ),
-          };
-        })}
-      />
+              {enCours && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {chargementTransitions ? (
+                    <Skeleton className="h-9 w-40" />
+                  ) : (transitionsDisponibles ?? []).length === 0 ? (
+                    <p className="text-[13px] text-muted-foreground">Aucune action disponible pour vous à cette étape.</p>
+                  ) : (
+                    (transitionsDisponibles ?? []).map((t, i) =>
+                      // V5 §3-§9 : sur un courrier arrivé, une transition tagguée d'un
+                      // type_action (donnée de configuration, cf. Administration >
+                      // Workflows) ouvre la fenêtre modale d'action au lieu d'une simple
+                      // confirmation — pour tout autre cas (départ/interne, ou transition
+                      // non tagguée), comportement inchangé.
+                      courrier.sens === 'entrant' && t.type_action ? (
+                        <Button key={t.transition_id} variant={i === 0 ? 'default' : 'outline'} onClick={() => setActionOuverte(t)}>
+                          {t.libelle_action}
+                        </Button>
+                      ) : (
+                        <Confirmation
+                          key={t.transition_id}
+                          titre={`Confirmer l'action « ${t.libelle_action} » ?`}
+                          libelleConfirmer={t.libelle_action}
+                          enCours={executer.isPending}
+                          onConfirmer={(fermer) => executer.mutate({ transitionId: t.transition_id }, { onSuccess: fermer })}
+                          declencheur={(ouvrir) => (
+                            <Button variant={i === 0 ? 'default' : 'outline'} disabled={executer.isPending} onClick={ouvrir}>
+                              {t.libelle_action}
+                            </Button>
+                          )}
+                        >
+                          <p className="text-muted-foreground">Le courrier passera à l'étape suivante du circuit.</p>
+                        </Confirmation>
+                      ),
+                    )
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Historique */}
+            <div>
+              <h4 className="mb-3 text-[13px] font-semibold">Historique</h4>
+              {(historique ?? []).length === 0 ? (
+                <p className="text-[13px] text-muted-foreground">Aucun événement.</p>
+              ) : (
+                <ol>
+                  {(historique ?? []).map((h, i, liste) => {
+                    const dernier = i === liste.length - 1;
+                    const actions = actionsParHistorique.get(h.id);
+                    const principal = actions?.find((a) => a.type_diffusion === 'principal');
+                    const copies = actions?.filter((a) => a.type_diffusion === 'copie') ?? [];
+                    const titre = principal
+                      ? principal.type_action
+                        ? LIBELLE_TYPE_ACTION[principal.type_action]
+                        : etapeParId.get(h.etape_suivante_id)?.libelle
+                      : // transition_id null = événement système, pas une transition configurée :
+                        // soit le démarrage du workflow (etape_precedente_id null — libellé dédié
+                        // pour un courrier départ), soit une clôture (ex. décharge, cf.
+                        // fn_ajouter_decharge_courrier) où le commentaire porte le libellé de
+                        // l'événement puisque l'étape n'a pas changé.
+                        !h.transition_id && !h.etape_precedente_id && courrier.sens === 'sortant'
+                        ? 'Enregistrement courrier départ'
+                        : !h.transition_id && h.commentaire
+                          ? h.commentaire
+                          : (etapeParId.get(h.etape_suivante_id)?.libelle ?? h.etape_suivante_id);
+                    const auteur = h.utilisateur_id ? utilisateurParId.get(h.utilisateur_id) : undefined;
+
+                    return (
+                      <li key={h.id} className={cn('relative pl-6', !dernier && 'pb-5')}>
+                        {!dernier && <span className="absolute bottom-0 left-[5px] top-3 w-px bg-border" />}
+                        <span
+                          className={cn(
+                            'absolute left-0 top-1.5 size-[11px] rounded-full border-2 border-card ring-1',
+                            dernier ? 'bg-primary ring-primary' : 'bg-muted-foreground/50 ring-border',
+                          )}
+                        />
+                        <div className="text-[13px] font-semibold">{titre}</div>
+                        {principal && (
+                          <div className="mt-1 space-y-0.5 text-[13px] text-muted-foreground">
+                            <div>
+                              <span className="text-foreground">{cibleLabel(principal)}</span>
+                              {copies.length > 0 && <> · en copie : {copies.map(cibleLabel).join(', ')}</>}
+                            </div>
+                            {principal.actions_demandees_ids.length > 0 && (
+                              <div>
+                                Actions : {principal.actions_demandees_ids.map((id) => actionDemandeeParId.get(id) ?? id).join(', ')}
+                              </div>
+                            )}
+                            {principal.echeance && <div>Échéance : {fr(principal.echeance).format('D MMMM YYYY')}</div>}
+                            {principal.instruction && <div className="italic">« {principal.instruction} »</div>}
+                          </div>
+                        )}
+                        {!principal && h.transition_id && h.commentaire && (
+                          <div className="mt-1 text-[13px] italic text-muted-foreground">« {h.commentaire} »</div>
+                        )}
+                        <div className="mt-1 text-[12px] text-muted-foreground">
+                          {fr(h.date_action).format('D MMM YYYY à HH:mm')}
+                          {auteur ? ` · ${auteur}` : ''}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </div>
+          </>
+        )}
+      </CardContent>
 
       {actionOuverte && (
         <CourrierActionWorkflowModal

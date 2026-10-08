@@ -1,5 +1,10 @@
-import { Alert, Select, Skeleton, Typography } from 'antd';
+import { LoaderCircle } from 'lucide-react';
 import { useMemo } from 'react';
+import { Champ } from '../../../components/form/champ';
+import { Encart } from '../../../components/ui/encart';
+import { NativeSelect } from '../../../components/ui/native-select';
+import { EnTeteSection } from '../../../components/ui/page-header';
+import { Skeleton } from '../../../components/ui/skeleton';
 import { useEntites } from '../../../hooks/administration/useEntites';
 import {
   useParametreOrganisationMutations,
@@ -16,6 +21,8 @@ interface Props {
 const CLE_ENTITE_DESTINATAIRE_INITIALE = 'courrier.entite_destinataire_initiale_id';
 const CLE_ETAPE_APRES_ENREGISTREMENT_ENTRANT = 'courrier.etape_apres_enregistrement_entrant_id';
 
+// Réglages enregistrés dès le changement de sélection (paramètres
+// d'organisation, upsert), comme auparavant : pas de bouton Enregistrer.
 export function CourrierParametresManager({ organisationId, peutModifier }: Props) {
   const { data: entites, isLoading: entitesEnCours } = useEntites(organisationId);
   const { data: parametres, isLoading: parametresEnCours } = useParametresOrganisation(organisationId);
@@ -55,86 +62,98 @@ export function CourrierParametresManager({ organisationId, peutModifier }: Prop
     [etapes],
   );
 
-  if (entitesEnCours || parametresEnCours || definitionsEnCours) return <Skeleton active />;
+  if (entitesEnCours || parametresEnCours || definitionsEnCours) return <Skeleton className="h-80 w-full" />;
+
+  const enregistrement = upsert.isPending && (
+    <span className="ml-2 inline-flex items-center gap-1 text-[12px] font-normal text-muted-foreground">
+      <LoaderCircle className="size-3.5 animate-spin" />
+      Enregistrement…
+    </span>
+  );
 
   return (
-    <div>
-      <Typography.Title level={5}>Routage des courriers arrivés</Typography.Title>
-      <Alert
-        type="info"
-        showIcon
-        style={{ marginBottom: 16, maxWidth: 640 }}
-        message="Entité destinataire initiale"
-        description={
-          <>
-            À l'enregistrement d'un courrier arrivé, aucune entité/service/bureau/agent n'est
-            demandé à l'utilisateur. Le courrier est automatiquement routé vers l'entité
-            sélectionnée ci-dessous. L'affectation définitive (imputation à l'entité/l'agent
-            réellement chargé du dossier) se fait ensuite via le workflow.
-          </>
-        }
-      />
-      <Select
-        style={{ width: 360 }}
-        placeholder="Choisir l'entité destinataire initiale"
-        allowClear
-        disabled={!peutModifier}
-        value={entiteDestinataireInitiale}
-        loading={upsert.isPending}
-        options={(entites ?? []).map((e) => ({ value: e.id, label: e.libelle }))}
-        onChange={(entiteId) =>
-          upsert.mutate({
-            cle: CLE_ENTITE_DESTINATAIRE_INITIALE,
-            valeur: entiteId ?? null,
-            description: "Entité vers laquelle router automatiquement un courrier arrivé à l'enregistrement.",
-          })
-        }
-      />
-      {!entiteDestinataireInitiale && (
-        <Typography.Paragraph type="secondary" style={{ marginTop: 8, maxWidth: 640 }}>
-          Tant qu'aucune entité n'est configurée ici, un courrier arrivé enregistré sans entité
-          explicite reste « non imputé » jusqu'à sa première imputation manuelle.
-        </Typography.Paragraph>
-      )}
+    <div className="max-w-2xl space-y-8">
+      <section>
+        <EnTeteSection titre="Routage des courriers arrivés" />
+        <Encart titre="Entité destinataire initiale" className="mb-4">
+          À l'enregistrement d'un courrier arrivé, aucune entité, service, bureau ou agent n'est demandé. Le courrier est
+          routé automatiquement vers l'entité choisie ci-dessous ; l'affectation définitive (imputation) se fait ensuite
+          via le workflow.
+        </Encart>
+        <Champ
+          label={<>Entité destinataire initiale{enregistrement}</>}
+          htmlFor="courrier-entite-initiale"
+          aide={
+            !entiteDestinataireInitiale
+              ? "Sans entité configurée, un courrier arrivé reste « non imputé » jusqu'à sa première imputation manuelle."
+              : "Enregistré dès la sélection."
+          }
+        >
+          <NativeSelect
+            id="courrier-entite-initiale"
+            className="sm:max-w-sm"
+            disabled={!peutModifier || upsert.isPending}
+            value={entiteDestinataireInitiale ?? ''}
+            onChange={(e) =>
+              upsert.mutate({
+                cle: CLE_ENTITE_DESTINATAIRE_INITIALE,
+                valeur: e.target.value || null,
+                description: "Entité vers laquelle router automatiquement un courrier arrivé à l'enregistrement.",
+              })
+            }
+          >
+            <option value="">Aucune (non imputé)</option>
+            {(entites ?? []).map((en) => (
+              <option key={en.id} value={en.id}>
+                {en.libelle}
+              </option>
+            ))}
+          </NativeSelect>
+        </Champ>
+      </section>
 
-      <Typography.Title level={5} style={{ marginTop: 24 }}>
-        Étape après enregistrement (courriers arrivés)
-      </Typography.Title>
-      <Alert
-        type="warning"
-        showIcon
-        style={{ marginBottom: 16, maxWidth: 640 }}
-        message="Étape associée après l'enregistrement du courrier d'arrivée"
-        description={
-          <>
-            Étape du workflow sur laquelle un courrier arrivé est automatiquement positionné juste
-            après son enregistrement. <strong>Obligatoire</strong> : tant qu'aucune étape n'est
-            sélectionnée ici, l'enregistrement d'un courrier arrivé est refusé.
-          </>
-        }
-      />
-      <Select
-        style={{ width: 360 }}
-        placeholder="Choisir l'étape après enregistrement"
-        disabled={!peutModifier}
-        loading={etapesEnCours || upsert.isPending}
-        value={etapeApresEnregistrementEntrant}
-        options={etapesTriees.map((e) => ({ value: e.id, label: e.libelle }))}
-        onChange={(etapeId) =>
-          upsert.mutate({
-            cle: CLE_ETAPE_APRES_ENREGISTREMENT_ENTRANT,
-            valeur: etapeId,
-            description:
-              "Étape du workflow sur laquelle un courrier arrivé est positionné juste après son enregistrement.",
-          })
-        }
-      />
-      {!etapeApresEnregistrementEntrant && (
-        <Typography.Paragraph type="danger" style={{ marginTop: 8, maxWidth: 640 }}>
-          Aucune étape n'est configurée : l'enregistrement de tout nouveau courrier arrivé échouera
-          tant que ce champ n'est pas renseigné.
-        </Typography.Paragraph>
-      )}
+      <section>
+        <EnTeteSection titre="Étape après enregistrement (courriers arrivés)" />
+        <Encart variante="attention" titre="Réglage obligatoire" className="mb-4">
+          Étape du workflow sur laquelle un courrier arrivé est positionné juste après son enregistrement. Tant qu'aucune
+          étape n'est choisie, l'enregistrement d'un courrier arrivé est refusé.
+        </Encart>
+        <Champ
+          label={<>Étape après enregistrement{enregistrement}</>}
+          htmlFor="courrier-etape-initiale"
+          requis
+          erreur={
+            !etapeApresEnregistrementEntrant
+              ? "Aucune étape configurée : l'enregistrement de tout nouveau courrier arrivé échouera."
+              : undefined
+          }
+        >
+          <NativeSelect
+            id="courrier-etape-initiale"
+            className="sm:max-w-sm"
+            disabled={!peutModifier || upsert.isPending || etapesEnCours}
+            aria-invalid={!etapeApresEnregistrementEntrant}
+            aria-describedby={!etapeApresEnregistrementEntrant ? 'courrier-etape-initiale-erreur' : undefined}
+            value={etapeApresEnregistrementEntrant ?? ''}
+            onChange={(e) => {
+              if (!e.target.value) return;
+              upsert.mutate({
+                cle: CLE_ETAPE_APRES_ENREGISTREMENT_ENTRANT,
+                valeur: e.target.value,
+                description:
+                  "Étape du workflow sur laquelle un courrier arrivé est positionné juste après son enregistrement.",
+              });
+            }}
+          >
+            {!etapeApresEnregistrementEntrant && <option value="">Choisir une étape</option>}
+            {etapesTriees.map((et) => (
+              <option key={et.id} value={et.id}>
+                {et.libelle}
+              </option>
+            ))}
+          </NativeSelect>
+        </Champ>
+      </section>
     </div>
   );
 }

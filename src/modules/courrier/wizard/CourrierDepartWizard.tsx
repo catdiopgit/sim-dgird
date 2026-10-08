@@ -1,31 +1,26 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { CheckCircleFilled, PlusOutlined, PrinterOutlined } from '@ant-design/icons';
-import {
-  Button,
-  DatePicker,
-  Descriptions,
-  Form,
-  Input,
-  Modal,
-  Radio,
-  Result,
-  Select,
-  Space,
-  Steps,
-  Tag,
-  Typography,
-} from 'antd';
 import dayjs from 'dayjs';
+import { Building2, CircleCheck, Contact, LoaderCircle, Plus, Printer, User, X } from 'lucide-react';
 import { useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Champ } from '../../../components/form/champ';
+import { LigneRecap, WizardDialog } from '../../../components/form/wizard-dialog';
+import { Badge } from '../../../components/ui/badge';
+import { Button } from '../../../components/ui/button';
+import { Input, Textarea } from '../../../components/ui/input';
+import { NativeSelect } from '../../../components/ui/native-select';
 import { useEntites, useUtilisateursOptions } from '../../../hooks/administration/useEntites';
-import { useContacts, useCreerContact } from '../../../hooks/courrier/useContacts';
+import { useContacts } from '../../../hooks/courrier/useContacts';
 import { useCourrierReferentiel, useCreerCourrier } from '../../../hooks/courrier/useCourriers';
+import { ariaErreur } from '../../../lib/form';
+import { cn } from '../../../lib/utils';
 import type { Courrier } from '../../../services/courrier/courriers';
 import { ajouterDestinataire } from '../../../services/courrier/destinataires';
 import { uploadPieceJointe } from '../../../services/courrier/piecesJointes';
+import { fr } from '../../../utils/dateFr';
 import { FicheExploitationModal } from '../FicheExploitationModal';
+import { ContactRapide } from './ContactRapide';
 import { PiecesJointesStagingList, type PieceJointeStagee } from './PiecesJointesStagingList';
 
 const schema = z.object({
@@ -33,23 +28,23 @@ const schema = z.object({
   entiteId: z.string().min(1, 'Requis'),
   reference: z.string().optional(),
   typeValeurId: z.string().optional(),
-  dateCourrier: z.custom<dayjs.Dayjs | null>().optional(),
-  dateEnvoi: z.custom<dayjs.Dayjs | null>().optional(),
+  dateCourrier: z.string().optional(),
+  dateEnvoi: z.string().optional(),
   modeTransmissionValeurId: z.string().optional(),
   observations: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
 
-const DEFAUTS: FormValues = {
+const defauts = (): FormValues => ({
   objet: '',
   entiteId: '',
   reference: '',
   typeValeurId: '',
-  dateCourrier: dayjs(),
-  dateEnvoi: null,
+  dateCourrier: dayjs().format('YYYY-MM-DD'),
+  dateEnvoi: '',
   modeTransmissionValeurId: '',
   observations: '',
-};
+});
 
 type AmpliataireType = 'entite' | 'utilisateur' | 'contact';
 interface Ampliataire {
@@ -59,6 +54,13 @@ interface Ampliataire {
   cibleLabel: string;
   interne: boolean;
 }
+
+const ETAPES = ['Informations', 'Pièces jointes', 'Destinataires', 'Récapitulatif', 'Confirmation'];
+const TYPES_AMPLIATAIRE: { valeur: AmpliataireType; libelle: string; Icone: typeof Building2 }[] = [
+  { valeur: 'entite', libelle: 'Entité (interne)', Icone: Building2 },
+  { valeur: 'utilisateur', libelle: 'Utilisateur (interne)', Icone: User },
+  { valeur: 'contact', libelle: 'Contact (externe)', Icone: Contact },
+];
 
 interface Props {
   open: boolean;
@@ -76,24 +78,28 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
   const { data: entites } = useEntites(organisationId);
   const { data: utilisateurs } = useUtilisateursOptions(organisationId);
   const { data: contacts } = useContacts(organisationId);
-  const creerContact = useCreerContact(organisationId);
   const creer = useCreerCourrier(organisationId);
 
   const [etape, setEtape] = useState(0);
   const [fichiers, setFichiers] = useState<PieceJointeStagee[]>([]);
-  const [contactPrincipalId, setContactPrincipalId] = useState<string | undefined>();
+  const [contactPrincipalId, setContactPrincipalId] = useState('');
   const [ampliataires, setAmpliataires] = useState<Ampliataire[]>([]);
-  const [nouveauContactOuvert, setNouveauContactOuvert] = useState<'principal' | 'ampliataire' | null>(null);
-  const [nouveauContactNom, setNouveauContactNom] = useState('');
   const [ampliCibleType, setAmpliCibleType] = useState<AmpliataireType>('entite');
-  const [ampliCibleId, setAmpliCibleId] = useState<string | undefined>();
+  const [ampliCibleId, setAmpliCibleId] = useState('');
   const [enCours, setEnCours] = useState(false);
   const [courrierCree, setCourrierCree] = useState<Courrier | null>(null);
   const [ficheOuverte, setFicheOuverte] = useState(false);
 
-  const { control, handleSubmit, trigger, watch, reset } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    trigger,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: DEFAUTS,
+    defaultValues: defauts(),
   });
   const valeurs = watch();
 
@@ -101,15 +107,16 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
     onClose();
     setEtape(0);
     setFichiers([]);
-    setContactPrincipalId(undefined);
+    setContactPrincipalId('');
     setAmpliataires([]);
+    setAmpliCibleId('');
     setCourrierCree(null);
     setFicheOuverte(false);
-    reset(DEFAUTS);
+    reset(defauts());
   };
 
   const libelleValeur = (liste: { id: string; libelle: string }[] | undefined, id?: string) =>
-    liste?.find((v) => v.id === id)?.libelle ?? '—';
+    liste?.find((v) => v.id === id)?.libelle;
   const libelleEntite = (id?: string) => entites?.find((e) => e.id === id)?.libelle ?? '—';
   const libelleContact = (id?: string) => contacts?.find((c) => c.id === id)?.nom ?? '—';
 
@@ -122,37 +129,20 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
   };
   const precedent = () => setEtape((e) => e - 1);
 
-  const creerContactRapide = async (usage: 'principal' | 'ampliataire') => {
-    if (!nouveauContactNom.trim()) return;
-    const contact = await creerContact.mutateAsync({ nom: nouveauContactNom.trim(), type: 'administration' });
-    if (usage === 'principal') {
-      setContactPrincipalId(contact.id);
-    } else {
-      setAmpliataires((a) => [
-        ...a,
-        { id: crypto.randomUUID(), type: 'contact', cibleId: contact.id, cibleLabel: contact.nom, interne: false },
-      ]);
-    }
-    setNouveauContactNom('');
-    setNouveauContactOuvert(null);
-  };
-
-  const ajouterAmpliataire = () => {
-    if (!ampliCibleId) return;
+  const ajouterAmpliataire = (type: AmpliataireType, cibleId: string, libelleForce?: string) => {
+    if (!cibleId) return;
     const label =
-      ampliCibleType === 'entite'
-        ? libelleEntite(ampliCibleId)
-        : ampliCibleType === 'utilisateur'
+      libelleForce ??
+      (type === 'entite'
+        ? libelleEntite(cibleId)
+        : type === 'utilisateur'
           ? (() => {
-              const u = utilisateurs?.find((u) => u.id === ampliCibleId);
+              const u = utilisateurs?.find((u) => u.id === cibleId);
               return u ? `${u.prenom} ${u.nom}` : '—';
             })()
-          : libelleContact(ampliCibleId);
-    setAmpliataires((a) => [
-      ...a,
-      { id: crypto.randomUUID(), type: ampliCibleType, cibleId: ampliCibleId, cibleLabel: label, interne: ampliCibleType !== 'contact' },
-    ]);
-    setAmpliCibleId(undefined);
+          : libelleContact(cibleId));
+    setAmpliataires((a) => [...a, { id: crypto.randomUUID(), type, cibleId, cibleLabel: label, interne: type !== 'contact' }]);
+    setAmpliCibleId('');
   };
 
   const valider = handleSubmit(async (values) => {
@@ -163,8 +153,8 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
         p_objet: values.objet,
         p_entite_id: values.entiteId,
         p_type_valeur_id: values.typeValeurId || null,
-        p_date_courrier: values.dateCourrier ? values.dateCourrier.format('YYYY-MM-DD') : null,
-        p_date_envoi: values.dateEnvoi ? values.dateEnvoi.toISOString() : null,
+        p_date_courrier: values.dateCourrier || null,
+        p_date_envoi: values.dateEnvoi ? dayjs(values.dateEnvoi).toISOString() : null,
         p_mode_transmission_valeur_id: values.modeTransmissionValeurId || null,
         p_destinataire_texte: contactPrincipalId ? libelleContact(contactPrincipalId) : null,
         p_contact_destinataire_id: contactPrincipalId || null,
@@ -192,213 +182,256 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
     }
   });
 
-  const footer = () => {
-    if (etape === 4) {
-      return [
-        <Button key="fermer" onClick={fermer}>
+  const options = (liste: { id: string; libelle: string }[] | undefined) =>
+    (liste ?? []).map((v) => (
+      <option key={v.id} value={v.id}>
+        {v.libelle}
+      </option>
+    ));
+
+  const optionsAmpliataire =
+    ampliCibleType === 'entite'
+      ? (entites ?? []).map((e) => ({ valeur: e.id, libelle: e.libelle }))
+      : ampliCibleType === 'utilisateur'
+        ? (utilisateurs ?? []).map((u) => ({ valeur: u.id, libelle: `${u.prenom} ${u.nom}` }))
+        : (contacts ?? []).map((c) => ({ valeur: c.id, libelle: c.nom }));
+
+  const pied =
+    etape === 4 ? (
+      <>
+        <Button variant="outline" onClick={fermer}>
           Fermer
-        </Button>,
-        <Button key="voir" type="primary" onClick={() => courrierCree && onTermine(courrierCree)}>
-          Voir le courrier
-        </Button>,
-      ];
-    }
-    return [
-      <Button key="annuler" onClick={fermer}>
-        Annuler
-      </Button>,
-      etape > 0 && (
-        <Button key="precedent" onClick={precedent}>
-          Précédent
         </Button>
-      ),
-      etape < 3 && (
-        <Button key="suivant" type="primary" onClick={suivant}>
-          Suivant
+        <Button onClick={() => courrierCree && onTermine(courrierCree)}>Voir le courrier</Button>
+      </>
+    ) : (
+      <>
+        <Button variant="ghost" className="sm:mr-auto" onClick={fermer} disabled={enCours}>
+          Annuler
         </Button>
-      ),
-      etape === 3 && (
-        <Button key="valider" type="primary" loading={enCours} onClick={valider}>
-          Valider l'enregistrement
-        </Button>
-      ),
-    ].filter(Boolean);
-  };
+        {etape > 0 && (
+          <Button variant="outline" onClick={precedent} disabled={enCours}>
+            Précédent
+          </Button>
+        )}
+        {etape < 3 && <Button onClick={() => void suivant()}>Suivant</Button>}
+        {etape === 3 && (
+          <Button onClick={() => void valider()} disabled={enCours}>
+            {enCours && <LoaderCircle className="animate-spin" />}
+            Valider l'enregistrement
+          </Button>
+        )}
+      </>
+    );
 
   return (
-    <Modal open={open} title="Nouveau courrier départ" onCancel={fermer} width={820} footer={footer()} destroyOnHidden>
-      <Steps
-        size="small"
-        current={etape}
-        style={{ marginBottom: 24 }}
-        items={[{ title: 'Informations' }, { title: 'Pièces jointes' }, { title: 'Destinataires' }, { title: 'Récapitulatif' }, { title: 'Confirmation' }]}
-      />
-
+    <WizardDialog
+      open={open}
+      onClose={fermer}
+      titre="Nouveau courrier départ"
+      etapes={ETAPES}
+      courante={etape}
+      pied={pied}
+      bloquerFermeture={enCours}
+    >
       {etape === 0 && (
-        <Form layout="vertical">
-          <Form.Item label="Objet" required>
-            <Controller name="objet" control={control} render={({ field }) => <Input {...field} autoFocus />} />
-          </Form.Item>
-          <Form.Item label="Entité en charge" required>
-            <Controller
-              name="entiteId"
-              control={control}
-              render={({ field }) => (
-                <Select {...field} placeholder="Sélectionner une entité" options={(entites ?? []).map((e) => ({ value: e.id, label: e.libelle }))} />
-              )}
-            />
-          </Form.Item>
-          <Form.Item label="Référence">
-            <Controller name="reference" control={control} render={({ field }) => <Input {...field} />} />
-          </Form.Item>
-          <Form.Item label="Type de courrier">
-            <Controller
-              name="typeValeurId"
-              control={control}
-              render={({ field }) => (
-                <Select {...field} allowClear options={(referentiel?.types ?? []).map((v) => ({ value: v.id, label: v.libelle }))} />
-              )}
-            />
-          </Form.Item>
-          <Form.Item label="Date du courrier">
-            <Controller name="dateCourrier" control={control} render={({ field }) => <DatePicker {...field} style={{ width: '100%' }} />} />
-          </Form.Item>
-          <Form.Item label="Date d'envoi">
-            <Controller name="dateEnvoi" control={control} render={({ field }) => <DatePicker {...field} showTime style={{ width: '100%' }} />} />
-          </Form.Item>
-          <Form.Item label="Mode de transmission">
-            <Controller
-              name="modeTransmissionValeurId"
-              control={control}
-              render={({ field }) => (
-                <Select {...field} allowClear options={(referentiel?.modesTransmission ?? []).map((v) => ({ value: v.id, label: v.libelle }))} />
-              )}
-            />
-          </Form.Item>
-          <Form.Item label="Observations">
-            <Controller name="observations" control={control} render={({ field }) => <Input.TextArea {...field} rows={2} />} />
-          </Form.Item>
-        </Form>
+        <div className="space-y-4">
+          <Champ label="Objet" htmlFor="depart-objet" requis erreur={errors.objet?.message}>
+            <Input autoFocus {...ariaErreur('depart-objet', errors.objet)} {...register('objet')} />
+          </Champ>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Champ label="Entité en charge" htmlFor="depart-entite" requis erreur={errors.entiteId?.message}>
+              <NativeSelect {...ariaErreur('depart-entite', errors.entiteId)} {...register('entiteId')}>
+                <option value="">Sélectionner une entité</option>
+                {(entites ?? []).map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.sigle ? `${e.sigle} — ${e.libelle}` : e.libelle}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Champ>
+            <Champ label="Type de courrier" htmlFor="depart-type">
+              <NativeSelect id="depart-type" {...register('typeValeurId')}>
+                <option value="">—</option>
+                {options(referentiel?.types)}
+              </NativeSelect>
+            </Champ>
+            <Champ label="Référence" htmlFor="depart-reference">
+              <Input id="depart-reference" {...register('reference')} />
+            </Champ>
+            <Champ label="Mode de transmission" htmlFor="depart-transmission">
+              <NativeSelect id="depart-transmission" {...register('modeTransmissionValeurId')}>
+                <option value="">—</option>
+                {options(referentiel?.modesTransmission)}
+              </NativeSelect>
+            </Champ>
+            <Champ label="Date du courrier" htmlFor="depart-date">
+              <Input id="depart-date" type="date" {...register('dateCourrier')} />
+            </Champ>
+            <Champ label="Date et heure d'envoi" htmlFor="depart-envoi">
+              <Input id="depart-envoi" type="datetime-local" {...register('dateEnvoi')} />
+            </Champ>
+          </div>
+          <Champ label="Observations" htmlFor="depart-observations">
+            <Textarea id="depart-observations" rows={2} {...register('observations')} />
+          </Champ>
+        </div>
       )}
 
       {etape === 1 && <PiecesJointesStagingList fichiers={fichiers} onChange={setFichiers} />}
 
       {etape === 2 && (
-        <div>
-          <Typography.Title level={5}>Destinataire principal</Typography.Title>
-          <Space wrap style={{ marginBottom: 20 }}>
-            <Select
-              placeholder="Rechercher un contact existant"
-              showSearch
-              allowClear
-              style={{ width: 320 }}
-              value={contactPrincipalId}
-              onChange={setContactPrincipalId}
-              filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-              options={(contacts ?? []).map((c) => ({ value: c.id, label: c.nom }))}
-            />
-            <Button icon={<PlusOutlined />} onClick={() => setNouveauContactOuvert('principal')}>
-              Nouveau contact
-            </Button>
-          </Space>
-
-          <Typography.Title level={5}>Ampliataires</Typography.Title>
-          <Space wrap style={{ marginBottom: 12 }} align="start">
-            <Radio.Group value={ampliCibleType} onChange={(e) => { setAmpliCibleType(e.target.value); setAmpliCibleId(undefined); }}>
-              <Radio.Button value="entite">Entité (interne)</Radio.Button>
-              <Radio.Button value="utilisateur">Utilisateur (interne)</Radio.Button>
-              <Radio.Button value="contact">Contact (externe)</Radio.Button>
-            </Radio.Group>
-          </Space>
-          <Space wrap style={{ marginBottom: 20 }}>
-            <Select
-              placeholder="Choisir"
-              showSearch
-              style={{ width: 280 }}
-              value={ampliCibleId}
-              onChange={setAmpliCibleId}
-              filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-              options={
-                ampliCibleType === 'entite'
-                  ? (entites ?? []).map((e) => ({ value: e.id, label: e.libelle }))
-                  : ampliCibleType === 'utilisateur'
-                    ? (utilisateurs ?? []).map((u) => ({ value: u.id, label: `${u.prenom} ${u.nom}` }))
-                    : (contacts ?? []).map((c) => ({ value: c.id, label: c.nom }))
-              }
-            />
-            <Button icon={<PlusOutlined />} onClick={ajouterAmpliataire} disabled={!ampliCibleId}>
-              Ajouter
-            </Button>
-            {ampliCibleType === 'contact' && (
-              <Button onClick={() => setNouveauContactOuvert('ampliataire')}>Nouveau contact</Button>
-            )}
-          </Space>
-
-          <Space wrap>
-            {ampliataires.map((a) => (
-              <Tag
-                key={a.id}
-                color={a.interne ? 'blue' : 'purple'}
-                closable
-                onClose={() => setAmpliataires((list) => list.filter((x) => x.id !== a.id))}
+        <div className="space-y-6">
+          <section>
+            <h3 className="mb-2 text-[14px] font-semibold">Destinataire principal</h3>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <NativeSelect
+                aria-label="Destinataire principal"
+                className="min-w-0 flex-1"
+                value={contactPrincipalId}
+                onChange={(e) => setContactPrincipalId(e.target.value)}
               >
-                {a.cibleLabel} {a.interne ? '(interne)' : '(externe)'}
-              </Tag>
-            ))}
-          </Space>
+                <option value="">Sélectionner un contact</option>
+                {(contacts ?? []).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nom}
+                  </option>
+                ))}
+              </NativeSelect>
+              <ContactRapide organisationId={organisationId} onCree={(c) => setContactPrincipalId(c.id)} />
+            </div>
+          </section>
+
+          <section>
+            <h3 className="text-[14px] font-semibold">Ampliataires</h3>
+            <p className="mb-3 text-[13px] text-muted-foreground">Destinataires en copie, internes ou externes.</p>
+            <div role="radiogroup" aria-label="Type d'ampliataire" className="mb-3 flex flex-wrap gap-1.5">
+              {TYPES_AMPLIATAIRE.map(({ valeur, libelle, Icone }) => (
+                <button
+                  key={valeur}
+                  type="button"
+                  role="radio"
+                  aria-checked={ampliCibleType === valeur}
+                  onClick={() => {
+                    setAmpliCibleType(valeur);
+                    setAmpliCibleId('');
+                  }}
+                  className={cn(
+                    'inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium',
+                    ampliCibleType === valeur
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'border-border text-muted-foreground hover:bg-muted',
+                  )}
+                >
+                  <Icone className="size-3.5" />
+                  {libelle}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <NativeSelect
+                aria-label="Ampliataire à ajouter"
+                className="min-w-0 flex-1"
+                value={ampliCibleId}
+                onChange={(e) => setAmpliCibleId(e.target.value)}
+              >
+                <option value="">Choisir…</option>
+                {optionsAmpliataire.map((o) => (
+                  <option key={o.valeur} value={o.valeur}>
+                    {o.libelle}
+                  </option>
+                ))}
+              </NativeSelect>
+              <Button type="button" variant="outline" disabled={!ampliCibleId} onClick={() => ajouterAmpliataire(ampliCibleType, ampliCibleId)}>
+                <Plus />
+                Ajouter
+              </Button>
+              {ampliCibleType === 'contact' && (
+                <ContactRapide
+                  organisationId={organisationId}
+                  libelle="Nouveau contact"
+                  onCree={(c) => ajouterAmpliataire('contact', c.id, c.nom)}
+                />
+              )}
+            </div>
+            {ampliataires.length > 0 && (
+              <ul className="mt-3 flex flex-wrap gap-2">
+                {ampliataires.map((a) => (
+                  <li key={a.id}>
+                    <Badge variant={a.interne ? 'muted' : 'outline'} shape="pill" className="py-1 pl-2.5 pr-1">
+                      {a.cibleLabel}
+                      <span className="text-muted-foreground">{a.interne ? 'interne' : 'externe'}</span>
+                      <button
+                        type="button"
+                        onClick={() => setAmpliataires((list) => list.filter((x) => x.id !== a.id))}
+                        className="grid size-5 cursor-pointer place-items-center rounded-full hover:bg-foreground/10"
+                        aria-label={`Retirer ${a.cibleLabel}`}
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
       )}
 
       {etape === 3 && (
         <div>
-          <Descriptions column={1} bordered size="small">
-            <Descriptions.Item label="Objet">{valeurs.objet}</Descriptions.Item>
-            <Descriptions.Item label="Entité en charge">{libelleEntite(valeurs.entiteId)}</Descriptions.Item>
-            <Descriptions.Item label="Type">{libelleValeur(referentiel?.types, valeurs.typeValeurId)}</Descriptions.Item>
-            <Descriptions.Item label="Date du courrier">
-              {valeurs.dateCourrier ? valeurs.dateCourrier.format('DD/MM/YYYY') : '—'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Date d'envoi">
-              {valeurs.dateEnvoi ? valeurs.dateEnvoi.format('DD/MM/YYYY HH:mm') : '—'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Mode de transmission">
-              {libelleValeur(referentiel?.modesTransmission, valeurs.modeTransmissionValeurId)}
-            </Descriptions.Item>
-            <Descriptions.Item label="Destinataire principal">
-              {contactPrincipalId ? libelleContact(contactPrincipalId) : '—'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Ampliataires">
-              {ampliataires.length === 0 ? '—' : ampliataires.map((a) => <Tag key={a.id}>{a.cibleLabel}</Tag>)}
-            </Descriptions.Item>
-            <Descriptions.Item label="Observations">{valeurs.observations || '—'}</Descriptions.Item>
-            <Descriptions.Item label="Pièces jointes">
-              {fichiers.length === 0 ? '—' : fichiers.map((f) => <Tag key={f.id}>{f.file.name}</Tag>)}
-            </Descriptions.Item>
-          </Descriptions>
-          <Typography.Paragraph type="secondary" style={{ marginTop: 12 }}>
-            Vous pouvez revenir en arrière pour corriger une information avant de valider
-            définitivement l'enregistrement.
-          </Typography.Paragraph>
+          <dl className="rounded-lg border border-border px-4">
+            <LigneRecap label="Objet">{valeurs.objet}</LigneRecap>
+            <LigneRecap label="Entité en charge">{libelleEntite(valeurs.entiteId)}</LigneRecap>
+            <LigneRecap label="Type">{libelleValeur(referentiel?.types, valeurs.typeValeurId)}</LigneRecap>
+            <LigneRecap label="Date du courrier">{valeurs.dateCourrier ? fr(valeurs.dateCourrier).format('D MMMM YYYY') : null}</LigneRecap>
+            <LigneRecap label="Envoi">{valeurs.dateEnvoi ? fr(valeurs.dateEnvoi).format('D MMMM YYYY à HH:mm') : null}</LigneRecap>
+            <LigneRecap label="Mode de transmission">{libelleValeur(referentiel?.modesTransmission, valeurs.modeTransmissionValeurId)}</LigneRecap>
+            <LigneRecap label="Destinataire principal">{contactPrincipalId ? libelleContact(contactPrincipalId) : null}</LigneRecap>
+            <LigneRecap label="Ampliataires">
+              {ampliataires.length > 0 && (
+                <span className="flex flex-wrap gap-1.5">
+                  {ampliataires.map((a) => (
+                    <Badge key={a.id} variant="muted">
+                      {a.cibleLabel}
+                    </Badge>
+                  ))}
+                </span>
+              )}
+            </LigneRecap>
+            <LigneRecap label="Observations">{valeurs.observations}</LigneRecap>
+            <LigneRecap label="Pièces jointes">
+              {fichiers.length > 0 && (
+                <span className="flex flex-wrap gap-1.5">
+                  {fichiers.map((f) => (
+                    <Badge key={f.id} variant={f.estScan ? 'primary' : 'muted'}>
+                      {f.file.name}
+                    </Badge>
+                  ))}
+                </span>
+              )}
+            </LigneRecap>
+          </dl>
+          <p className="mt-3 text-[13px] text-muted-foreground">
+            Vous pouvez revenir en arrière pour corriger une information avant de valider définitivement l'enregistrement.
+          </p>
         </div>
       )}
 
       {etape === 4 && courrierCree && (
-        <Result
-          icon={<CheckCircleFilled style={{ color: '#2e9e4f' }} />}
-          title="Courrier enregistré"
-          subTitle={
-            <Space direction="vertical" align="center">
-              <span>
-                Numéro attribué : <Typography.Text strong>{courrierCree.numero}</Typography.Text>
-              </span>
-            </Space>
-          }
-          extra={
-            <Button icon={<PrinterOutlined />} onClick={() => setFicheOuverte(true)}>
-              Imprimer la fiche d'exploitation
-            </Button>
-          }
-        />
+        <div className="flex flex-col items-center py-6 text-center">
+          <div className="grid size-14 place-items-center rounded-full bg-good/15">
+            <CircleCheck className="size-7 text-good-text" />
+          </div>
+          <h3 className="mt-4 text-[18px] font-semibold">Courrier enregistré</h3>
+          <p className="mt-1 text-muted-foreground">
+            Numéro attribué : <span className="font-mono font-semibold text-foreground">{courrierCree.numero}</span>
+          </p>
+          <Button variant="outline" className="mt-5" onClick={() => setFicheOuverte(true)}>
+            <Printer />
+            Imprimer la fiche d'exploitation
+          </Button>
+        </div>
       )}
 
       {courrierCree && (
@@ -409,21 +442,6 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
           onClose={() => setFicheOuverte(false)}
         />
       )}
-
-      <Modal
-        open={nouveauContactOuvert !== null}
-        title="Nouveau contact"
-        onCancel={() => { setNouveauContactOuvert(null); setNouveauContactNom(''); }}
-        onOk={() => nouveauContactOuvert && creerContactRapide(nouveauContactOuvert)}
-        confirmLoading={creerContact.isPending}
-        destroyOnHidden
-      >
-        <Form layout="vertical">
-          <Form.Item label="Nom du contact / de l'organisme">
-            <Input value={nouveauContactNom} onChange={(e) => setNouveauContactNom(e.target.value)} autoFocus />
-          </Form.Item>
-        </Form>
-      </Modal>
-    </Modal>
+    </WizardDialog>
   );
 }

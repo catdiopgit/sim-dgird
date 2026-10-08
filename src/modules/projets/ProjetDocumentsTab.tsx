@@ -1,12 +1,17 @@
-import { DownloadOutlined, PlusOutlined } from '@ant-design/icons';
-import { Button, Card, Table, Tag, message } from 'antd';
+import { message } from '../../lib/notifications';
+import { Download, FileText, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { ouvrirFichier } from '../../config/apiClient';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Tableau } from '../../components/ui/tableau';
 import { useDocumentsProjet } from '../../hooks/projets/useDocumentsProjet';
 import { useLivrables } from '../../hooks/projets/useLivrables';
-import { ouvrirFichier } from '../../config/apiClient';
 import { getUrlTelechargementDocument, type Document } from '../../services/projets/documents';
 import type { ProjetsReferentiel } from '../../services/projets/referentiel';
+import { fr } from '../../utils/dateFr';
 import { DocumentProjetAjouterModal } from './DocumentProjetAjouterModal';
+import { BadgeValeur } from './projetAffichage';
 
 interface Props {
   projetId: string;
@@ -35,59 +40,82 @@ export function ProjetDocumentsTab({ projetId, peutModifier, referentiel, utilis
   };
 
   return (
-    <Card
-      title="Documents"
-      extra={
-        peutModifier && (
-          <Button icon={<PlusOutlined />} onClick={() => setFormOuvert(true)}>
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          Documents
+          {documents && documents.length > 0 && <span className="ml-2 font-normal text-muted-foreground">{documents.length}</span>}
+        </CardTitle>
+        {peutModifier && (
+          <Button variant="outline" size="sm" onClick={() => setFormOuvert(true)}>
+            <Plus />
             Ajouter un document
           </Button>
-        )
-      }
-    >
-      <Table<Document>
-        rowKey="id"
-        size="small"
-        loading={isLoading}
-        dataSource={documents}
-        pagination={false}
-        columns={[
-          { title: 'Titre', dataIndex: 'titre' },
-          {
-            title: 'Type',
-            width: 160,
-            render: (_, d) => {
-              const t = d.type_projet_valeur_id ? typeParId.get(d.type_projet_valeur_id) : null;
-              return t ? <Tag color={t.couleur ?? undefined}>{t.libelle}</Tag> : '—';
+        )}
+      </CardHeader>
+      <CardContent>
+        <Tableau<Document>
+          libelle="Documents du projet"
+          lignes={documents}
+          cleLigne={(d) => d.id}
+          chargement={isLoading}
+          minLargeur={720}
+          vide={{ icone: FileText, titre: 'Aucun document', description: 'Déposez ici les pièces du projet (contrats, rapports, justificatifs…).' }}
+          colonnes={[
+            {
+              cle: 'titre',
+              titre: 'Titre',
+              rendu: (d) => (
+                <span className="flex items-center gap-2.5">
+                  <FileText className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="font-medium">{d.titre}</span>
+                </span>
+              ),
             },
-          },
-          {
-            title: 'Livrable associé',
-            width: 180,
-            render: (_, d) => (d.livrable_id ? (livrableParId.get(d.livrable_id) ?? '—') : '—'),
-          },
-          {
-            title: 'Déposé par',
-            width: 160,
-            render: (_, d) => (d.created_by ? (utilisateurParId.get(d.created_by) ?? '—') : '—'),
-          },
-          {
-            title: 'Ajouté le',
-            width: 120,
-            render: (_, d) => new Date(d.created_at).toLocaleDateString('fr-FR'),
-          },
-          {
-            title: 'Actions',
-            key: 'actions',
-            width: 100,
-            render: (_, d) => (
-              <Button type="link" size="small" icon={<DownloadOutlined />} onClick={() => void telecharger(d)}>
-                Télécharger
-              </Button>
-            ),
-          },
-        ]}
-      />
+            {
+              cle: 'type',
+              titre: 'Type',
+              className: 'w-40',
+              rendu: (d) => <BadgeValeur valeur={d.type_projet_valeur_id ? typeParId.get(d.type_projet_valeur_id) : null} />,
+            },
+            {
+              cle: 'livrable',
+              titre: 'Livrable associé',
+              className: 'w-44',
+              rendu: (d) =>
+                d.livrable_id ? (livrableParId.get(d.livrable_id) ?? '—') : <span className="text-muted-foreground">—</span>,
+            },
+            {
+              cle: 'depot',
+              titre: 'Dépôt',
+              className: 'w-44',
+              rendu: (d) => (
+                <div>
+                  <div>{d.created_by ? (utilisateurParId.get(d.created_by) ?? '—') : '—'}</div>
+                  <div className="text-[12px] tabular-nums text-muted-foreground">{fr(d.created_at).format('D MMM YYYY')}</div>
+                </div>
+              ),
+            },
+            {
+              cle: 'actions',
+              titre: <span className="sr-only">Actions</span>,
+              className: 'w-14',
+              rendu: (d) => (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => void telecharger(d)}
+                  aria-label={`Télécharger ${d.titre}`}
+                  title="Télécharger"
+                >
+                  <Download />
+                </Button>
+              ),
+            },
+          ]}
+        />
+      </CardContent>
       <DocumentProjetAjouterModal
         open={formOuvert}
         projetId={projetId}

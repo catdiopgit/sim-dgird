@@ -1,12 +1,14 @@
-import { UploadOutlined } from '@ant-design/icons';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, Button, Form, Input, Modal, Upload } from 'antd';
-import type { UploadFile } from 'antd';
 import { useEffect, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Champ, ChampFichier } from '../../components/form/champ';
+import { FormDialog } from '../../components/form/form-dialog';
+import { Encart } from '../../components/ui/encart';
+import { Input } from '../../components/ui/input';
 import { useAjouterDocumentMarcheMutation } from '../../hooks/marches/useDocumentsMarche';
 import { usePhaseMarcheMutations } from '../../hooks/marches/usePhasesMarche';
+import { ariaErreur } from '../../lib/form';
 import type { PhaseMarcheAvecStatut } from '../../services/marches/phasesMarche';
 
 const schema = z.object({ titre: z.string().min(1, 'Requis') });
@@ -27,9 +29,14 @@ export function PhaseValidationModal({ open, marcheId, phase, onClose }: Props) 
   const ajouterDocument = useAjouterDocumentMarcheMutation(marcheId);
   const { valider } = usePhaseMarcheMutations(marcheId);
   const [fichier, setFichier] = useState<File | null>(null);
-  const [fichierListe, setFichierListe] = useState<UploadFile[]>([]);
+  const [tentative, setTentative] = useState(false);
 
-  const { control, handleSubmit, reset } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { titre: '' },
   });
@@ -38,7 +45,7 @@ export function PhaseValidationModal({ open, marcheId, phase, onClose }: Props) 
     if (open) {
       reset({ titre: phase ? `Justificatif — ${phase.nom}` : '' });
       setFichier(null);
-      setFichierListe([]);
+      setTentative(false);
     }
   }, [open, phase, reset]);
 
@@ -57,43 +64,30 @@ export function PhaseValidationModal({ open, marcheId, phase, onClose }: Props) 
   };
 
   return (
-    <Modal
+    <FormDialog
       open={open}
-      title="Joindre un justificatif et valider la phase"
-      onCancel={onClose}
-      onOk={handleSubmit(onSubmit)}
-      confirmLoading={enCours}
-      destroyOnHidden
+      onClose={onClose}
+      titre="Joindre un justificatif et valider la phase"
+      description={phase?.nom}
+      onSubmit={(e) => {
+        setTentative(true);
+        void handleSubmit(onSubmit)(e);
+      }}
+      enCours={enCours}
+      libelleValider="Valider la phase"
     >
-      <Alert
-        style={{ marginBottom: 16 }}
-        type="info"
-        showIcon
-        message="Cette phase n'a pas encore de document justificatif — il est requis pour la valider (§12)."
-      />
-      <Form layout="vertical">
-        <Form.Item label="Titre du justificatif">
-          <Controller name="titre" control={control} render={({ field }) => <Input {...field} autoFocus />} />
-        </Form.Item>
-        <Form.Item label="Justificatif" required>
-          <Upload
-            fileList={fichierListe}
-            beforeUpload={(f) => {
-              setFichier(f);
-              setFichierListe([{ uid: f.uid, name: f.name, status: 'done' }]);
-              return false;
-            }}
-            onRemove={() => {
-              setFichier(null);
-              setFichierListe([]);
-            }}
-            maxCount={1}
-          >
-            <Button icon={<UploadOutlined />}>Choisir un fichier</Button>
-          </Upload>
-          {!fichier && <Alert style={{ marginTop: 8 }} type="info" showIcon message="Un fichier est requis" />}
-        </Form.Item>
-      </Form>
-    </Modal>
+      <Encart>Cette phase n'a pas encore de document justificatif — il est requis pour la valider (§12).</Encart>
+      <Champ label="Titre du justificatif" htmlFor="phase-justificatif-titre" requis erreur={errors.titre?.message}>
+        <Input autoFocus {...ariaErreur('phase-justificatif-titre', errors.titre)} {...register('titre')} />
+      </Champ>
+      <Champ
+        label="Justificatif"
+        htmlFor="phase-justificatif-fichier"
+        requis
+        erreur={tentative && !fichier ? 'Un fichier est requis' : undefined}
+      >
+        <ChampFichier id="phase-justificatif-fichier" fichier={fichier} onChange={setFichier} invalide={tentative && !fichier} />
+      </Champ>
+    </FormDialog>
   );
 }

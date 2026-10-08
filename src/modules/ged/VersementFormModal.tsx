@@ -1,11 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Form, Input, Modal, Select } from 'antd';
 import { useEffect } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Champ } from '../../components/form/champ';
+import { FormDialog } from '../../components/form/form-dialog';
+import { Input, Textarea } from '../../components/ui/input';
+import { NativeSelect } from '../../components/ui/native-select';
 import { useEntites } from '../../hooks/administration/useEntites';
-import { useDossiers } from '../../hooks/ged/useDossiers';
+import { useOptionsDossiersGed } from '../../hooks/ged/useDossiers';
 import { useCreerVersement } from '../../hooks/ged/useVersements';
+import { ariaErreur } from '../../lib/form';
 import type { GedVersement } from '../../services/ged/versements';
 
 const schema = z.object({
@@ -23,23 +27,28 @@ interface Props {
   onCree: (versement: GedVersement) => void;
 }
 
+const VIDE: FormValues = { objet: '', entiteId: '', dossierCibleId: '', description: '' };
+
 // Première étape du dépôt (GED V2) : constituer le brouillon (objet du lot,
 // entité, dossier de classement cible — un seul dossier par versement). Les
 // documents eux-mêmes sont ajoutés ensuite sur la fiche du versement.
 export function VersementFormModal({ open, organisationId, onClose, onCree }: Props) {
   const { data: entites } = useEntites(organisationId);
-  const { data: dossiers } = useDossiers(organisationId);
+  const optionsDossiers = useOptionsDossiersGed(organisationId);
   const creer = useCreerVersement(organisationId);
 
-  const { control, handleSubmit, reset } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { objet: '', entiteId: '', dossierCibleId: '', description: '' },
+    defaultValues: VIDE,
   });
 
   useEffect(() => {
-    if (open) {
-      reset({ objet: '', entiteId: '', dossierCibleId: '', description: '' });
-    }
+    if (open) reset(VIDE);
   }, [open, reset]);
 
   const onSubmit = (values: FormValues) => {
@@ -55,55 +64,41 @@ export function VersementFormModal({ open, organisationId, onClose, onCree }: Pr
   };
 
   return (
-    <Modal
+    <FormDialog
       open={open}
-      title="Nouveau versement"
-      onCancel={onClose}
-      onOk={handleSubmit(onSubmit)}
-      confirmLoading={creer.isPending}
-      destroyOnHidden
+      onClose={onClose}
+      titre="Nouveau versement"
+      description="Le versement est créé en brouillon : vous y ajouterez ensuite les documents avant de le soumettre."
+      onSubmit={handleSubmit(onSubmit)}
+      enCours={creer.isPending}
+      libelleValider="Créer le brouillon"
     >
-      <Form layout="vertical">
-        <Form.Item label="Objet du versement">
-          <Controller name="objet" control={control} render={({ field }) => <Input {...field} autoFocus />} />
-        </Form.Item>
-
-        <Form.Item label="Entité">
-          <Controller
-            name="entiteId"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                allowClear
-                options={(entites ?? []).map((e) => ({ value: e.id, label: e.libelle }))}
-              />
-            )}
-          />
-        </Form.Item>
-
-        <Form.Item label="Dossier de classement cible" help="Proposition — l'archiviste pourra la confirmer au classement">
-          <Controller
-            name="dossierCibleId"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                allowClear
-                options={(dossiers ?? []).map((d) => ({ value: d.id, label: d.libelle }))}
-              />
-            )}
-          />
-        </Form.Item>
-
-        <Form.Item label="Description">
-          <Controller
-            name="description"
-            control={control}
-            render={({ field }) => <Input.TextArea {...field} rows={2} />}
-          />
-        </Form.Item>
-      </Form>
-    </Modal>
+      <Champ label="Objet du versement" htmlFor="versement-objet" requis erreur={errors.objet?.message}>
+        <Input autoFocus placeholder="Ex. Rapports de recettes — 3e trimestre 2026" {...ariaErreur('versement-objet', errors.objet)} {...register('objet')} />
+      </Champ>
+      <Champ label="Entité" htmlFor="versement-entite">
+        <NativeSelect id="versement-entite" {...register('entiteId')}>
+          <option value="">—</option>
+          {(entites ?? []).map((e) => (
+            <option key={e.id} value={e.id}>
+              {e.sigle ? `${e.sigle} — ${e.libelle}` : e.libelle}
+            </option>
+          ))}
+        </NativeSelect>
+      </Champ>
+      <Champ label="Dossier de classement cible" htmlFor="versement-dossier" aide="Proposition : l'archiviste pourra la confirmer au classement.">
+        <NativeSelect id="versement-dossier" {...register('dossierCibleId')}>
+          <option value="">Aucun</option>
+          {optionsDossiers.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </NativeSelect>
+      </Champ>
+      <Champ label="Description" htmlFor="versement-description">
+        <Textarea id="versement-description" rows={2} {...register('description')} />
+      </Champ>
+    </FormDialog>
   );
 }

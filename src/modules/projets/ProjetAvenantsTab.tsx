@@ -1,8 +1,13 @@
-import { PlusOutlined } from '@ant-design/icons';
-import { Button, Card, Popconfirm, Table } from 'antd';
+import { FileSignature, Plus } from 'lucide-react';
 import { useState } from 'react';
+import { ActionsLigne, BoutonModifier, BoutonSuppression } from '../../components/form/actions-ligne';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Tableau } from '../../components/ui/tableau';
 import { useAvenantMutations, useAvenants } from '../../hooks/projets/useAvenants';
 import type { Avenant } from '../../services/projets/avenants';
+import { fr } from '../../utils/dateFr';
+import { formatMontant } from '../../utils/format';
 import { AvenantFormModal } from './AvenantFormModal';
 
 interface Props {
@@ -16,56 +21,71 @@ export function ProjetAvenantsTab({ projetId, peutModifier }: Props) {
   const [avenantEnEdition, setAvenantEnEdition] = useState<Avenant | 'nouveau' | null>(null);
 
   return (
-    <Card
-      title="Avenants"
-      extra={
-        peutModifier && (
-          <Button icon={<PlusOutlined />} onClick={() => setAvenantEnEdition('nouveau')}>
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          Avenants
+          {avenants && avenants.length > 0 && <span className="ml-2 font-normal text-muted-foreground">{avenants.length}</span>}
+        </CardTitle>
+        {peutModifier && (
+          <Button variant="outline" size="sm" onClick={() => setAvenantEnEdition('nouveau')}>
+            <Plus />
             Ajouter un avenant
           </Button>
-        )
-      }
-    >
-      <Table<Avenant>
-        rowKey="id"
-        size="small"
-        loading={isLoading}
-        dataSource={avenants}
-        pagination={false}
-        onRow={(record) => ({ onClick: () => setAvenantEnEdition(record), style: { cursor: 'pointer' } })}
-        columns={[
-          { title: 'Référence', dataIndex: 'reference', width: 140 },
-          {
-            title: 'Date',
-            width: 110,
-            render: (_, a) => (a.date_avenant ? new Date(a.date_avenant).toLocaleDateString('fr-FR') : '—'),
-          },
-          { title: 'Objet', dataIndex: 'objet' },
-          {
-            title: 'Montant',
-            width: 140,
-            render: (_, a) => (a.montant != null ? `${a.montant.toLocaleString('fr-FR')} FCFA` : '—'),
-          },
-          ...(peutModifier
-            ? [
-                {
-                  title: 'Actions',
-                  key: 'actions',
-                  width: 100,
-                  render: (_: unknown, a: Avenant) => (
-                    <span onClick={(e) => e.stopPropagation()}>
-                      <Popconfirm title="Supprimer cet avenant ?" onConfirm={() => remove.mutate(a.id)}>
-                        <Button type="link" size="small" danger>
-                          Supprimer
-                        </Button>
-                      </Popconfirm>
-                    </span>
-                  ),
-                },
-              ]
-            : []),
-        ]}
-      />
+        )}
+      </CardHeader>
+      <CardContent>
+        <Tableau<Avenant>
+          libelle="Avenants du projet"
+          lignes={avenants}
+          cleLigne={(a) => a.id}
+          chargement={isLoading}
+          minLargeur={600}
+          onLigneClic={(a) => setAvenantEnEdition(a)}
+          vide={{ icone: FileSignature, titre: 'Aucun avenant' }}
+          colonnes={[
+            { cle: 'reference', titre: 'Référence', className: 'w-36', rendu: (a) => <span className="font-medium">{a.reference}</span> },
+            {
+              cle: 'date',
+              titre: 'Date',
+              className: 'w-32 tabular-nums',
+              rendu: (a) => (a.date_avenant ? fr(a.date_avenant).format('D MMM YYYY') : <span className="text-muted-foreground">—</span>),
+            },
+            { cle: 'objet', titre: 'Objet', rendu: (a) => <span className="line-clamp-2">{a.objet}</span> },
+            {
+              cle: 'montant',
+              titre: 'Montant',
+              className: 'w-40 text-right tabular-nums',
+              rendu: (a) => formatMontant(a.montant),
+            },
+            ...(peutModifier
+              ? [
+                  {
+                    cle: 'actions',
+                    titre: <span className="sr-only">Actions</span>,
+                    className: 'w-20',
+                    rendu: (a: Avenant) => (
+                      <ActionsLigne>
+                        <BoutonModifier libelle={`Modifier l'avenant ${a.reference}`} onClick={() => setAvenantEnEdition(a)} />
+                        <BoutonSuppression
+                          libelle={`Supprimer l'avenant ${a.reference}`}
+                          titre="Supprimer cet avenant ?"
+                          enCours={remove.isPending}
+                          onConfirmer={(fermer) => remove.mutate(a.id, { onSuccess: fermer })}
+                        >
+                          <p>
+                            L'avenant <strong>{a.reference}</strong> sera supprimé, ainsi que ses effets sur le budget et les
+                            livrables du projet.
+                          </p>
+                        </BoutonSuppression>
+                      </ActionsLigne>
+                    ),
+                  },
+                ]
+              : []),
+          ]}
+        />
+      </CardContent>
       <AvenantFormModal
         open={avenantEnEdition !== null}
         projetId={projetId}

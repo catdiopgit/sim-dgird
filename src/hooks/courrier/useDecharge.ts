@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { message } from 'antd';
+import { message } from '../../lib/notifications';
 import { ajouterDechargeCourrier, deverrouillerCourrier } from '../../services/courrier/decharge';
 
 export function useAjouterDecharge(courrierId: string | undefined) {

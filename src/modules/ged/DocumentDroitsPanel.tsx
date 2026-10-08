@@ -1,9 +1,14 @@
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import { Button, Card, List, Popconfirm, Segmented, Select, Space, Tag, Typography } from 'antd';
 import { useQuery } from '@tanstack/react-query';
+import { Building2, KeyRound, LoaderCircle, Plus, ShieldCheck, User } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { BoutonSuppression } from '../../components/form/actions-ligne';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
+import { NativeSelect } from '../../components/ui/native-select';
 import { useEntites, useUtilisateursOptions } from '../../hooks/administration/useEntites';
 import { useRoles } from '../../hooks/administration/useUtilisateurs';
+import { cn } from '../../lib/utils';
 import { listActions } from '../../services/administration/permissions';
 import {
   useDroitsDocument,
@@ -17,6 +22,12 @@ interface Props {
 }
 
 type TypeBeneficiaire = 'role' | 'utilisateur' | 'entite';
+
+const TYPES: { valeur: TypeBeneficiaire; libelle: string }[] = [
+  { valeur: 'role', libelle: 'Rôle' },
+  { valeur: 'entite', libelle: 'Entité' },
+  { valeur: 'utilisateur', libelle: 'Utilisateur' },
+];
 
 // Sous-ensemble pertinent pour un octroi document-par-document — les autres
 // actions (creer/supprimer/exporter) se règlent au niveau rôle (Administration
@@ -33,7 +44,7 @@ export function DocumentDroitsPanel({ documentId, organisationId }: Props) {
   const revoquer = useRevoquerDroitDocument(documentId);
 
   const [typeBeneficiaire, setTypeBeneficiaire] = useState<TypeBeneficiaire>('role');
-  const [beneficiaireId, setBeneficiaireId] = useState<string | undefined>();
+  const [beneficiaireId, setBeneficiaireId] = useState('');
   const [actionCode, setActionCode] = useState<string>('consulter');
 
   const actionsDroit = useMemo(
@@ -55,11 +66,12 @@ export function DocumentDroitsPanel({ documentId, organisationId }: Props) {
         ? (entites ?? []).map((e) => ({ value: e.id, label: e.libelle }))
         : (utilisateurs ?? []).map((u) => ({ value: u.id, label: `${u.prenom} ${u.nom}` }));
 
-  const beneficiaireLabel = (droit: { role_id: string | null; utilisateur_id: string | null; entite_id: string | null }) => {
-    if (droit.role_id) return `Rôle: ${roleParId.get(droit.role_id) ?? droit.role_id}`;
-    if (droit.entite_id) return `Entité: ${entiteParId.get(droit.entite_id) ?? droit.entite_id}`;
-    if (droit.utilisateur_id) return `Utilisateur: ${utilisateurParId.get(droit.utilisateur_id) ?? droit.utilisateur_id}`;
-    return '—';
+  const beneficiaire = (droit: { role_id: string | null; utilisateur_id: string | null; entite_id: string | null }) => {
+    if (droit.role_id) return { icone: ShieldCheck, type: 'Rôle', nom: roleParId.get(droit.role_id) ?? droit.role_id };
+    if (droit.entite_id) return { icone: Building2, type: 'Entité', nom: entiteParId.get(droit.entite_id) ?? droit.entite_id };
+    if (droit.utilisateur_id)
+      return { icone: User, type: 'Utilisateur', nom: utilisateurParId.get(droit.utilisateur_id) ?? droit.utilisateur_id };
+    return { icone: KeyRound, type: '', nom: '—' };
   };
 
   const octroyerDroit = () => {
@@ -71,71 +83,112 @@ export function DocumentDroitsPanel({ documentId, organisationId }: Props) {
         p_utilisateur_id: typeBeneficiaire === 'utilisateur' ? beneficiaireId : null,
         p_entite_id: typeBeneficiaire === 'entite' ? beneficiaireId : null,
       },
-      { onSuccess: () => setBeneficiaireId(undefined) },
+      { onSuccess: () => setBeneficiaireId('') },
     );
   };
 
   return (
-    <Card title="Droits d'accès" style={{ marginTop: 16 }}>
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
-        <Space wrap>
-          <Segmented
-            value={typeBeneficiaire}
-            onChange={(v) => {
-              setTypeBeneficiaire(v as TypeBeneficiaire);
-              setBeneficiaireId(undefined);
-            }}
-            options={[
-              { value: 'role', label: 'Rôle' },
-              { value: 'entite', label: 'Entité' },
-              { value: 'utilisateur', label: 'Utilisateur' },
-            ]}
-          />
-          <Select
-            style={{ width: 220 }}
-            placeholder="Sélectionner"
+    <Card>
+      <CardHeader>
+        <div>
+          <CardTitle>Droits d'accès</CardTitle>
+          <CardDescription className="mt-1">
+            Droits ponctuels sur ce document, en plus de ceux hérités du dossier et des rôles.
+          </CardDescription>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3 lg:flex-row lg:items-center">
+          <div role="radiogroup" aria-label="Type de bénéficiaire" className="inline-flex shrink-0 rounded-lg bg-muted p-0.5">
+            {TYPES.map((t) => (
+              <button
+                key={t.valeur}
+                type="button"
+                role="radio"
+                aria-checked={typeBeneficiaire === t.valeur}
+                onClick={() => {
+                  setTypeBeneficiaire(t.valeur);
+                  setBeneficiaireId('');
+                }}
+                className={cn(
+                  'h-8 flex-1 cursor-pointer rounded-md px-3 text-[13px] font-medium transition-colors',
+                  typeBeneficiaire === t.valeur ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {t.libelle}
+              </button>
+            ))}
+          </div>
+          <NativeSelect
+            aria-label="Bénéficiaire"
+            className="h-9 min-w-0 flex-1 bg-card text-[13px]"
             value={beneficiaireId}
-            onChange={setBeneficiaireId}
-            options={optionsBeneficiaire}
-          />
-          <Select
-            style={{ width: 160 }}
-            value={actionCode}
-            onChange={setActionCode}
-            options={actionsDroit.map((a) => ({ value: a.code, label: a.libelle }))}
-          />
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            disabled={!beneficiaireId}
-            loading={octroyer.isPending}
-            onClick={octroyerDroit}
+            onChange={(e) => setBeneficiaireId(e.target.value)}
           >
+            <option value="">Sélectionner…</option>
+            {optionsBeneficiaire.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </NativeSelect>
+          <NativeSelect
+            aria-label="Droit accordé"
+            className="h-9 bg-card text-[13px] lg:w-40"
+            value={actionCode}
+            onChange={(e) => setActionCode(e.target.value)}
+          >
+            {actionsDroit.map((a) => (
+              <option key={a.code} value={a.code}>
+                {a.libelle}
+              </option>
+            ))}
+          </NativeSelect>
+          <Button disabled={!beneficiaireId || octroyer.isPending} onClick={octroyerDroit}>
+            {octroyer.isPending ? <LoaderCircle className="animate-spin" /> : <Plus />}
             Accorder
           </Button>
-        </Space>
+        </div>
 
-        <List
-          dataSource={droits ?? []}
-          renderItem={(d) => (
-            <List.Item
-              actions={[
-                <Popconfirm key="revoquer" title="Révoquer ce droit ?" onConfirm={() => revoquer.mutate(d.id)}>
-                  <Button danger type="text" icon={<DeleteOutlined />} loading={revoquer.isPending} />
-                </Popconfirm>,
-              ]}
-            >
-              <Space>
-                <Tag>{actionParId.get(d.action_id) ?? d.action_id}</Tag>
-                <span>{beneficiaireLabel(d)}</span>
-              </Space>
-            </List.Item>
-          )}
-        />
-        {(droits ?? []).length === 0 && (
-          <Typography.Text type="secondary">Aucun droit explicite (accès hérité du dossier).</Typography.Text>
+        {(droits ?? []).length === 0 ? (
+          <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-[13px] text-muted-foreground">
+            Aucun droit explicite : l'accès est hérité du dossier.
+          </p>
+        ) : (
+          <ul className="divide-y divide-border rounded-lg border border-border">
+            {(droits ?? []).map((d) => {
+              const b = beneficiaire(d);
+              const Icone = b.icone;
+              return (
+                <li key={d.id} className="flex items-center gap-3 px-3 py-2.5">
+                  <span className="grid size-8 shrink-0 place-items-center rounded-md bg-accent text-accent-foreground">
+                    <Icone className="size-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[14px] font-medium">{b.nom}</div>
+                    <div className="text-[12px] text-muted-foreground">{b.type}</div>
+                  </div>
+                  <Badge variant="muted" shape="pill">
+                    {actionParId.get(d.action_id) ?? d.action_id}
+                  </Badge>
+                  <BoutonSuppression
+                    libelle={`Révoquer le droit de ${b.nom}`}
+                    titre="Révoquer ce droit ?"
+                    libelleConfirmer="Révoquer"
+                    enCours={revoquer.isPending}
+                    onConfirmer={(fermer) => revoquer.mutate(d.id, { onSuccess: fermer })}
+                  >
+                    <p>
+                      {b.nom} perdra le droit « {actionParId.get(d.action_id) ?? d.action_id} » sur ce document, sauf s'il le
+                      détient par ailleurs.
+                    </p>
+                  </BoutonSuppression>
+                </li>
+              );
+            })}
+          </ul>
         )}
-      </Space>
+      </CardContent>
     </Card>
   );
 }

@@ -1,10 +1,12 @@
-import { Typography } from 'antd';
 import { useMemo, useRef, useState } from 'react';
 import {
   useWorkflowEtapeMutations,
   useWorkflowEtapes,
   useWorkflowTransitions,
 } from '../../../hooks/administration/useWorkflowsAdmin';
+import { EnTeteSection } from '../../../components/ui/page-header';
+import { cn } from '../../../lib/utils';
+import { couleurReferentiel } from '../../../utils/couleurReferentiel';
 
 interface Props {
   workflowDefinitionId: string;
@@ -13,13 +15,22 @@ interface Props {
 
 const LARGEUR_NOEUD = 168;
 const HAUTEUR_NOEUD = 56;
-const ESPACEMENT_X = 210;
+// Écart par défaut (étapes jamais déplacées) : laisse la place au libellé de la transition.
+const ESPACEMENT_X = 260;
 
+// Bordure par type d'étape quand aucune couleur n'est définie (tokens de statut).
 const COULEUR_PAR_TYPE: Record<string, string> = {
-  initiale: '#1677ff',
-  intermediaire: '#8c8c8c',
-  finale: '#389e0d',
-  rejet: '#cf1322',
+  initiale: 'var(--st-info)',
+  intermediaire: 'var(--st-neutral)',
+  finale: 'var(--st-good)',
+  rejet: 'var(--st-crit)',
+};
+
+const LIBELLE_TYPE: Record<string, string> = {
+  initiale: 'Initiale',
+  intermediaire: 'Intermédiaire',
+  finale: 'Finale',
+  rejet: 'Rejet',
 };
 
 export function WorkflowDiagram({ workflowDefinitionId, peutModifier }: Props) {
@@ -101,30 +112,21 @@ export function WorkflowDiagram({ workflowDefinitionId, peutModifier }: Props) {
 
   return (
     <div>
-      <Typography.Title level={5}>Vue graphique</Typography.Title>
-      {peutModifier && (
-        <Typography.Paragraph type="secondary" style={{ marginTop: -8 }}>
-          Glissez une étape pour la repositionner (enregistré automatiquement).
-        </Typography.Paragraph>
-      )}
+      <EnTeteSection
+        titre="Vue graphique"
+        description={peutModifier ? 'Glissez une étape pour la repositionner (enregistré automatiquement).' : undefined}
+      />
       <div
         ref={conteneurRef}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        style={{
-          position: 'relative',
-          width: '100%',
-          height: hauteur,
-          overflow: 'auto',
-          border: '1px solid #d9dcd2',
-          borderRadius: 4,
-          background: '#fafafa',
-        }}
+        className="relative w-full overflow-auto rounded-lg border border-border bg-muted/50"
+        style={{ height: hauteur }}
       >
-        <svg width={largeur} height={hauteur} style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}>
+        <svg width={largeur} height={hauteur} className="pointer-events-none absolute left-0 top-0" aria-hidden>
           <defs>
             <marker id="fleche-workflow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-              <path d="M0,0 L8,4 L0,8 Z" fill="#8c8c8c" />
+              <path d="M0,0 L8,4 L0,8 Z" fill="var(--axis)" />
             </marker>
           </defs>
           {transitionsAvecSource.map((t) => {
@@ -134,15 +136,9 @@ export function WorkflowDiagram({ workflowDefinitionId, peutModifier }: Props) {
             const y1 = source.y + HAUTEUR_NOEUD / 2;
             const x2 = cible.x;
             const y2 = cible.y + HAUTEUR_NOEUD / 2;
-            const milieuX = (x1 + x2) / 2;
-            const milieuY = (y1 + y2) / 2;
             return (
               <g key={t.id}>
-                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#8c8c8c" strokeWidth={1.5} markerEnd="url(#fleche-workflow)" />
-                <rect x={milieuX - 32} y={milieuY - 10} width={64} height={16} fill="#fafafa" opacity={0.9} />
-                <text x={milieuX} y={milieuY + 2} fontSize={11} textAnchor="middle" fill="#595959">
-                  {t.libelle_action}
-                </text>
+                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="var(--axis)" strokeWidth={1.5} markerEnd="url(#fleche-workflow)" />
               </g>
             );
           })}
@@ -154,41 +150,56 @@ export function WorkflowDiagram({ workflowDefinitionId, peutModifier }: Props) {
             <div
               key={e.id}
               onPointerDown={(ev) => onPointerDownNoeud(ev, e.id)}
+              className={cn(
+                'absolute flex touch-none select-none flex-col items-center justify-center rounded-lg border-2 bg-card px-2 text-center shadow-sm',
+                peutModifier ? 'cursor-grab active:cursor-grabbing' : 'cursor-default',
+              )}
               style={{
-                position: 'absolute',
                 left: pos.x,
                 top: pos.y,
                 width: LARGEUR_NOEUD,
                 height: HAUTEUR_NOEUD,
-                borderRadius: 6,
-                border: `2px solid ${e.couleur || COULEUR_PAR_TYPE[e.type_etape] || '#8c8c8c'}`,
-                background: '#fff',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: peutModifier ? 'grab' : 'default',
-                userSelect: 'none',
-                boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
-                touchAction: 'none',
+                borderColor: couleurReferentiel(e.couleur) ?? COULEUR_PAR_TYPE[e.type_etape] ?? 'var(--st-neutral)',
               }}
             >
-              <Typography.Text strong style={{ fontSize: 13 }}>
-                {e.libelle}
-              </Typography.Text>
-              <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-                {e.type_etape}
-              </Typography.Text>
+              <span className="max-w-full truncate text-[13px] font-semibold">{e.libelle}</span>
+              <span className="text-[11px] text-muted-foreground">{LIBELLE_TYPE[e.type_etape] ?? e.type_etape}</span>
             </div>
           );
         })}
+
+        {/* Libellés des transitions au-dessus des nœuds pour rester lisibles quand les étapes sont proches. */}
+        <svg width={largeur} height={hauteur} className="pointer-events-none absolute left-0 top-0" aria-hidden>
+          {transitionsAvecSource.map((t) => {
+            const source = positionDe(t.etape_source_id!);
+            const cible = positionDe(t.etape_cible_id);
+            const milieuX = (source.x + LARGEUR_NOEUD + cible.x) / 2;
+            const milieuY = (source.y + cible.y + HAUTEUR_NOEUD) / 2;
+            const largeurEtiquette = Math.max(48, t.libelle_action.length * 6 + 14);
+            return (
+              <g key={t.id}>
+                <rect
+                  x={milieuX - largeurEtiquette / 2}
+                  y={milieuY - 9}
+                  width={largeurEtiquette}
+                  height={18}
+                  rx={9}
+                  fill="var(--card)"
+                  stroke="var(--border)"
+                />
+                <text x={milieuX} y={milieuY + 4} fontSize={11} textAnchor="middle" fill="var(--muted-foreground)">
+                  {t.libelle_action}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
       </div>
 
       {transitionsSansSource.length > 0 && (
-        <Typography.Paragraph type="secondary" style={{ marginTop: 8 }}>
-          Transitions actionnables depuis n'importe quelle étape :{' '}
-          {transitionsSansSource.map((t) => t.libelle_action).join(', ')}.
-        </Typography.Paragraph>
+        <p className="mt-2 text-[13px] text-muted-foreground">
+          Transitions possibles depuis n'importe quelle étape : {transitionsSansSource.map((t) => t.libelle_action).join(', ')}.
+        </p>
       )}
     </div>
   );

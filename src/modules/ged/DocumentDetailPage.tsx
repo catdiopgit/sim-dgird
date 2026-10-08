@@ -1,7 +1,12 @@
-import { ArrowLeftOutlined } from '@ant-design/icons';
-import { Button, Card, Descriptions, Result, Skeleton, Space, Tag, Typography } from 'antd';
+import { FileSearch, Lock } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { EtatVide, PageHeader } from '../../components/ui/page-header';
+import { Skeleton } from '../../components/ui/skeleton';
 import { useEntites } from '../../hooks/administration/useEntites';
 import { useTracerConsultation } from '../../hooks/ged/useConsultations';
 import { useDocument } from '../../hooks/ged/useDocuments';
@@ -9,8 +14,20 @@ import { useDossiers } from '../../hooks/ged/useDossiers';
 import { useConfidentialitesGed } from '../../hooks/ged/useGedReferentiel';
 import { useVersement } from '../../hooks/ged/useVersements';
 import { useProfile } from '../../hooks/useProfile';
+import { couleurReferentiel } from '../../utils/couleurReferentiel';
+import { fr } from '../../utils/dateFr';
+import { estConfidentiel } from '../courrier/courrierAffichage';
 import { DocumentDroitsPanel } from './DocumentDroitsPanel';
 import { DocumentVersionsPanel } from './DocumentVersionsPanel';
+
+function Ligne({ label, children, pleine }: { label: string; children: ReactNode; pleine?: boolean }) {
+  return (
+    <div className={pleine ? 'sm:col-span-2' : undefined}>
+      <dt className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">{label}</dt>
+      <dd className="mt-1 text-[14px]">{children ?? '—'}</dd>
+    </div>
+  );
+}
 
 export function DocumentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -32,20 +49,20 @@ export function DocumentDetailPage() {
     [confidentialites],
   );
 
-  if (isLoading || !organisationId) return <Skeleton active />;
+  if (isLoading || !organisationId) {
+    return (
+      <div className="space-y-5">
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
 
   if (isError || !document) {
     return (
-      <Result
-        status="404"
-        title="Document introuvable"
-        subTitle="Ce document n'existe pas ou vous n'y avez pas accès."
-        extra={
-          <Button type="primary" onClick={() => navigate('/ged')}>
-            Retour à la GED
-          </Button>
-        }
-      />
+      <EtatVide icone={FileSearch} titre="Document introuvable" description="Ce document n'existe pas ou vous n'y avez pas accès.">
+        <Button onClick={() => navigate('/ged')}>Retour à la GED</Button>
+      </EtatVide>
     );
   }
 
@@ -53,43 +70,83 @@ export function DocumentDetailPage() {
   const confidentialite = document.confidentialite_valeur_id
     ? confidentialiteParId.get(document.confidentialite_valeur_id)
     : null;
+  const motsCles = document.mots_cles ?? [];
 
   return (
-    <div>
-      <Space style={{ marginBottom: 12 }} wrap>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(`/ged/versements/${document.versement_id}`)}>
-          Retour au versement
-        </Button>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          {document.titre}
-        </Typography.Title>
-        {versement?.etape_libelle && <Tag color="blue">{versement.etape_libelle}</Tag>}
-      </Space>
+    <div className="space-y-5">
+      <PageHeader
+        retour={
+          document.versement_id
+            ? { vers: `/ged/versements/${document.versement_id}`, libelle: 'Retour au versement' }
+            : { vers: '/ged/archives', libelle: 'Archives' }
+        }
+        surtitre={
+          <>
+            <span className="font-medium">Document</span>
+            {versement?.etape_libelle && (
+              <Badge variant="muted" shape="pill">
+                {versement.etape_libelle}
+              </Badge>
+            )}
+            {confidentialite && (
+              <Badge variant={estConfidentiel(confidentialite.code) ? 'warning' : 'outline'} shape="pill">
+                {estConfidentiel(confidentialite.code) ? (
+                  <Lock />
+                ) : (
+                  <span className="size-2 rounded-full" style={{ background: couleurReferentiel(confidentialite.couleur) ?? 'var(--st-neutral)' }} />
+                )}
+                {confidentialite.libelle}
+              </Badge>
+            )}
+          </>
+        }
+        titre={document.titre}
+        description={`Versé le ${fr(document.date_versement).format('D MMMM YYYY')}${document.dossier_id ? ` · ${dossierParId.get(document.dossier_id) ?? ''}` : ' · non classé'}`}
+      />
 
-      <Card>
-        <Descriptions column={2} size="small">
-          <Descriptions.Item label="Versement">{versement?.objet ?? '—'}</Descriptions.Item>
-          <Descriptions.Item label="Dossier">
-            {document.dossier_id ? (dossierParId.get(document.dossier_id) ?? '—') : 'Non classé'}
-          </Descriptions.Item>
-          <Descriptions.Item label="Entité">
-            {document.entite_id ? (entiteParId.get(document.entite_id) ?? '—') : '—'}
-          </Descriptions.Item>
-          <Descriptions.Item label="Confidentialité">
-            {confidentialite ? <Tag color={confidentialite.couleur ?? undefined}>{confidentialite.libelle}</Tag> : '—'}
-          </Descriptions.Item>
-          <Descriptions.Item label="Mots-clés">{(document.mots_cles ?? []).join(', ') || '—'}</Descriptions.Item>
-          <Descriptions.Item label="Date de versement">
-            {new Date(document.date_versement).toLocaleDateString('fr-FR')}
-          </Descriptions.Item>
-          <Descriptions.Item label="Description" span={2}>
-            {document.description || '—'}
-          </Descriptions.Item>
-        </Descriptions>
-      </Card>
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Informations</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
+              <Ligne label="Versement">
+                {versement ? (
+                  <Link to={`/ged/versements/${versement.id}`} className="text-primary hover:underline">
+                    {versement.objet}
+                  </Link>
+                ) : undefined}
+              </Ligne>
+              <Ligne label="Dossier">{document.dossier_id ? (dossierParId.get(document.dossier_id) ?? '—') : 'Non classé'}</Ligne>
+              <Ligne label="Entité">{document.entite_id ? entiteParId.get(document.entite_id) : undefined}</Ligne>
+              <Ligne label="Date de versement">{fr(document.date_versement).format('D MMMM YYYY')}</Ligne>
+              <Ligne label="Mots-clés" pleine>
+                {motsCles.length > 0 ? (
+                  <span className="flex flex-wrap gap-1.5">
+                    {motsCles.map((m) => (
+                      <Badge key={m} variant="muted">
+                        {m}
+                      </Badge>
+                    ))}
+                  </span>
+                ) : undefined}
+              </Ligne>
+              <Ligne label="Description" pleine>
+                {document.description ? <p className="whitespace-pre-line">{document.description}</p> : undefined}
+              </Ligne>
+            </dl>
+          </CardContent>
+        </Card>
 
-      <DocumentVersionsPanel documentId={document.id} />
-      {peutGererDroits && <DocumentDroitsPanel documentId={document.id} organisationId={organisationId} />}
+        <DocumentVersionsPanel documentId={document.id} versionCouranteId={document.version_courante_id} />
+
+        {peutGererDroits && (
+          <div className="xl:col-span-2">
+            <DocumentDroitsPanel documentId={document.id} organisationId={organisationId} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

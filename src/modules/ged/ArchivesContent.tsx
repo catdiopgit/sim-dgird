@@ -1,11 +1,14 @@
-import { DownloadOutlined, EyeOutlined, FolderOutlined } from '@ant-design/icons';
-import { Button, Card, Empty, Skeleton, Table, Tooltip, Typography } from 'antd';
+import { Download, Folder, FolderOpen, SearchX } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { Button } from '../../components/ui/button';
+import { EtatVide } from '../../components/ui/page-header';
+import { Skeleton } from '../../components/ui/skeleton';
 import { telechargerVersion, useInfosFichierDocuments } from '../../hooks/ged/useDocuments';
 import { CLE_NON_CLASSES, useCompteurDocumentsParDossier, useDossiers } from '../../hooks/ged/useDossiers';
 import { useRechercheDocuments } from '../../hooks/ged/useRechercheGed';
-import type { RechercheDocumentsPayload } from '../../services/ged/recherche';
 import type { Document } from '../../services/ged/documents';
+import type { RechercheDocumentsPayload } from '../../services/ged/recherche';
+import { fr } from '../../utils/dateFr';
 import { formatTailleFichier, getInfosTypeFichier } from '../../utils/ged/typeFichier';
 import type { TriArchives, VueArchives } from './ArchivesToolbar';
 
@@ -18,6 +21,8 @@ interface Props {
   tri: TriArchives;
   onOuvrirDocument: (document: Document) => void;
 }
+
+const nbFichiers = (n: number) => `${n} fichier${n > 1 ? 's' : ''}`;
 
 export function ArchivesContent({
   organisationId,
@@ -72,11 +77,7 @@ export function ArchivesContent({
         ? null
         : { p_dossier_id: dossierSelectionneId };
 
-  const {
-    data: pageDocuments,
-    isLoading,
-    pagePleine,
-  } = useRechercheDocuments(payload ?? {}, payload !== null, page);
+  const { data: pageDocuments, isLoading, pagePleine } = useRechercheDocuments(payload ?? {}, payload !== null, page);
 
   useEffect(() => {
     if (!pageDocuments) return;
@@ -89,7 +90,10 @@ export function ArchivesContent({
     const copie = [...documentsAccumules];
     copie.sort((a, b) => {
       if (tri === 'nom') return a.titre.localeCompare(b.titre);
-      if (tri === 'date') return new Date(b.date_archivage ?? b.date_versement).getTime() - new Date(a.date_archivage ?? a.date_versement).getTime();
+      if (tri === 'date')
+        return (
+          new Date(b.date_archivage ?? b.date_versement).getTime() - new Date(a.date_archivage ?? a.date_versement).getTime()
+        );
       const infosA = a.version_courante_id ? infosParVersionId.get(a.version_courante_id) : undefined;
       const infosB = b.version_courante_id ? infosParVersionId.get(b.version_courante_id) : undefined;
       if (tri === 'taille') return (infosB?.taille_octets ?? 0) - (infosA?.taille_octets ?? 0);
@@ -110,188 +114,185 @@ export function ArchivesContent({
     await telechargerVersion(document.id, infos.id, infos.nom_fichier);
   };
 
-  if (chargementInitial) return <Skeleton active />;
+  const infosDe = (d: Document) => (d.version_courante_id ? infosParVersionId.get(d.version_courante_id) : undefined);
+  const emplacement = (d: Document) => (d.dossier_id && dossierParId.get(d.dossier_id)?.libelle) || 'Non classé';
+  const dateArchivage = (d: Document) => (d.date_archivage ? fr(d.date_archivage).format('DD/MM/YYYY') : '—');
+
+  if (chargementInitial) {
+    return (
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
+        {Array.from({ length: 8 }, (_, i) => (
+          <Skeleton key={i} className="h-32 w-full rounded-xl" />
+        ))}
+      </div>
+    );
+  }
 
   if (estVide) {
     return (
-      <Empty
-        description={
-          enRecherche
-            ? 'Aucun document ne correspond à cette recherche.'
-            : estNonClasses
-              ? 'Aucun document non classé.'
-              : 'Ce dossier est vide.'
-        }
-      />
+      <div className="rounded-xl border border-dashed border-border bg-card">
+        <EtatVide
+          icone={enRecherche ? SearchX : FolderOpen}
+          titre={
+            enRecherche
+              ? 'Aucun document ne correspond à cette recherche.'
+              : estNonClasses
+                ? 'Aucun document non classé.'
+                : 'Ce dossier est vide.'
+          }
+        />
+      </div>
     );
   }
+
+  const chargerPlus = pagePleine && (
+    <Button variant="outline" className="mt-4 w-full" disabled={isLoading} onClick={() => setPage((p) => p + 1)}>
+      {isLoading ? 'Chargement…' : 'Charger plus'}
+    </Button>
+  );
 
   if (vue === 'liste') {
     return (
       <>
-        <Table<GedDossierLigne | Document>
-          rowKey={(r) => ('estDossier' in r ? `d-${r.id}` : `f-${r.id}`)}
-          pagination={false}
-          dataSource={[...sousDossiers.map((d) => ({ ...d, estDossier: true as const })), ...documentsTries]}
-          onRow={(record) => ({
-            onClick: () =>
-              'estDossier' in record ? onNaviguerDossier(record.id) : onOuvrirDocument(record as Document),
-            style: { cursor: 'pointer' },
-          })}
-          columns={[
-            {
-              title: 'Nom',
-              render: (_, record) =>
-                'estDossier' in record ? (
-                  <span>
-                    <FolderOutlined style={{ marginRight: 8 }} />
-                    {record.libelle}
-                  </span>
-                ) : (
-                  <NomDocument document={record as Document} infosParVersionId={infosParVersionId} />
-                ),
-            },
-            {
-              title: enRecherche ? 'Dossier' : 'Éléments',
-              width: 200,
-              render: (_, record) =>
-                'estDossier' in record ? (
-                  `${compteurs.get(record.id) ?? 0} fichier(s)`
-                ) : enRecherche ? (
-                  (record.dossier_id && dossierParId.get(record.dossier_id)?.libelle) || 'Non classé'
-                ) : (
-                  '—'
-                ),
-            },
-            {
-              title: "Date d'archivage",
-              width: 140,
-              render: (_, record) =>
-                'estDossier' in record
-                  ? '—'
-                  : record.date_archivage
-                    ? new Date(record.date_archivage).toLocaleDateString('fr-FR')
-                    : '—',
-            },
-            {
-              title: 'Taille',
-              width: 100,
-              render: (_, record) =>
-                'estDossier' in record
-                  ? '—'
-                  : formatTailleFichier(
-                      record.version_courante_id ? infosParVersionId.get(record.version_courante_id)?.taille_octets : null,
-                    ),
-            },
-            {
-              title: '',
-              width: 90,
-              render: (_, record) =>
-                'estDossier' in record ? null : (
-                  <Tooltip title="Télécharger">
-                    <Button
-                      type="text"
-                      icon={<DownloadOutlined />}
-                      onClick={(ev) => telecharger(record as Document, ev)}
-                    />
-                  </Tooltip>
-                ),
-            },
-          ]}
-        />
-        {pagePleine && (
-          <Button block style={{ marginTop: 12 }} loading={isLoading} onClick={() => setPage((p) => p + 1)}>
-            Charger plus
-          </Button>
-        )}
+        <div className="overflow-x-auto rounded-xl border border-border bg-card">
+          <table className="w-full min-w-[640px] text-[13px]">
+            <thead>
+              <tr className="border-b border-border text-left text-[12px] text-muted-foreground">
+                <th className="py-3 pl-4 pr-4 font-medium">Nom</th>
+                <th className="py-3 pr-4 font-medium">{enRecherche ? 'Dossier' : 'Éléments'}</th>
+                <th className="py-3 pr-4 font-medium">Date d'archivage</th>
+                <th className="py-3 pr-4 text-right font-medium">Taille</th>
+                <th className="w-12" aria-hidden />
+              </tr>
+            </thead>
+            <tbody>
+              {sousDossiers.map((d) => (
+                <tr
+                  key={`d-${d.id}`}
+                  onClick={() => onNaviguerDossier(d.id)}
+                  className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/60"
+                >
+                  <td className="py-2.5 pl-4 pr-4">
+                    <span className="flex items-center gap-2.5 font-medium">
+                      <Folder className="size-4 shrink-0 fill-gold/25 text-gold" />
+                      {d.libelle}
+                    </span>
+                  </td>
+                  <td className="py-2.5 pr-4 text-muted-foreground">{nbFichiers(compteurs.get(d.id) ?? 0)}</td>
+                  <td className="py-2.5 pr-4 text-muted-foreground">—</td>
+                  <td className="py-2.5 pr-4 text-right text-muted-foreground">—</td>
+                  <td />
+                </tr>
+              ))}
+              {documentsTries.map((document) => {
+                const infos = infosDe(document);
+                const { icone: Icone, couleur } = getInfosTypeFichier(infos?.type_mime, infos?.nom_fichier);
+                return (
+                  <tr
+                    key={`f-${document.id}`}
+                    onClick={() => onOuvrirDocument(document)}
+                    className="cursor-pointer border-b border-border last:border-0 hover:bg-muted/60"
+                  >
+                    <td className="max-w-[420px] py-2.5 pl-4 pr-4">
+                      <span className="flex min-w-0 items-center gap-2.5" title={document.titre}>
+                        <Icone className="size-4 shrink-0" style={{ color: couleur }} />
+                        <span className="truncate">{document.titre}</span>
+                      </span>
+                    </td>
+                    <td className="py-2.5 pr-4 text-muted-foreground">{enRecherche ? emplacement(document) : '—'}</td>
+                    <td className="py-2.5 pr-4 tabular-nums text-muted-foreground">{dateArchivage(document)}</td>
+                    <td className="py-2.5 pr-4 text-right tabular-nums text-muted-foreground">
+                      {formatTailleFichier(infos?.taille_octets)}
+                    </td>
+                    <td className="pr-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8"
+                        onClick={(ev) => telecharger(document, ev)}
+                        aria-label={`Télécharger ${document.titre}`}
+                        title="Télécharger"
+                      >
+                        <Download />
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {chargerPlus}
       </>
     );
   }
 
   return (
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 16 }}>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
         {sousDossiers.map((d) => (
-          <Card key={d.id} hoverable size="small" onClick={() => onNaviguerDossier(d.id)}>
-            <FolderOutlined style={{ fontSize: 32, color: '#faad14' }} />
-            <div style={{ marginTop: 8 }}>
-              <Tooltip title={d.libelle}>
-                <Typography.Text strong ellipsis style={{ display: 'block' }}>
-                  {d.libelle}
-                </Typography.Text>
-              </Tooltip>
-              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                {compteurs.get(d.id) ?? 0} fichier(s)
-              </Typography.Text>
-            </div>
-          </Card>
+          <button
+            key={d.id}
+            type="button"
+            onClick={() => onNaviguerDossier(d.id)}
+            className="group flex cursor-pointer flex-col rounded-xl border border-border bg-card p-4 text-left transition hover:border-input hover:shadow-sm"
+          >
+            <Folder className="size-9 fill-gold/25 text-gold" strokeWidth={1.5} />
+            <span className="mt-3 truncate text-[13px] font-semibold" title={d.libelle}>
+              {d.libelle}
+            </span>
+            <span className="text-[12px] text-muted-foreground">{nbFichiers(compteurs.get(d.id) ?? 0)}</span>
+          </button>
         ))}
 
         {documentsTries.map((document) => {
-          const infos = document.version_courante_id ? infosParVersionId.get(document.version_courante_id) : undefined;
-          const { icone: Icone, couleur } = getInfosTypeFichier(infos?.type_mime, infos?.nom_fichier);
+          const infos = infosDe(document);
+          const { icone: Icone, couleur, libelle } = getInfosTypeFichier(infos?.type_mime, infos?.nom_fichier);
           return (
-            <Card
+            <div
               key={document.id}
-              hoverable
-              size="small"
+              role="button"
+              tabIndex={0}
               onClick={() => onOuvrirDocument(document)}
-              actions={[
-                <EyeOutlined key="voir" />,
-                <DownloadOutlined key="telecharger" onClick={(ev) => telecharger(document, ev)} />,
-              ]}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onOuvrirDocument(document);
+                }
+              }}
+              className="group relative flex cursor-pointer flex-col rounded-xl border border-border bg-card p-4 text-left transition hover:border-input hover:shadow-sm focus-visible:outline-2 focus-visible:outline-ring"
             >
-              <Icone style={{ fontSize: 32, color: couleur }} />
-              <div style={{ marginTop: 8 }}>
-                <Tooltip title={document.titre}>
-                  <Typography.Text strong ellipsis style={{ display: 'block' }}>
-                    {document.titre}
-                  </Typography.Text>
-                </Tooltip>
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  {document.date_archivage ? new Date(document.date_archivage).toLocaleDateString('fr-FR') : '—'}
-                  {' · '}
-                  {formatTailleFichier(infos?.taille_octets)}
-                </Typography.Text>
-                {enRecherche && (
-                  <div>
-                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                      {(document.dossier_id && dossierParId.get(document.dossier_id)?.libelle) || 'Non classé'}
-                    </Typography.Text>
-                  </div>
-                )}
+              <div className="flex items-start justify-between">
+                <span
+                  className="grid size-10 place-items-center rounded-lg"
+                  style={{ background: `color-mix(in srgb, ${couleur} 12%, transparent)` }}
+                >
+                  <Icone className="size-5" style={{ color: couleur }} />
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 opacity-60 group-hover:opacity-100"
+                  onClick={(ev) => telecharger(document, ev)}
+                  aria-label={`Télécharger ${document.titre}`}
+                  title="Télécharger"
+                >
+                  <Download />
+                </Button>
               </div>
-            </Card>
+              <span className="mt-3 line-clamp-2 text-[13px] font-semibold leading-snug" title={document.titre}>
+                {document.titre}
+              </span>
+              <span className="mt-1 text-[12px] text-muted-foreground">
+                {libelle} · {formatTailleFichier(infos?.taille_octets)}
+              </span>
+              <span className="text-[12px] text-muted-foreground">{dateArchivage(document)}</span>
+              {enRecherche && <span className="mt-1 truncate text-[12px] text-muted-foreground">{emplacement(document)}</span>}
+            </div>
           );
         })}
       </div>
-
-      {pagePleine && (
-        <Button block style={{ marginTop: 16 }} loading={isLoading} onClick={() => setPage((p) => p + 1)}>
-          Charger plus
-        </Button>
-      )}
+      {chargerPlus}
     </>
-  );
-}
-
-type GedDossierLigne = { id: string; libelle: string; estDossier: true };
-
-function NomDocument({
-  document,
-  infosParVersionId,
-}: {
-  document: Document;
-  infosParVersionId: Map<string, { type_mime: string | null; nom_fichier: string }>;
-}) {
-  const infos = document.version_courante_id ? infosParVersionId.get(document.version_courante_id) : undefined;
-  const { icone: Icone, couleur } = getInfosTypeFichier(infos?.type_mime, infos?.nom_fichier);
-  return (
-    <Tooltip title={document.titre}>
-      <span>
-        <Icone style={{ marginRight: 8, color: couleur }} />
-        {document.titre}
-      </span>
-    </Tooltip>
   );
 }

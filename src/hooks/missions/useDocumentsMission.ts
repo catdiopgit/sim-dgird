@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { message } from 'antd';
+import { message } from '../../lib/notifications';
 import { ajouterDocumentMissionAvecFichier, type AjouterDocumentMissionPayload } from '../../services/missions/documents';
 
 export function useAjouterDocumentMission(missionId: string | undefined) {

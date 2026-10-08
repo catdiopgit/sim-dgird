@@ -1,6 +1,11 @@
-import { PlusOutlined } from '@ant-design/icons';
-import { Button, Divider, Popconfirm, Skeleton, Table, Tag, Typography } from 'antd';
+import { Lock, Plus, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
+import { ActionsLigne, BoutonModifier, BoutonSuppression } from '../../../components/form/actions-ligne';
+import { Badge } from '../../../components/ui/badge';
+import { Button } from '../../../components/ui/button';
+import { EnTeteSection } from '../../../components/ui/page-header';
+import { Skeleton } from '../../../components/ui/skeleton';
+import { Tableau } from '../../../components/ui/tableau';
 import { useModulesActions, useRoleMutations } from '../../../hooks/administration/useRolesAdmin';
 import { useRoles } from '../../../hooks/administration/useUtilisateurs';
 import { useProfile } from '../../../hooks/useProfile';
@@ -19,7 +24,7 @@ export function RolesTab() {
   const [edition, setEdition] = useState<Role | 'nouveau' | null>(null);
   const [roleSelectionne, setRoleSelectionne] = useState<Role | null>(null);
 
-  if (!organisationId) return <Skeleton active />;
+  if (!organisationId) return <Skeleton className="h-64 w-full" />;
 
   const onSubmitRole = (values: RoleFormValues) => {
     if (edition === 'nouveau') {
@@ -36,71 +41,95 @@ export function RolesTab() {
   };
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <Typography.Title level={5} style={{ margin: 0 }}>
-          Rôles
-        </Typography.Title>
-        {peutModifier && (
-          <Button icon={<PlusOutlined />} onClick={() => setEdition('nouveau')}>
-            Nouveau rôle
-          </Button>
-        )}
+    <div className="space-y-8">
+      <div>
+        <EnTeteSection
+          titre="Rôles"
+          description="Sélectionnez un rôle pour afficher et régler ses permissions."
+          actions={
+            peutModifier && (
+              <Button onClick={() => setEdition('nouveau')}>
+                <Plus />
+                Nouveau rôle
+              </Button>
+            )
+          }
+        />
+        <Tableau<Role>
+          libelle="Rôles"
+          lignes={roles}
+          cleLigne={(r) => r.id}
+          chargement={isLoading}
+          minLargeur={560}
+          onLigneClic={setRoleSelectionne}
+          estActive={(r) => r.id === roleSelectionne?.id}
+          vide={{ icone: ShieldCheck, titre: 'Aucun rôle' }}
+          colonnes={[
+            {
+              cle: 'libelle',
+              titre: 'Libellé',
+              rendu: (r) => (
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium">{r.libelle}</span>
+                  {r.systeme && (
+                    <Badge variant="muted" shape="pill" title="Rôle système : non modifiable">
+                      <Lock className="mr-1 size-3" />
+                      système
+                    </Badge>
+                  )}
+                </span>
+              ),
+            },
+            { cle: 'code', titre: 'Code', rendu: (r) => <span className="font-mono text-[12px] text-muted-foreground">{r.code}</span> },
+            {
+              cle: 'description',
+              titre: 'Description',
+              rendu: (r) => <span className="line-clamp-2 text-muted-foreground">{r.description ?? '—'}</span>,
+            },
+            ...(peutModifier
+              ? [
+                  {
+                    cle: 'actions',
+                    titre: <span className="sr-only">Actions</span>,
+                    className: 'w-20',
+                    rendu: (r: Role) =>
+                      r.systeme ? null : (
+                        <ActionsLigne>
+                          <BoutonModifier libelle={`Modifier le rôle ${r.libelle}`} onClick={() => setEdition(r)} />
+                          <BoutonSuppression
+                            libelle={`Supprimer le rôle ${r.libelle}`}
+                            titre="Supprimer ce rôle ?"
+                            enCours={remove.isPending}
+                            onConfirmer={(fermer) =>
+                              remove.mutate(r.id, {
+                                onSuccess: () => {
+                                  if (roleSelectionne?.id === r.id) setRoleSelectionne(null);
+                                  fermer();
+                                },
+                              })
+                            }
+                          >
+                            <p>
+                              Le rôle <strong>{r.libelle}</strong> et ses permissions seront supprimés ; les utilisateurs
+                              qui le détiennent le perdront.
+                            </p>
+                          </BoutonSuppression>
+                        </ActionsLigne>
+                      ),
+                  },
+                ]
+              : []),
+          ]}
+        />
       </div>
 
-      <Table<Role>
-        rowKey="id"
-        size="small"
-        loading={isLoading}
-        dataSource={roles}
-        pagination={false}
-        onRow={(record) => ({ onClick: () => setRoleSelectionne(record), style: { cursor: 'pointer' } })}
-        rowClassName={(record) => (roleSelectionne?.id === record.id ? 'ant-table-row-selected' : '')}
-        columns={[
-          { title: 'Libellé', dataIndex: 'libelle' },
-          { title: 'Code', dataIndex: 'code' },
-          { title: 'Description', dataIndex: 'description' },
-          {
-            title: 'Type',
-            dataIndex: 'systeme',
-            width: 100,
-            render: (systeme: boolean) => (systeme ? <Tag>système</Tag> : null),
-          },
-          ...(peutModifier
-            ? [
-                {
-                  title: 'Actions',
-                  key: 'actions',
-                  width: 160,
-                  render: (_: unknown, record: Role) =>
-                    record.systeme ? null : (
-                      <span onClick={(e) => e.stopPropagation()}>
-                        <Button type="link" size="small" onClick={() => setEdition(record)}>
-                          Modifier
-                        </Button>
-                        <Popconfirm title="Supprimer ce rôle ?" onConfirm={() => remove.mutate(record.id)}>
-                          <Button type="link" size="small" danger>
-                            Supprimer
-                          </Button>
-                        </Popconfirm>
-                      </span>
-                    ),
-                },
-              ]
-            : []),
-        ]}
-      />
-
       {roleSelectionne && modules.data && actions.data && (
-        <>
-          <Divider />
-          <PermissionsMatrix
-            role={roleSelectionne}
-            modules={modules.data}
-            actions={actions.data}
-            peutModifier={peutModifier}
-          />
-        </>
+        <PermissionsMatrix
+          role={roleSelectionne}
+          modules={modules.data}
+          actions={actions.data}
+          peutModifier={peutModifier}
+        />
       )}
 
       <RoleFormModal

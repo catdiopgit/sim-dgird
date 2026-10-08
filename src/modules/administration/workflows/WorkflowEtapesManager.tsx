@@ -1,25 +1,24 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { PlusOutlined } from '@ant-design/icons';
-import {
-  Button,
-  ColorPicker,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
-  Popconfirm,
-  Select,
-  Table,
-  Tag,
-  Typography,
-} from 'antd';
+import { ListOrdered, Plus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { ActionsLigne, BoutonModifier, BoutonSuppression } from '../../../components/form/actions-ligne';
+import { Badge } from '../../../components/ui/badge';
+import { Button } from '../../../components/ui/button';
+import { EnTeteSection } from '../../../components/ui/page-header';
+import { Tableau } from '../../../components/ui/tableau';
+import { couleurReferentiel } from '../../../utils/couleurReferentiel';
+import { Champ } from '../../../components/form/champ';
+import { ChampCouleur } from '../../../components/form/champ-couleur';
+import { FormDialog } from '../../../components/form/form-dialog';
+import { Input } from '../../../components/ui/input';
+import { NativeSelect } from '../../../components/ui/native-select';
 import {
   useWorkflowEtapeMutations,
   useWorkflowEtapes,
 } from '../../../hooks/administration/useWorkflowsAdmin';
+import { ariaErreur } from '../../../lib/form';
 import type { WorkflowEtape } from '../../../services/administration/workflows';
 import { slugifier } from '../../../utils/slug';
 
@@ -29,6 +28,13 @@ const OPTIONS_TYPE_ETAPE = [
   { value: 'finale', label: 'Finale' },
   { value: 'rejet', label: 'Rejet' },
 ];
+
+const VARIANTE_TYPE_ETAPE: Record<string, 'outline' | 'muted' | 'success' | 'critical'> = {
+  initiale: 'outline',
+  intermediaire: 'muted',
+  finale: 'success',
+  rejet: 'critical',
+};
 
 const schema = z.object({
   libelle: z.string().min(1, 'Requis'),
@@ -50,7 +56,15 @@ export function WorkflowEtapesManager({ workflowDefinitionId, peutModifier }: Pr
   const { create, update, remove } = useWorkflowEtapeMutations(workflowDefinitionId);
   const [edition, setEdition] = useState<WorkflowEtape | 'nouveau' | null>(null);
 
-  const { control, handleSubmit, reset, setValue, watch } = useForm<FormValues>({
+  const {
+    control,
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { libelle: '', code: '', ordre: 0, type_etape: 'intermediaire', delai_jours: null, couleur: '' },
   });
@@ -100,49 +114,78 @@ export function WorkflowEtapesManager({ workflowDefinitionId, peutModifier }: Pr
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <Typography.Title level={5} style={{ margin: 0 }}>
-          Étapes
-        </Typography.Title>
-        {peutModifier && (
-          <Button size="small" icon={<PlusOutlined />} onClick={() => setEdition('nouveau')}>
-            Ajouter une étape
-          </Button>
-        )}
-      </div>
-      <Table<WorkflowEtape>
-        rowKey="id"
-        size="small"
-        loading={isLoading}
-        dataSource={etapes}
-        pagination={false}
-        columns={[
-          { title: 'Ordre', dataIndex: 'ordre', width: 70 },
-          { title: 'Libellé', dataIndex: 'libelle' },
-          { title: 'Code', dataIndex: 'code' },
+      <EnTeteSection
+        titre="Étapes"
+        actions={
+          peutModifier && (
+            <Button variant="outline" size="sm" onClick={() => setEdition('nouveau')}>
+              <Plus />
+              Ajouter une étape
+            </Button>
+          )
+        }
+      />
+      <Tableau<WorkflowEtape>
+        libelle="Étapes du workflow"
+        lignes={etapes}
+        cleLigne={(e) => e.id}
+        chargement={isLoading}
+        minLargeur={560}
+        vide={{ icone: ListOrdered, titre: 'Aucune étape', description: 'Commencez par une étape initiale.' }}
+        colonnes={[
+          { cle: 'ordre', titre: 'Ordre', className: 'w-16 tabular-nums text-muted-foreground', rendu: (e) => e.ordre },
           {
-            title: 'Type',
-            dataIndex: 'type_etape',
-            render: (v: string) => <Tag>{OPTIONS_TYPE_ETAPE.find((o) => o.value === v)?.label ?? v}</Tag>,
+            cle: 'libelle',
+            titre: 'Libellé',
+            rendu: (e) => (
+              <span className="flex items-center gap-2 font-medium">
+                <span
+                  aria-hidden
+                  className="size-2.5 shrink-0 rounded-full"
+                  style={{ background: couleurReferentiel(e.couleur) ?? 'var(--st-neutral)' }}
+                />
+                {e.libelle}
+              </span>
+            ),
           },
-          { title: 'Délai (j)', dataIndex: 'delai_jours', width: 90, render: (v: number | null) => v ?? '—' },
+          { cle: 'code', titre: 'Code', rendu: (e) => <span className="font-mono text-[12px] text-muted-foreground">{e.code}</span> },
+          {
+            cle: 'type',
+            titre: 'Type',
+            className: 'w-32',
+            rendu: (e) => (
+              <Badge variant={VARIANTE_TYPE_ETAPE[e.type_etape] ?? 'muted'} shape="pill">
+                {OPTIONS_TYPE_ETAPE.find((o) => o.value === e.type_etape)?.label ?? e.type_etape}
+              </Badge>
+            ),
+          },
+          {
+            cle: 'delai',
+            titre: 'Délai',
+            className: 'w-20 tabular-nums',
+            rendu: (e) => (e.delai_jours != null ? `${e.delai_jours} j` : <span className="text-muted-foreground">—</span>),
+          },
           ...(peutModifier
             ? [
                 {
-                  title: 'Actions',
-                  key: 'actions',
-                  width: 140,
-                  render: (_: unknown, record: WorkflowEtape) => (
-                    <span>
-                      <Button type="link" size="small" onClick={() => setEdition(record)}>
-                        Modifier
-                      </Button>
-                      <Popconfirm title="Supprimer cette étape ?" onConfirm={() => remove.mutate(record.id)}>
-                        <Button type="link" size="small" danger>
-                          Supprimer
-                        </Button>
-                      </Popconfirm>
-                    </span>
+                  cle: 'actions',
+                  titre: <span className="sr-only">Actions</span>,
+                  className: 'w-20',
+                  rendu: (e: WorkflowEtape) => (
+                    <ActionsLigne>
+                      <BoutonModifier libelle={`Modifier l'étape ${e.libelle}`} onClick={() => setEdition(e)} />
+                      <BoutonSuppression
+                        libelle={`Supprimer l'étape ${e.libelle}`}
+                        titre="Supprimer cette étape ?"
+                        enCours={remove.isPending}
+                        onConfirmer={(fermer) => remove.mutate(e.id, { onSuccess: fermer })}
+                      >
+                        <p>
+                          L'étape <strong>{e.libelle}</strong> sera supprimée, ainsi que les transitions qui y mènent ou en
+                          partent.
+                        </p>
+                      </BoutonSuppression>
+                    </ActionsLigne>
                   ),
                 },
               ]
@@ -150,57 +193,51 @@ export function WorkflowEtapesManager({ workflowDefinitionId, peutModifier }: Pr
         ]}
       />
 
-      <Modal
+      <FormDialog
         open={edition !== null}
-        title={edition === 'nouveau' ? 'Nouvelle étape' : "Modifier l'étape"}
-        onCancel={() => setEdition(null)}
-        onOk={handleSubmit(onSubmit)}
-        confirmLoading={create.isPending || update.isPending}
-        destroyOnHidden
+        onClose={() => setEdition(null)}
+        titre={edition === 'nouveau' ? 'Nouvelle étape' : "Modifier l'étape"}
+        onSubmit={handleSubmit(onSubmit)}
+        enCours={create.isPending || update.isPending}
+        libelleValider={edition === 'nouveau' ? "Ajouter l'étape" : 'Enregistrer'}
       >
-        <Form layout="vertical">
-          <Form.Item label="Libellé">
-            <Controller name="libelle" control={control} render={({ field }) => <Input {...field} autoFocus />} />
-          </Form.Item>
-          <Form.Item label="Code">
-            <Controller name="code" control={control} render={({ field }) => <Input {...field} />} />
-          </Form.Item>
-          <Form.Item label="Ordre">
-            <Controller
-              name="ordre"
-              control={control}
-              render={({ field }) => (
-                <InputNumber {...field} onChange={(v) => field.onChange(v ?? 0)} style={{ width: '100%' }} />
-              )}
+        <Champ label="Libellé" htmlFor="etape-libelle" requis erreur={errors.libelle?.message}>
+          <Input autoFocus {...ariaErreur('etape-libelle', errors.libelle)} {...register('libelle')} />
+        </Champ>
+        <Champ label="Code" htmlFor="etape-code" requis aide={edition === 'nouveau' ? 'Proposé à partir du libellé.' : undefined} erreur={errors.code?.message}>
+          <Input className="font-mono" {...ariaErreur('etape-code', errors.code)} {...register('code')} />
+        </Champ>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Champ label="Type" htmlFor="etape-type">
+            <NativeSelect id="etape-type" {...register('type_etape')}>
+              {OPTIONS_TYPE_ETAPE.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </NativeSelect>
+          </Champ>
+          <Champ label="Ordre" htmlFor="etape-ordre" erreur={errors.ordre?.message}>
+            <Input type="number" step={1} {...ariaErreur('etape-ordre', errors.ordre)} {...register('ordre', { setValueAs: (v) => (v === '' ? 0 : Number(v)) })} />
+          </Champ>
+          <Champ label="Délai (jours)" htmlFor="etape-delai" aide="Facultatif." erreur={errors.delai_jours?.message}>
+            <Input
+              type="number"
+              step={1}
+              min={0}
+              {...ariaErreur('etape-delai', errors.delai_jours)}
+              {...register('delai_jours', { setValueAs: (v) => (v === '' || v === null ? null : Number(v)) })}
             />
-          </Form.Item>
-          <Form.Item label="Type">
-            <Controller
-              name="type_etape"
-              control={control}
-              render={({ field }) => <Select {...field} options={OPTIONS_TYPE_ETAPE} />}
-            />
-          </Form.Item>
-          <Form.Item label="Délai (jours, optionnel)">
-            <Controller
-              name="delai_jours"
-              control={control}
-              render={({ field }) => (
-                <InputNumber {...field} onChange={(v) => field.onChange(v ?? null)} style={{ width: '100%' }} />
-              )}
-            />
-          </Form.Item>
-          <Form.Item label="Couleur">
-            <Controller
-              name="couleur"
-              control={control}
-              render={({ field }) => (
-                <ColorPicker value={field.value || undefined} onChange={(c) => field.onChange(c.toHexString())} />
-              )}
-            />
-          </Form.Item>
-        </Form>
-      </Modal>
+          </Champ>
+        </div>
+        <Champ label="Couleur" htmlFor="etape-couleur">
+          <Controller
+            name="couleur"
+            control={control}
+            render={({ field }) => <ChampCouleur id="etape-couleur" value={field.value} onChange={field.onChange} />}
+          />
+        </Champ>
+      </FormDialog>
     </div>
   );
 }

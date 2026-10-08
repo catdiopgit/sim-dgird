@@ -1,7 +1,9 @@
-import { ArrowLeftOutlined, InboxOutlined } from '@ant-design/icons';
-import { Button, Card, Col, Row, Skeleton, Space, Typography } from 'antd';
-import { useState } from 'react';
+import { Archive, FolderTree } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '../../components/ui/button';
+import { PageHeader } from '../../components/ui/page-header';
+import { Skeleton } from '../../components/ui/skeleton';
 import { useDossiers } from '../../hooks/ged/useDossiers';
 import { useProfile } from '../../hooks/useProfile';
 import type { Document } from '../../services/ged/documents';
@@ -23,52 +25,72 @@ export function ArchivesPage() {
   const { data: dossiers } = useDossiers(organisationId);
 
   const [dossierSelectionneId, setDossierSelectionneId] = useState<string | null>(null);
+  const [saisie, setSaisie] = useState('');
   const [texteRecherche, setTexteRecherche] = useState('');
   const [vue, setVue] = useState<VueArchives>('grille');
   const [tri, setTri] = useState<TriArchives>('nom');
   const [documentAffiche, setDocumentAffiche] = useState<Document | null>(null);
+  const [arbreMobileOuvert, setArbreMobileOuvert] = useState(false);
 
-  if (!organisationId) return <Skeleton active />;
+  // La recherche interroge le serveur (fn_rechercher_documents) : on attend
+  // une courte pause de frappe plutôt qu'un appel par caractère.
+  useEffect(() => {
+    const t = setTimeout(() => setTexteRecherche(saisie), 300);
+    return () => clearTimeout(t);
+  }, [saisie]);
+
+  if (!organisationId) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-9 w-48" />
+        <Skeleton className="h-96 w-full" />
+      </div>
+    );
+  }
+
+  const naviguer = (id: string | null) => {
+    setDossierSelectionneId(id);
+    setSaisie('');
+    setTexteRecherche('');
+    setArbreMobileOuvert(false);
+  };
 
   return (
-    <div>
-      <Space style={{ marginBottom: 12 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/ged')}>
-          Retour
-        </Button>
-        <Typography.Title level={4} style={{ margin: 0 }}>
-          Archives
-        </Typography.Title>
-        {can('ged', 'consulter') && (
-          <Button icon={<InboxOutlined />} onClick={() => navigate('/ged/archivage')}>
-            Archivage
-          </Button>
-        )}
-      </Space>
+    <div className="space-y-5">
+      <PageHeader
+        retour={{ vers: '/ged', libelle: 'Gestion documentaire' }}
+        titre="Archives"
+        description="Documents archivés, rangés selon le plan de classement"
+        actions={
+          <>
+            <Button variant="outline" className="lg:hidden" onClick={() => setArbreMobileOuvert((o) => !o)} aria-expanded={arbreMobileOuvert}>
+              <FolderTree className="text-muted-foreground" />
+              Dossiers
+            </Button>
+            {can('ged', 'consulter') && (
+              <Button variant="outline" onClick={() => navigate('/ged/archivage')}>
+                <Archive className="text-muted-foreground" />
+                Archivage
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      <Row gutter={16}>
-        <Col xs={24} md={7} lg={6}>
-          <Card size="small">
-            <ArchivesTreePanel
-              organisationId={organisationId}
-              dossierSelectionneId={dossierSelectionneId}
-              onSelectionner={(id) => {
-                setDossierSelectionneId(id);
-                setTexteRecherche('');
-              }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} md={17} lg={18}>
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[280px_1fr]">
+        <aside
+          className={`${arbreMobileOuvert ? 'block' : 'hidden'} rounded-xl border border-border bg-card p-2 lg:sticky lg:top-24 lg:block lg:max-h-[calc(100svh-8rem)] lg:overflow-y-auto`}
+        >
+          <ArchivesTreePanel organisationId={organisationId} dossierSelectionneId={dossierSelectionneId} onSelectionner={naviguer} />
+        </aside>
+
+        <div className="min-w-0 space-y-4">
           <ArchivesToolbar
             dossiers={dossiers ?? []}
             dossierSelectionneId={dossierSelectionneId}
-            onNaviguer={(id) => {
-              setDossierSelectionneId(id);
-              setTexteRecherche('');
-            }}
-            texteRecherche={texteRecherche}
-            onChangeRecherche={setTexteRecherche}
+            onNaviguer={naviguer}
+            texteRecherche={saisie}
+            onChangeRecherche={setSaisie}
             vue={vue}
             onChangeVue={setVue}
             tri={tri}
@@ -84,8 +106,8 @@ export function ArchivesPage() {
             tri={tri}
             onOuvrirDocument={setDocumentAffiche}
           />
-        </Col>
-      </Row>
+        </div>
+      </div>
 
       <DocumentPreviewModal document={documentAffiche} onClose={() => setDocumentAffiche(null)} />
     </div>

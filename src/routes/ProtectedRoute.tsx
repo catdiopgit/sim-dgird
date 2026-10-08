@@ -1,4 +1,4 @@
-import { Spin } from 'antd';
+import { LoaderCircle } from 'lucide-react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { ProfileProvider } from '../contexts/ProfileContext';
 import { useAuth } from '../hooks/useAuth';
@@ -9,8 +9,9 @@ export function ProtectedRoute() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Spin size="large" />
+      <div role="status" className="grid min-h-svh place-items-center bg-background">
+        <LoaderCircle className="size-8 animate-spin text-primary" aria-hidden />
+        <span className="sr-only">Chargement…</span>
       </div>
     );
   }

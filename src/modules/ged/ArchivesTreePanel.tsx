@@ -1,14 +1,70 @@
-import { FolderOutlined, InboxOutlined } from '@ant-design/icons';
-import { Button, Skeleton, Space, Tree, Typography } from 'antd';
-import type { DataNode } from 'antd/es/tree';
-import { useEffect, useMemo, useState } from 'react';
+import { Archive, ChevronRight, Folder, FolderOpen, Inbox } from 'lucide-react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { Skeleton } from '../../components/ui/skeleton';
 import { CLE_NON_CLASSES, useCompteurDocumentsParDossier, useDossiers } from '../../hooks/ged/useDossiers';
+import { cn } from '../../lib/utils';
 import type { GedDossier } from '../../services/ged/dossiers';
 
 interface Props {
   organisationId: string;
   dossierSelectionneId: string | null;
   onSelectionner: (id: string | null) => void;
+}
+
+function Ligne({
+  niveau,
+  actif,
+  icone,
+  libelle,
+  nombre,
+  ouvert,
+  onBasculer,
+  onClick,
+}: {
+  niveau: number;
+  actif: boolean;
+  icone: ReactNode;
+  libelle: string;
+  nombre?: number;
+  ouvert?: boolean;
+  onBasculer?: () => void;
+  onClick: () => void;
+}) {
+  return (
+    <div
+      className={cn(
+        'group flex h-9 items-center rounded-lg pr-2 text-[13px] transition-colors',
+        actif ? 'bg-accent font-semibold text-accent-foreground' : 'text-foreground hover:bg-muted',
+      )}
+      style={{ paddingLeft: 4 + niveau * 16 }}
+    >
+      {onBasculer ? (
+        <button
+          type="button"
+          onClick={onBasculer}
+          aria-label={ouvert ? `Replier ${libelle}` : `Déplier ${libelle}`}
+          aria-expanded={ouvert}
+          className="grid size-6 shrink-0 cursor-pointer place-items-center rounded text-muted-foreground hover:text-foreground"
+        >
+          <ChevronRight className={cn('size-3.5 transition-transform', ouvert && 'rotate-90')} />
+        </button>
+      ) : (
+        <span className="size-6 shrink-0" />
+      )}
+      <button
+        type="button"
+        onClick={onClick}
+        aria-current={actif ? 'true' : undefined}
+        className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left"
+      >
+        {icone}
+        <span className="truncate" title={libelle}>
+          {libelle}
+        </span>
+        {nombre ? <span className="ml-auto pl-2 text-[12px] font-normal tabular-nums text-muted-foreground">{nombre}</span> : null}
+      </button>
+    </div>
+  );
 }
 
 // Panneau gauche de l'explorateur Archives : navigation en lecture seule dans
@@ -19,89 +75,104 @@ export function ArchivesTreePanel({ organisationId, dossierSelectionneId, onSele
   const { data: dossiers, isLoading } = useDossiers(organisationId);
   const { compteurs } = useCompteurDocumentsParDossier(organisationId);
 
-  const { arbre, cheminVersSelection } = useMemo(() => {
-    const enfantsParParent = new Map<string | null, GedDossier[]>();
+  const { enfantsParParent, cheminVersSelection } = useMemo(() => {
+    const enfants = new Map<string | null, GedDossier[]>();
     for (const d of dossiers ?? []) {
-      const liste = enfantsParParent.get(d.parent_dossier_id) ?? [];
+      const liste = enfants.get(d.parent_dossier_id) ?? [];
       liste.push(d);
-      enfantsParParent.set(d.parent_dossier_id, liste);
+      enfants.set(d.parent_dossier_id, liste);
     }
-    for (const liste of enfantsParParent.values()) liste.sort((a, b) => a.libelle.localeCompare(b.libelle));
+    for (const liste of enfants.values()) liste.sort((a, b) => a.libelle.localeCompare(b.libelle));
 
     const parentParId = new Map((dossiers ?? []).map((d) => [d.id, d.parent_dossier_id]));
-
-    const titreNoeud = (libelle: string, nb: number) => (
-      <Space size={6}>
-        <span>{libelle}</span>
-        {nb > 0 && <Typography.Text type="secondary">({nb})</Typography.Text>}
-      </Space>
-    );
-
-    const construireNoeuds = (parentId: string | null): DataNode[] =>
-      (enfantsParParent.get(parentId) ?? []).map((d) => ({
-        key: d.id,
-        icon: <FolderOutlined />,
-        title: titreNoeud(d.libelle, compteurs.get(d.id) ?? 0),
-        children: construireNoeuds(d.id),
-      }));
-
-    const noeuds = construireNoeuds(null);
-    const nbNonClasses = compteurs.get(CLE_NON_CLASSES) ?? 0;
-    if (nbNonClasses > 0) {
-      noeuds.push({
-        key: CLE_NON_CLASSES,
-        icon: <InboxOutlined />,
-        title: titreNoeud('Non classés', nbNonClasses),
-        isLeaf: true,
-      });
-    }
-
     const chemin: string[] = [];
     let curseur = dossierSelectionneId;
     while (curseur && curseur !== CLE_NON_CLASSES) {
       chemin.unshift(curseur);
       curseur = parentParId.get(curseur) ?? null;
     }
+    return { enfantsParParent: enfants, cheminVersSelection: chemin };
+  }, [dossiers, dossierSelectionneId]);
 
-    return { arbre: noeuds, cheminVersSelection: chemin };
-  }, [dossiers, compteurs, dossierSelectionneId]);
-
-  // Expansion librement pilotée par l'utilisateur (onExpand) ; on y fusionne
-  // simplement le chemin vers la sélection courante quand elle change, sans
-  // écraser ce que l'utilisateur a ouvert/fermé ailleurs dans l'arbre.
-  const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+  // Expansion librement pilotée par l'utilisateur ; on y fusionne simplement
+  // le chemin vers la sélection courante quand elle change, sans écraser ce
+  // que l'utilisateur a ouvert/fermé ailleurs dans l'arbre.
+  const [ouverts, setOuverts] = useState<Set<string>>(new Set());
   useEffect(() => {
     if (cheminVersSelection.length === 0) return;
-    setExpandedKeys((precedent) => Array.from(new Set([...precedent, ...cheminVersSelection])));
+    setOuverts((precedent) => new Set([...precedent, ...cheminVersSelection]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dossierSelectionneId]);
 
-  if (isLoading) return <Skeleton active />;
+  const basculer = (id: string) =>
+    setOuverts((precedent) => {
+      const suivant = new Set(precedent);
+      if (suivant.has(id)) suivant.delete(id);
+      else suivant.add(id);
+      return suivant;
+    });
+
+  const rendre = (parentId: string | null, niveau: number): ReactNode =>
+    (enfantsParParent.get(parentId) ?? []).map((d) => {
+      const aEnfants = (enfantsParParent.get(d.id) ?? []).length > 0;
+      const ouvert = ouverts.has(d.id);
+      const actif = dossierSelectionneId === d.id;
+      const Icone = actif || ouvert ? FolderOpen : Folder;
+      return (
+        <li key={d.id}>
+          <Ligne
+            niveau={niveau}
+            actif={actif}
+            icone={<Icone className="size-4 shrink-0 fill-gold/25 text-gold" />}
+            libelle={d.libelle}
+            nombre={compteurs.get(d.id)}
+            ouvert={ouvert}
+            onBasculer={aEnfants ? () => basculer(d.id) : undefined}
+            onClick={() => onSelectionner(d.id)}
+          />
+          {aEnfants && ouvert && <ul>{rendre(d.id, niveau + 1)}</ul>}
+        </li>
+      );
+    });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 6 }, (_, i) => (
+          <Skeleton key={i} className="h-7 w-full" />
+        ))}
+      </div>
+    );
+  }
+
+  const nbNonClasses = compteurs.get(CLE_NON_CLASSES) ?? 0;
 
   return (
-    <div>
-      <Button
-        type={dossierSelectionneId === null ? 'primary' : 'text'}
-        icon={<FolderOutlined />}
-        block
-        style={{ textAlign: 'left', marginBottom: 8 }}
+    <nav aria-label="Plan de classement">
+      <Ligne
+        niveau={0}
+        actif={dossierSelectionneId === null}
+        icone={<Archive className="size-4 shrink-0 text-muted-foreground" />}
+        libelle="Toutes les archives"
         onClick={() => onSelectionner(null)}
-      >
-        Archives
-      </Button>
-
-      {arbre.length === 0 ? (
-        <Typography.Text type="secondary">Aucun dossier pour le moment.</Typography.Text>
+      />
+      {(enfantsParParent.get(null) ?? []).length === 0 ? (
+        <p className="px-3 py-2 text-[13px] text-muted-foreground">Aucun dossier pour le moment.</p>
       ) : (
-        <Tree
-          treeData={arbre}
-          showIcon
-          selectedKeys={dossierSelectionneId ? [dossierSelectionneId] : []}
-          expandedKeys={expandedKeys}
-          onExpand={(keys) => setExpandedKeys(keys as string[])}
-          onSelect={(keys) => onSelectionner(keys.length > 0 ? (keys[0] as string) : null)}
-        />
+        <ul className="mt-1">{rendre(null, 0)}</ul>
       )}
-    </div>
+      {nbNonClasses > 0 && (
+        <div className="mt-2 border-t border-border pt-2">
+          <Ligne
+            niveau={0}
+            actif={dossierSelectionneId === CLE_NON_CLASSES}
+            icone={<Inbox className="size-4 shrink-0 text-muted-foreground" />}
+            libelle="Non classés"
+            nombre={nbNonClasses}
+            onClick={() => onSelectionner(CLE_NON_CLASSES)}
+          />
+        </div>
+      )}
+    </nav>
   );
 }

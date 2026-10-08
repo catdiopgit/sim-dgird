@@ -1,11 +1,8 @@
 import type { ThemeConfig } from 'antd';
-import { darken, isValidHex } from '../utils/color';
+import { darken } from '../utils/color';
 
-export const DEFAULT_BRAND_COLOR = '#1E5A46';
-
-export function resolveBrandColor(couleurPrimaire?: string | null): string {
-  return isValidHex(couleurPrimaire) ? couleurPrimaire : DEFAULT_BRAND_COLOR;
-}
+// Thème antd réservé au module Missions (voir MissionsAntdProvider), qui n'a
+// pas été porté sur le nouveau design.
 
 export function buildTheme(brandColor: string): ThemeConfig {
   const brandDark = darken(brandColor, 0.35);

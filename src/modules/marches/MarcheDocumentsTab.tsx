@@ -1,11 +1,15 @@
-import { DownloadOutlined, PlusOutlined } from '@ant-design/icons';
-import { Button, Card, Table, message } from 'antd';
-import { useState } from 'react';
+import { Download, FileText, Plus } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Button } from '../../components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Tableau } from '../../components/ui/tableau';
 import { ouvrirFichier } from '../../config/apiClient';
 import { useDocumentsMarche } from '../../hooks/marches/useDocumentsMarche';
 import { useMarcheCandidats } from '../../hooks/marches/useMarcheCandidats';
 import { usePhasesMarche } from '../../hooks/marches/usePhasesMarche';
+import { message } from '../../lib/notifications';
 import { getUrlTelechargementDocument, type Document } from '../../services/marches/documents';
+import { fr } from '../../utils/dateFr';
 import { DocumentMarcheAjouterModal } from './DocumentMarcheAjouterModal';
 
 interface Props {
@@ -20,6 +24,9 @@ export function MarcheDocumentsTab({ marcheId, peutModifier }: Props) {
   const { data: candidats } = useMarcheCandidats(marcheId);
   const [formOuvert, setFormOuvert] = useState(false);
 
+  const phaseParId = useMemo(() => new Map((phases ?? []).map((p) => [p.id, p.nom])), [phases]);
+  const candidatParId = useMemo(() => new Map((candidats ?? []).map((c) => [c.id, c.nom])), [candidats]);
+
   const telecharger = async (document: Document) => {
     const url = await getUrlTelechargementDocument(document);
     if (!url) {
@@ -30,48 +37,74 @@ export function MarcheDocumentsTab({ marcheId, peutModifier }: Props) {
   };
 
   return (
-    <Card
-      title="Documents"
-      extra={
-        peutModifier && (
-          <Button icon={<PlusOutlined />} onClick={() => setFormOuvert(true)}>
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          Documents
+          {documents && documents.length > 0 && <span className="ml-2 font-normal text-muted-foreground">{documents.length}</span>}
+        </CardTitle>
+        {peutModifier && (
+          <Button variant="outline" size="sm" onClick={() => setFormOuvert(true)}>
+            <Plus />
             Ajouter un document
           </Button>
-        )
-      }
-    >
-      <Table<Document>
-        rowKey="id"
-        size="small"
-        loading={isLoading}
-        dataSource={documents}
-        pagination={false}
-        columns={[
-          { title: 'Titre', dataIndex: 'titre' },
-          {
-            title: 'Ajouté le',
-            width: 120,
-            render: (_, d) => new Date(d.created_at).toLocaleDateString('fr-FR'),
-          },
-          {
-            title: 'Actions',
-            key: 'actions',
-            width: 100,
-            render: (_, d) => (
-              <Button type="link" size="small" icon={<DownloadOutlined />} onClick={() => void telecharger(d)}>
-                Télécharger
-              </Button>
-            ),
-          },
-        ]}
-      />
-      <DocumentMarcheAjouterModal
-        open={formOuvert}
-        marcheId={marcheId}
-        phases={phases}
-        candidats={candidats}
-        onClose={() => setFormOuvert(false)}
-      />
+        )}
+      </CardHeader>
+      <CardContent>
+        <Tableau<Document>
+          libelle="Documents du marché"
+          lignes={documents}
+          cleLigne={(d) => d.id}
+          chargement={isLoading}
+          minLargeur={640}
+          vide={{ icone: FileText, titre: 'Aucun document', description: 'Déposez ici les pièces du marché (dossier d’appel, offres, PV, justificatifs…).' }}
+          colonnes={[
+            {
+              cle: 'titre',
+              titre: 'Titre',
+              rendu: (d) => (
+                <span className="flex items-center gap-2.5">
+                  <FileText className="size-4 shrink-0 text-muted-foreground" />
+                  <span>
+                    <span className="block font-medium">{d.titre}</span>
+                    {(d.phase_marche_id || d.marche_candidat_id) && (
+                      <span className="block text-[12px] text-muted-foreground">
+                        {d.phase_marche_id
+                          ? `Phase : ${phaseParId.get(d.phase_marche_id) ?? '—'}`
+                          : `Candidat : ${candidatParId.get(d.marche_candidat_id!) ?? '—'}`}
+                      </span>
+                    )}
+                  </span>
+                </span>
+              ),
+            },
+            {
+              cle: 'date',
+              titre: 'Ajouté le',
+              className: 'w-36 whitespace-nowrap tabular-nums',
+              rendu: (d) => fr(d.created_at).format('D MMM YYYY'),
+            },
+            {
+              cle: 'actions',
+              titre: <span className="sr-only">Actions</span>,
+              className: 'w-14',
+              rendu: (d) => (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => void telecharger(d)}
+                  aria-label={`Télécharger ${d.titre}`}
+                  title="Télécharger"
+                >
+                  <Download />
+                </Button>
+              ),
+            },
+          ]}
+        />
+      </CardContent>
+      <DocumentMarcheAjouterModal open={formOuvert} marcheId={marcheId} phases={phases} candidats={candidats} onClose={() => setFormOuvert(false)} />
     </Card>
   );
 }

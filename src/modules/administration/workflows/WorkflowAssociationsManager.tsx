@@ -1,7 +1,11 @@
-import { PlusOutlined } from '@ant-design/icons';
-import { Button, Popconfirm, Select, Space, Table, Typography } from 'antd';
+import { Link2, LoaderCircle, Unlink } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { ActionsLigne, BoutonSuppression } from '../../../components/form/actions-ligne';
+import { Button } from '../../../components/ui/button';
+import { NativeSelect } from '../../../components/ui/native-select';
+import { EnTeteSection } from '../../../components/ui/page-header';
+import { Tableau } from '../../../components/ui/tableau';
 import {
   useWorkflowAssociationMutations,
   useWorkflowDefinitionAssociations,
@@ -64,52 +68,79 @@ export function WorkflowAssociationsManager({ workflowDefinitionId, organisation
 
   return (
     <div>
-      <Typography.Title level={5}>Association à une valeur</Typography.Title>
-      <Typography.Paragraph type="secondary">
-        Ce workflow sera utilisé automatiquement quand la valeur associée est sélectionnée (ex. le sens
-        du courrier), au lieu du workflow par défaut du module.
-      </Typography.Paragraph>
+      <EnTeteSection
+        titre="Association à une valeur"
+        description="Ce workflow est utilisé automatiquement quand la valeur associée est sélectionnée (par exemple le sens du courrier), à la place du workflow par défaut du module."
+      />
       {peutModifier && (
-        <Space style={{ marginBottom: 12 }}>
-          <Select
-            placeholder="Liste"
-            style={{ width: 200 }}
-            value={listeId}
-            onChange={setListeId}
-            options={(listes ?? []).map((l) => ({ value: l.id, label: l.libelle }))}
-          />
-          <Select
-            placeholder="Valeur"
-            style={{ width: 200 }}
-            value={valeurId}
-            onChange={setValeurId}
-            options={(valeurs ?? []).map((v) => ({ value: v.id, label: v.libelle }))}
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+          <NativeSelect
+            aria-label="Liste de valeurs"
+            className="h-9 text-[13px] sm:w-56"
+            value={listeId ?? ''}
+            onChange={(e) => setListeId(e.target.value || undefined)}
+          >
+            <option value="">Choisir une liste</option>
+            {(listes ?? []).map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.libelle}
+              </option>
+            ))}
+          </NativeSelect>
+          <NativeSelect
+            aria-label="Valeur"
+            className="h-9 text-[13px] sm:w-56"
+            value={valeurId ?? ''}
+            onChange={(e) => setValeurId(e.target.value || undefined)}
             disabled={!listeId}
-          />
-          <Button type="primary" icon={<PlusOutlined />} onClick={onAjouter} disabled={!valeurId} loading={create.isPending}>
+          >
+            <option value="">Choisir une valeur</option>
+            {(valeurs ?? []).map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.libelle}
+              </option>
+            ))}
+          </NativeSelect>
+          <Button onClick={onAjouter} disabled={!valeurId || create.isPending}>
+            {create.isPending ? <LoaderCircle className="animate-spin" /> : <Link2 />}
             Associer
           </Button>
-        </Space>
+        </div>
       )}
-      <Table<WorkflowDefinitionAssociation>
-        rowKey="id"
-        size="small"
-        loading={isLoading}
-        dataSource={associations}
-        pagination={false}
-        columns={[
-          { title: 'Valeur associée', render: (_, a) => valeurParId.get(a.valeur_liste_id) ?? a.valeur_liste_id },
+      <Tableau<WorkflowDefinitionAssociation>
+        libelle="Valeurs associées"
+        lignes={associations}
+        cleLigne={(a) => a.id}
+        chargement={isLoading}
+        minLargeur={320}
+        vide={{ icone: Link2, titre: 'Aucune association', description: 'Le workflow ne s’applique que s’il est le workflow par défaut du module.' }}
+        colonnes={[
+          {
+            cle: 'valeur',
+            titre: 'Valeur associée',
+            rendu: (a) => <span className="font-medium">{valeurParId.get(a.valeur_liste_id) ?? a.valeur_liste_id}</span>,
+          },
           ...(peutModifier
             ? [
                 {
-                  title: 'Actions',
-                  width: 100,
-                  render: (_: unknown, a: WorkflowDefinitionAssociation) => (
-                    <Popconfirm title="Retirer cette association ?" onConfirm={() => remove.mutate(a.id)}>
-                      <Button type="link" size="small" danger>
-                        Retirer
-                      </Button>
-                    </Popconfirm>
+                  cle: 'actions',
+                  titre: <span className="sr-only">Actions</span>,
+                  className: 'w-14',
+                  rendu: (a: WorkflowDefinitionAssociation) => (
+                    <ActionsLigne>
+                      <BoutonSuppression
+                        libelle={`Retirer l'association ${valeurParId.get(a.valeur_liste_id) ?? ''}`}
+                        titre="Retirer cette association ?"
+                        libelleConfirmer="Retirer"
+                        enCours={remove.isPending}
+                        onConfirmer={(fermer) => remove.mutate(a.id, { onSuccess: fermer })}
+                        icone={<Unlink />}
+                      >
+                        <p>
+                          La valeur <strong>{valeurParId.get(a.valeur_liste_id) ?? '—'}</strong> ne déclenchera plus ce workflow.
+                        </p>
+                      </BoutonSuppression>
+                    </ActionsLigne>
                   ),
                 },
               ]

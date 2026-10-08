@@ -1,9 +1,18 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, Button, Card, Form, Input, InputNumber, Select, Skeleton, Switch, Typography } from 'antd';
+import { LoaderCircle } from 'lucide-react';
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Champ } from '../../../components/form/champ';
+import { Button } from '../../../components/ui/button';
+import { Encart } from '../../../components/ui/encart';
+import { Input } from '../../../components/ui/input';
+import { NativeSelect } from '../../../components/ui/native-select';
+import { EnTeteSection } from '../../../components/ui/page-header';
+import { Skeleton } from '../../../components/ui/skeleton';
+import { Switch } from '../../../components/ui/switch';
 import { useDefinirParametresSmtp, useParametresSmtp } from '../../../hooks/administration/useSmtp';
+import { ariaErreur } from '../../../lib/form';
 
 interface Props {
   organisationId: string;
@@ -46,6 +55,7 @@ export function SmtpParametresManager({ organisationId, peutModifier }: Props) {
 
   const {
     control,
+    register,
     handleSubmit,
     reset,
     formState: { errors, isDirty },
@@ -84,110 +94,88 @@ export function SmtpParametresManager({ organisationId, peutModifier }: Props) {
     });
   };
 
-  if (isLoading) return <Skeleton active />;
+  if (isLoading) return <Skeleton className="h-96 w-full" />;
 
   return (
-    <Card>
-      <Typography.Title level={5} style={{ marginTop: 0 }}>
-        Notifications par email (SMTP)
-      </Typography.Title>
-      <Alert
-        type="info"
-        showIcon
-        style={{ marginBottom: 16, maxWidth: 640 }}
-        message="Compte utilisé pour l'envoi des notifications"
-        description="Chaque notification déjà générée par l'application (traitement, imputation, décharge, retard…) est envoyée par email via ce compte, en plus de la notification affichée dans l'application. L'envoi effectif se fait par lots périodiques, pas instantanément."
-      />
-      <Form layout="vertical" onFinish={handleSubmit(onSubmit)}>
-        <Form.Item label="Hôte SMTP" validateStatus={errors.hote ? 'error' : ''} help={errors.hote?.message}>
-          <Controller
-            name="hote"
-            control={control}
-            render={({ field }) => (
-              <Input {...field} disabled={!peutModifier} placeholder="smtp.example.com" style={{ maxWidth: 360 }} />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Port" validateStatus={errors.port ? 'error' : ''} help={errors.port?.message}>
-          <Controller
-            name="port"
-            control={control}
-            render={({ field }) => <InputNumber {...field} disabled={!peutModifier} min={1} max={65535} style={{ width: 160 }} />}
-          />
-        </Form.Item>
-        <Form.Item label="Sécurité">
-          <Controller
-            name="securite"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                disabled={!peutModifier}
-                style={{ width: 220 }}
-                options={[
-                  { value: 'none', label: 'Aucune' },
-                  { value: 'tls', label: 'STARTTLS' },
-                  { value: 'ssl', label: 'SSL/TLS implicite' },
-                ]}
+    <div className="max-w-2xl">
+      <EnTeteSection titre="Notifications par email (SMTP)" />
+      <Encart titre="Compte utilisé pour l'envoi des notifications" className="mb-5">
+        Chaque notification générée par l'application (traitement, imputation, décharge, retard…) est aussi envoyée par
+        email via ce compte. L'envoi se fait par lots périodiques, pas instantanément.
+      </Encart>
+
+      <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
+        <fieldset disabled={!peutModifier} className="space-y-4">
+          <legend className="sr-only">Serveur SMTP</legend>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_120px_180px]">
+            <Champ label="Hôte SMTP" htmlFor="smtp-hote" requis erreur={errors.hote?.message}>
+              <Input placeholder="smtp.example.com" {...ariaErreur('smtp-hote', errors.hote)} {...register('hote')} />
+            </Champ>
+            <Champ label="Port" htmlFor="smtp-port" requis erreur={errors.port?.message}>
+              <Input type="number" min={1} max={65535} className="tabular-nums" {...ariaErreur('smtp-port', errors.port)} {...register('port')} />
+            </Champ>
+            <Champ label="Sécurité" htmlFor="smtp-securite">
+              <NativeSelect id="smtp-securite" {...register('securite')}>
+                <option value="none">Aucune</option>
+                <option value="tls">STARTTLS</option>
+                <option value="ssl">SSL/TLS implicite</option>
+              </NativeSelect>
+            </Champ>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Champ label="Utilisateur" htmlFor="smtp-utilisateur" requis erreur={errors.utilisateur?.message}>
+              <Input autoComplete="off" {...ariaErreur('smtp-utilisateur', errors.utilisateur)} {...register('utilisateur')} />
+            </Champ>
+            <Champ
+              label="Mot de passe"
+              htmlFor="smtp-mot-de-passe"
+              aide={parametres ? 'Laisser vide pour conserver le mot de passe actuel.' : undefined}
+            >
+              <Input
+                id="smtp-mot-de-passe"
+                type="password"
+                autoComplete="new-password"
+                placeholder={parametres ? '••••••••' : ''}
+                {...register('motDePasse')}
               />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Utilisateur" validateStatus={errors.utilisateur ? 'error' : ''} help={errors.utilisateur?.message}>
-          <Controller
-            name="utilisateur"
-            control={control}
-            render={({ field }) => <Input {...field} disabled={!peutModifier} style={{ maxWidth: 360 }} />}
-          />
-        </Form.Item>
-        <Form.Item label="Mot de passe">
-          <Controller
-            name="motDePasse"
-            control={control}
-            render={({ field }) => (
-              <Input.Password
-                {...field}
-                disabled={!peutModifier}
-                placeholder={parametres ? 'Laisser vide pour conserver le mot de passe actuel' : ''}
-                style={{ maxWidth: 360 }}
+            </Champ>
+            <Champ label="Adresse d'expédition" htmlFor="smtp-adresse" requis erreur={errors.adresseExpediteur?.message}>
+              <Input
+                type="email"
+                placeholder="notifications@example.com"
+                {...ariaErreur('smtp-adresse', errors.adresseExpediteur)}
+                {...register('adresseExpediteur')}
               />
-            )}
-          />
-        </Form.Item>
-        <Form.Item
-          label="Adresse d'expédition"
-          validateStatus={errors.adresseExpediteur ? 'error' : ''}
-          help={errors.adresseExpediteur?.message}
-        >
-          <Controller
-            name="adresseExpediteur"
-            control={control}
-            render={({ field }) => (
-              <Input {...field} disabled={!peutModifier} placeholder="notifications@example.com" style={{ maxWidth: 360 }} />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Nom d'expéditeur">
-          <Controller
-            name="nomExpediteur"
-            control={control}
-            render={({ field }) => <Input {...field} disabled={!peutModifier} style={{ maxWidth: 360 }} />}
-          />
-        </Form.Item>
-        <Form.Item label="Actif">
+            </Champ>
+            <Champ label="Nom d'expéditeur" htmlFor="smtp-nom">
+              <Input id="smtp-nom" {...register('nomExpediteur')} />
+            </Champ>
+          </div>
           <Controller
             name="actif"
             control={control}
-            render={({ field }) => <Switch checked={field.value} onChange={field.onChange} disabled={!peutModifier} />}
+            render={({ field }) => (
+              <label htmlFor="smtp-actif" className="flex cursor-pointer items-center justify-between gap-4 rounded-lg border border-border px-4 py-3">
+                <span>
+                  <span className="block text-[14px] font-medium">Envoi des emails activé</span>
+                  <span className="block text-[12px] text-muted-foreground">Désactivé, seules les notifications dans l'application sont produites.</span>
+                </span>
+                <Switch id="smtp-actif" checked={field.value} onCheckedChange={field.onChange} disabled={!peutModifier} />
+              </label>
+            )}
           />
-        </Form.Item>
+        </fieldset>
 
         {peutModifier && (
-          <Button type="primary" htmlType="submit" loading={definir.isPending} disabled={!isDirty}>
-            Enregistrer
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button type="submit" disabled={!isDirty || definir.isPending}>
+              {definir.isPending && <LoaderCircle className="animate-spin" />}
+              Enregistrer
+            </Button>
+            {isDirty && <span className="text-[13px] text-muted-foreground">Modifications non enregistrées</span>}
+          </div>
         )}
-      </Form>
-    </Card>
+      </form>
+    </div>
   );
 }

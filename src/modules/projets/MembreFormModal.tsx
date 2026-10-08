@@ -1,11 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Form, Modal, Select, Switch } from 'antd';
 import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Champ } from '../../components/form/champ';
+import { FormDialog } from '../../components/form/form-dialog';
+import { NativeSelect } from '../../components/ui/native-select';
+import { Switch } from '../../components/ui/switch';
 import { useUtilisateursOptions } from '../../hooks/administration/useEntites';
-import { useProjetsReferentiel } from '../../hooks/projets/useProjets';
 import { useMembreMutations } from '../../hooks/projets/useMembresProjet';
+import { useProjetsReferentiel } from '../../hooks/projets/useProjets';
+import { ariaErreur } from '../../lib/form';
 
 const schema = z.object({
   utilisateurId: z.string().min(1, 'Requis'),
@@ -21,18 +25,26 @@ interface Props {
   onClose: () => void;
 }
 
+const VIDE: FormValues = { utilisateurId: '', roleEquipeValeurId: '', peutModifier: true };
+
 export function MembreFormModal({ open, organisationId, projetId, onClose }: Props) {
   const { data: utilisateurs } = useUtilisateursOptions(organisationId);
   const { data: referentiel } = useProjetsReferentiel(organisationId);
   const { ajouter } = useMembreMutations(projetId);
 
-  const { control, handleSubmit, reset } = useForm<FormValues>({
+  const {
+    register,
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { utilisateurId: '', roleEquipeValeurId: '', peutModifier: true },
+    defaultValues: VIDE,
   });
 
   useEffect(() => {
-    if (open) reset({ utilisateurId: '', roleEquipeValeurId: '', peutModifier: true });
+    if (open) reset(VIDE);
   }, [open, reset]);
 
   const onSubmit = (values: FormValues) => {
@@ -47,54 +59,52 @@ export function MembreFormModal({ open, organisationId, projetId, onClose }: Pro
     );
   };
 
-  const optionsUtilisateurs = (utilisateurs ?? []).map((u) => ({ value: u.id, label: `${u.prenom} ${u.nom}` }));
-
   return (
-    <Modal
+    <FormDialog
       open={open}
-      title="Ajouter un membre"
-      onCancel={onClose}
-      onOk={handleSubmit(onSubmit)}
-      confirmLoading={ajouter.isPending}
-      destroyOnHidden
+      onClose={onClose}
+      titre="Ajouter un membre"
+      onSubmit={handleSubmit(onSubmit)}
+      enCours={ajouter.isPending}
+      libelleValider="Ajouter le membre"
     >
-      <Form layout="vertical">
-        <Form.Item label="Utilisateur">
-          <Controller
-            name="utilisateurId"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                autoFocus
-                showSearch
-                filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
-                options={optionsUtilisateurs}
-              />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Rôle dans l'équipe">
-          <Controller
-            name="roleEquipeValeurId"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                allowClear
-                options={(referentiel?.rolesEquipe ?? []).map((v) => ({ value: v.id, label: v.libelle }))}
-              />
-            )}
-          />
-        </Form.Item>
-        <Form.Item label="Droit de modification" help="Un membre en lecture seule peut consulter le projet mais pas le modifier (§4)">
-          <Controller
-            name="peutModifier"
-            control={control}
-            render={({ field }) => <Switch checked={field.value} onChange={field.onChange} />}
-          />
-        </Form.Item>
-      </Form>
-    </Modal>
+      <Champ label="Utilisateur" htmlFor="membre-utilisateur" requis erreur={errors.utilisateurId?.message}>
+        <NativeSelect autoFocus {...ariaErreur('membre-utilisateur', errors.utilisateurId)} {...register('utilisateurId')}>
+          <option value="">Sélectionner un utilisateur</option>
+          {(utilisateurs ?? []).map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.prenom} {u.nom}
+            </option>
+          ))}
+        </NativeSelect>
+      </Champ>
+      <Champ label="Rôle dans l'équipe" htmlFor="membre-role">
+        <NativeSelect id="membre-role" {...register('roleEquipeValeurId')}>
+          <option value="">—</option>
+          {(referentiel?.rolesEquipe ?? []).map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.libelle}
+            </option>
+          ))}
+        </NativeSelect>
+      </Champ>
+      <div className="flex items-start justify-between gap-4 rounded-lg border border-border p-4">
+        <div>
+          <label htmlFor="membre-modification" className="text-[13px] font-medium">
+            Droit de modification
+          </label>
+          <p id="membre-modification-aide" className="mt-0.5 text-[12px] text-muted-foreground">
+            Un membre en lecture seule peut consulter le projet mais pas le modifier.
+          </p>
+        </div>
+        <Controller
+          name="peutModifier"
+          control={control}
+          render={({ field }) => (
+            <Switch id="membre-modification" checked={field.value} onCheckedChange={field.onChange} aria-describedby="membre-modification-aide" />
+          )}
+        />
+      </div>
+    </FormDialog>
   );
 }

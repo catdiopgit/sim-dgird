@@ -1,6 +1,4 @@
-import { theme } from 'antd';
 import { useId } from 'react';
-import { darken } from '../../utils/color';
 
 interface SimMonogramProps {
   size?: number;
@@ -10,12 +8,14 @@ interface SimMonogramProps {
 /**
  * Emblème institutionnel provisoire (badge + ruban) en attendant le logo
  * officiel de l'organisation. Le dégradé suit la couleur de l'organisation
- * (thème antd résolu), le ruban reste doré (accent institutionnel fixe).
+ * (token --primary, éclairci en mode sombre), le ruban reste doré (accent
+ * institutionnel fixe).
  */
 export function SimMonogram({ size = 40, variant = 'light' }: SimMonogramProps) {
   const gradientId = useId();
-  const { token } = theme.useToken();
-  const brandDark = darken(token.colorPrimary, 0.35);
+  // Assombrissement équivalent à darken(couleur, 0.35), calculé par le
+  // navigateur puisque la couleur vient d'une variable CSS.
+  const brandDark = 'color-mix(in srgb, var(--primary) 65%, black)';
 
   const badgeFill = variant === 'light' ? `url(#${gradientId})` : 'rgba(255, 255, 255, 0.08)';
   const badgeStroke = variant === 'light' ? 'none' : 'rgba(184, 134, 58, 0.55)';
@@ -33,8 +33,8 @@ export function SimMonogram({ size = 40, variant = 'light' }: SimMonogramProps) 
     >
       <defs>
         <linearGradient id={gradientId} x1="2" y1="2" x2="38" y2="38" gradientUnits="userSpaceOnUse">
-          <stop offset="0" stopColor={brandDark} />
-          <stop offset="1" stopColor={token.colorPrimary} />
+          <stop offset="0" style={{ stopColor: brandDark }} />
+          <stop offset="1" style={{ stopColor: 'var(--primary)' }} />
         </linearGradient>
       </defs>
       <rect

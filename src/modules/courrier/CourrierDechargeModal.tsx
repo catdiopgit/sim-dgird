@@ -1,7 +1,7 @@
-import { InboxOutlined } from '@ant-design/icons';
-import { Alert, Modal, Typography, Upload } from 'antd';
-import type { UploadProps } from 'antd';
+import { Lock } from 'lucide-react';
 import { useState } from 'react';
+import { Champ, ChampFichier } from '../../components/form/champ';
+import { FormDialog } from '../../components/form/form-dialog';
 import { useAjouterDecharge } from '../../hooks/courrier/useDecharge';
 
 interface Props {
@@ -18,54 +18,38 @@ export function CourrierDechargeModal({ courrierId, open, onClose }: Props) {
   const [fichier, setFichier] = useState<File | null>(null);
   const ajouter = useAjouterDecharge(courrierId);
 
-  const uploadProps: UploadProps = {
-    multiple: false,
-    fileList: fichier ? [{ uid: '1', name: fichier.name, status: 'done' }] : [],
-    beforeUpload: (file) => {
-      setFichier(file);
-      return false;
-    },
-    onRemove: () => setFichier(null),
-  };
-
   const fermer = () => {
     setFichier(null);
     onClose();
   };
 
-  const valider = () => {
-    if (!fichier) return;
-    ajouter.mutate(fichier, { onSuccess: fermer });
-  };
-
   return (
-    <Modal
+    <FormDialog
       open={open}
-      title="Ajouter une décharge"
-      onCancel={fermer}
-      onOk={valider}
-      okButtonProps={{ disabled: !fichier, loading: ajouter.isPending }}
-      okText="Valider la décharge"
-      destroyOnHidden
+      onClose={fermer}
+      titre="Ajouter une décharge"
+      description="Pièce attestant le dépôt du courrier auprès de son destinataire."
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (fichier) ajouter.mutate(fichier, { onSuccess: fermer });
+      }}
+      enCours={ajouter.isPending}
+      validerDesactive={!fichier}
+      libelleValider="Valider la décharge"
     >
-      <Alert
-        type="warning"
-        showIcon
-        style={{ marginBottom: 16 }}
-        message="Verrouillage définitif"
-        description="Une fois la décharge validée, ce courrier devient définitivement immodifiable (informations, destinataires, pièces jointes) pour les utilisateurs. Seul un administrateur habilité pourra le déverrouiller, à titre exceptionnel et journalisé."
-      />
-      <Upload.Dragger {...uploadProps}>
-        <p className="ant-upload-drag-icon">
-          <InboxOutlined />
-        </p>
-        <p className="ant-upload-text">Cliquez ou glissez-déposez le document de décharge</p>
-      </Upload.Dragger>
-      {fichier && (
-        <Typography.Paragraph style={{ marginTop: 8 }}>
-          Fichier sélectionné : <strong>{fichier.name}</strong>
-        </Typography.Paragraph>
-      )}
-    </Modal>
+      <div role="alert" className="flex gap-3 rounded-lg border border-warn/40 bg-warn/10 p-4 text-[13px]">
+        <Lock className="mt-0.5 size-4 shrink-0 text-warn-text" />
+        <div>
+          <div className="font-semibold text-warn-text">Verrouillage définitif</div>
+          <p className="mt-0.5">
+            Une fois la décharge validée, ce courrier devient définitivement immodifiable (informations, destinataires,
+            pièces jointes). Seul un administrateur habilité pourra le déverrouiller, à titre exceptionnel et journalisé.
+          </p>
+        </div>
+      </div>
+      <Champ label="Document de décharge" htmlFor="decharge-fichier" requis>
+        <ChampFichier id="decharge-fichier" fichier={fichier} onChange={setFichier} />
+      </Champ>
+    </FormDialog>
   );
 }

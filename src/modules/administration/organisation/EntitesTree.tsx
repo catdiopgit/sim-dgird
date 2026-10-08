@@ -1,7 +1,18 @@
-import { MoreOutlined, PlusOutlined } from '@ant-design/icons';
-import { Button, Dropdown, Skeleton, Space, Tag, Tree, Typography, type MenuProps } from 'antd';
-import type { DataNode } from 'antd/es/tree';
+import { Ellipsis, FolderPlus, Network, Pencil, Plus, Power, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { ConfirmDialog } from '../../../components/form/confirm-dialog';
+import { Arborescence, type NoeudArbre } from '../../../components/ui/arborescence';
+import { Badge } from '../../../components/ui/badge';
+import { Button } from '../../../components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../../../components/ui/dropdown-menu';
+import { EnTeteSection, EtatVide } from '../../../components/ui/page-header';
+import { Skeleton } from '../../../components/ui/skeleton';
 import { useEntiteMutations, useEntites, useUtilisateursOptions } from '../../../hooks/administration/useEntites';
 import { useTypeEntites } from '../../../hooks/administration/useTypeEntites';
 import type { Entite } from '../../../services/administration/entites';
@@ -24,35 +35,41 @@ export function EntitesTree({ organisationId, peutModifier }: Props) {
   const { data: utilisateursOptions } = useUtilisateursOptions(organisationId);
   const { create, update, remove } = useEntiteMutations(organisationId);
   const [modalState, setModalState] = useState<ModalState>(null);
+  const [aSupprimer, setASupprimer] = useState<Entite | null>(null);
 
   const typeParId = useMemo(
     () => new Map((typeEntites ?? []).map((t) => [t.id, t.libelle])),
     [typeEntites],
   );
 
-  const menuPour = (entite: Entite): MenuProps['items'] => [
-    { key: 'ajouter-enfant', label: 'Ajouter une sous-entité' },
-    { key: 'modifier', label: 'Modifier' },
-    { key: 'toggle-actif', label: entite.actif ? 'Désactiver' : 'Activer' },
-    { key: 'supprimer', label: 'Supprimer', danger: true },
-  ];
-
-  const gererClicMenu = (entite: Entite, key: string) => {
-    switch (key) {
-      case 'ajouter-enfant':
-        setModalState({ mode: 'creer-enfant', parentId: entite.id });
-        break;
-      case 'modifier':
-        setModalState({ mode: 'modifier', entite });
-        break;
-      case 'toggle-actif':
-        update.mutate({ id: entite.id, patch: { actif: !entite.actif } });
-        break;
-      case 'supprimer':
-        remove.mutate(entite.id);
-        break;
-    }
-  };
+  const menuActions = (e: Entite) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="size-8 text-muted-foreground" aria-label={`Actions pour ${e.libelle}`}>
+          <Ellipsis />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={() => setModalState({ mode: 'creer-enfant', parentId: e.id })}>
+          <FolderPlus />
+          Ajouter une sous-entité
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => setModalState({ mode: 'modifier', entite: e })}>
+          <Pencil />
+          Modifier
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => update.mutate({ id: e.id, patch: { actif: !e.actif } })}>
+          <Power />
+          {e.actif ? 'Désactiver' : 'Activer'}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onSelect={() => setASupprimer(e)}>
+          <Trash2 />
+          Supprimer
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   const arbre = useMemo(() => {
     const enfantsParParent = new Map<string | null, Entite[]>();
@@ -63,28 +80,27 @@ export function EntitesTree({ organisationId, peutModifier }: Props) {
     }
     for (const liste of enfantsParParent.values()) liste.sort((a, b) => a.ordre - b.ordre);
 
-    const construireNoeuds = (parentId: string | null): DataNode[] =>
+    const construireNoeuds = (parentId: string | null): NoeudArbre[] =>
       (enfantsParParent.get(parentId) ?? []).map((e) => ({
-        key: e.id,
-        title: (
-          <Space size="small" style={{ opacity: e.actif ? 1 : 0.5 }}>
-            <Tag color="green">{typeParId.get(e.type_entite_id) ?? '—'}</Tag>
-            <span>
-              {e.libelle}
-              {e.sigle ? ` (${e.sigle})` : ''}
-            </span>
-            {!e.actif && <Tag>inactif</Tag>}
-            {peutModifier && (
-              <Dropdown
-                menu={{ items: menuPour(e), onClick: ({ key }) => gererClicMenu(e, key) }}
-                trigger={['click']}
-              >
-                <Button type="text" size="small" icon={<MoreOutlined />} onClick={(ev) => ev.stopPropagation()} />
-              </Dropdown>
+        id: e.id,
+        libelle: e.libelle,
+        attenue: !e.actif,
+        contenu: (
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="font-medium">{e.libelle}</span>
+            {e.sigle && <span className="font-mono text-[12px] text-muted-foreground">{e.sigle}</span>}
+            <Badge variant="muted" shape="pill">
+              {typeParId.get(e.type_entite_id) ?? '—'}
+            </Badge>
+            {!e.actif && (
+              <Badge variant="outline" shape="pill">
+                inactive
+              </Badge>
             )}
-          </Space>
+          </span>
         ),
-        children: construireNoeuds(e.id),
+        actions: peutModifier ? menuActions(e) : undefined,
+        enfants: construireNoeuds(e.id),
       }));
 
     return construireNoeuds(null);
@@ -119,27 +135,48 @@ export function EntitesTree({ organisationId, peutModifier }: Props) {
   };
 
   if (chargementEntites || chargementTypes) {
-    return <Skeleton active />;
+    return <Skeleton className="h-64 w-full" />;
   }
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <Typography.Title level={5} style={{ margin: 0 }}>
-          Structure organisationnelle
-        </Typography.Title>
-        {peutModifier && (
-          <Button icon={<PlusOutlined />} onClick={() => setModalState({ mode: 'creer-racine' })}>
-            Ajouter une entité racine
-          </Button>
-        )}
-      </div>
+      <EnTeteSection
+        titre="Structure organisationnelle"
+        description="Organigramme des entités : chaque entité peut contenir des sous-entités."
+        actions={
+          peutModifier && (
+            <Button variant="outline" onClick={() => setModalState({ mode: 'creer-racine' })}>
+              <Plus />
+              Ajouter une entité racine
+            </Button>
+          )
+        }
+      />
 
       {arbre.length === 0 ? (
-        <Typography.Text type="secondary">Aucune entité pour le moment.</Typography.Text>
+        <div className="rounded-lg border border-dashed border-border">
+          <EtatVide icone={Network} titre="Aucune entité pour le moment" />
+        </div>
       ) : (
-        <Tree treeData={arbre} defaultExpandAll selectable={false} />
+        <Arborescence noeuds={arbre} libelle="Organigramme des entités" />
       )}
+
+      <ConfirmDialog
+        open={aSupprimer !== null}
+        onClose={() => setASupprimer(null)}
+        titre="Supprimer cette entité ?"
+        libelleConfirmer="Supprimer"
+        destructif
+        enCours={remove.isPending}
+        onConfirmer={() => aSupprimer && remove.mutate(aSupprimer.id, { onSuccess: () => setASupprimer(null) })}
+      >
+        {aSupprimer && (
+          <p>
+            L'entité <strong>{aSupprimer.libelle}</strong> sera supprimée. Pour la conserver dans l'historique des dossiers,
+            désactivez-la plutôt.
+          </p>
+        )}
+      </ConfirmDialog>
 
       <EntiteFormModal
         open={modalState !== null}

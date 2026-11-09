@@ -44,7 +44,7 @@ const modules: { icon: LucideIcon; label: string }[] = [
 const NOM_ORGANISATION = 'DIRECTION GÉNÉRALE DES INFRASTRUCTURES ROUTIÈRES ET DU DÉSENCLAVEMENT – DGIRD';
 const SIGLE_ORGANISATION = 'DGIRD';
 const NOM_MINISTERE = 'Ministère des Infrastructures';
-const LOGO_LOGIN = '/logo-organisation.jpg';
+const LOGO_LOGIN = '/logo-organisation.png';
 const PAYS_COURANT = {
   nom: 'République du Sénégal',
   devise: 'Un Peuple – Un But – Une Foi',
@@ -83,7 +83,8 @@ function Identite({ compact = false }: { compact?: boolean }) {
         alt={`Logo — ${NOM_ORGANISATION}`}
         className={cn(
           'shrink-0 rounded-2xl bg-white object-contain shadow-lg shadow-black/20 ring-1 ring-white/40',
-          compact ? 'size-14 p-1.5' : 'size-20 p-2',
+          // Logo DGIRD horizontal (~3,5:1) : hauteur fixe, largeur libre
+          compact ? 'h-14 w-auto max-w-44 px-2 py-1.5' : 'h-20 w-auto max-w-64 px-3 py-2',
         )}
       />
       <div className="min-w-0">

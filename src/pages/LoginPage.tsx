@@ -41,7 +41,7 @@ const modules: { icon: LucideIcon; label: string }[] = [
 // contrairement au reste de l'application (en-tête, documents imprimés), qui
 // continue d'utiliser l'organisation configurée en base
 // (useOrganisationBranding, App.tsx). Ne pas fusionner ces deux sources.
-const NOM_ORGANISATION = 'DIRECTION GENERALE DES INSFRASTRUCTURES ROUTIERES ET DU DESCENCLAVEMENT - DGRID';
+const NOM_ORGANISATION = 'DIRECTION GÉNÉRALE DES INFRASTRUCTURES ROUTIÈRES ET DU DÉSENCLAVEMENT – DGIRD';
 const SIGLE_ORGANISATION = 'DGIRD';
 const NOM_MINISTERE = 'Ministère des Infrastructures';
 const LOGO_LOGIN = '/logo-organisation.jpg';

@@ -14,7 +14,7 @@ import { useEntites, useUtilisateursOptions } from '../../../hooks/administratio
 import { useContacts } from '../../../hooks/courrier/useContacts';
 import { useCourrierReferentiel, useCreerCourrier } from '../../../hooks/courrier/useCourriers';
 import { ariaErreur } from '../../../lib/form';
-import { cn } from '../../../lib/utils';
+import { cn, genererId } from '../../../lib/utils';
 import type { Courrier } from '../../../services/courrier/courriers';
 import { ajouterDestinataire } from '../../../services/courrier/destinataires';
 import { uploadPieceJointe } from '../../../services/courrier/piecesJointes';
@@ -141,7 +141,7 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
               return u ? `${u.prenom} ${u.nom}` : '—';
             })()
           : libelleContact(cibleId));
-    setAmpliataires((a) => [...a, { id: crypto.randomUUID(), type, cibleId, cibleLabel: label, interne: type !== 'contact' }]);
+    setAmpliataires((a) => [...a, { id: genererId(), type, cibleId, cibleLabel: label, interne: type !== 'contact' }]);
     setAmpliCibleId('');
   };
 

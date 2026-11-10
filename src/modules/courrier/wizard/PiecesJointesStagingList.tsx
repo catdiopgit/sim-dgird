@@ -1,7 +1,7 @@
 import { FileText, FileUp, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Button } from '../../../components/ui/button';
-import { cn } from '../../../lib/utils';
+import { cn, genererId } from '../../../lib/utils';
 
 export interface PieceJointeStagee {
   id: string;
@@ -32,7 +32,7 @@ export function PiecesJointesStagingList({ fichiers, onChange }: Props) {
   const ajouter = (liste: FileList | null) => {
     if (!liste || liste.length === 0) return;
     const nouveaux = [...liste].map((file, i) => ({
-      id: crypto.randomUUID(),
+      id: genererId(),
       file,
       // Le premier fichier déposé est proposé comme scan du courrier.
       estScan: fichiers.length === 0 && i === 0,

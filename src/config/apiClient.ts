@@ -35,7 +35,9 @@ export function estViolationCleEtrangere(error: unknown): boolean {
 type Query = Record<string, string | number | boolean | null | undefined>;
 
 function buildUrl(path: string, query?: Query): string {
-  const url = new URL(env.apiUrl.replace(/\/$/, '') + path);
+  // Base explicite : en production VITE_API_URL vaut souvent '/api' (relatif),
+  // et new URL('/api/...') sans base lève « Invalid URL ».
+  const url = new URL(env.apiUrl.replace(/\/$/, '') + path, window.location.origin);
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value !== null && value !== undefined) url.searchParams.set(key, String(value));

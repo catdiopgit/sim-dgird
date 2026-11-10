@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { message } from '../../lib/notifications';
 import {
+  annulerCourrier,
   creerCourrier,
   getCourrier,
   listBannetteCourriers,
@@ -67,6 +68,22 @@ export function useUpdateCourrier(courrierId: string | undefined) {
       message.success('Courrier mis à jour.');
       void queryClient.invalidateQueries({ queryKey: ['courrier', courrierId] });
       void queryClient.invalidateQueries({ queryKey: ['courriers'] });
+      void queryClient.invalidateQueries({ queryKey: ['audit-courrier', courrierId] });
+    },
+    onError: (error: Error) => message.error(error.message),
+  });
+}
+
+export function useAnnulerCourrier(courrierId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (motif: string) => annulerCourrier(courrierId!, motif),
+    onSuccess: () => {
+      message.success('Courrier annulé.');
+      void queryClient.invalidateQueries({ queryKey: ['courrier', courrierId] });
+      void queryClient.invalidateQueries({ queryKey: ['courriers'] });
+      void queryClient.invalidateQueries({ queryKey: ['courriers-bannette'] });
+      void queryClient.invalidateQueries({ queryKey: ['audit-courrier', courrierId] });
     },
     onError: (error: Error) => message.error(error.message),
   });

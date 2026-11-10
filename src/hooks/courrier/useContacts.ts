@@ -15,8 +15,13 @@ export function useCreerContact(organisationId: string | undefined) {
   return useMutation({
     mutationFn: (insert: Omit<ContactInsert, 'organisation_id'>) =>
       creerContact({ ...insert, organisation_id: organisationId! }),
-    onSuccess: () => {
+    onSuccess: (contact) => {
       message.success('Contact créé.');
+      // Ajout immédiat aux listes en cache : l'option existe dans les <select>
+      // dès le rendu suivant, ce qui permet de la sélectionner aussitôt.
+      queryClient.setQueriesData<unknown[]>({ queryKey: ['contacts', organisationId] }, (ancien) =>
+        Array.isArray(ancien) && !ancien.some((c) => (c as { id: string }).id === contact.id) ? [...ancien, contact] : ancien,
+      );
       void queryClient.invalidateQueries({ queryKey: ['contacts', organisationId] });
     },
     onError: (error: Error) => message.error(error.message),

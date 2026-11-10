@@ -48,16 +48,19 @@ const LIBELLE_CHAMP: Record<string, string> = {
   verrouille_le: 'Verrouillé le',
   verrouille_par: 'Verrouillé par',
   supprime_le: 'Supprimé le',
+  annule_le: 'Annulé le',
+  annule_par: 'Annulé par',
+  motif_annulation: "Motif d'annulation",
 };
 
 // Colonnes techniques sans intérêt pour le lecteur (etape_code double
 // etape_libelle ; les identifiants internes ne se lisent pas).
 const CHAMPS_MASQUES = new Set(['etape_code', 'workflow_instance_id', 'courrier_parent_id', 'id', 'organisation_id', 'created_by', 'created_at']);
 
-const CHAMPS_UTILISATEUR = new Set(['agent_destinataire_id', 'redacteur_id', 'verrouille_par']);
+const CHAMPS_UTILISATEUR = new Set(['agent_destinataire_id', 'redacteur_id', 'verrouille_par', 'annule_par']);
 const CHAMPS_ENTITE = new Set(['entite_id', 'entite_destinataire_id']);
 const CHAMPS_CONTACT = new Set(['expediteur_contact_id', 'contact_destinataire_id']);
-const CHAMPS_DATE = new Set(['date_courrier', 'date_reception', 'date_envoi', 'verrouille_le', 'supprime_le']);
+const CHAMPS_DATE = new Set(['date_courrier', 'date_reception', 'date_envoi', 'verrouille_le', 'supprime_le', 'annule_le']);
 const LABEL_SENS: Record<string, string> = { entrant: 'Arrivé', sortant: 'Départ', interne: 'Interne' };
 
 const RANG_ACTION = (action: string) => ({ creer: 0, modifier: 1, supprimer: 2 })[action] ?? 1;

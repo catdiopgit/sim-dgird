@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import dayjs from 'dayjs';
 import { CircleCheck, LoaderCircle, Printer } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Champ } from '../../../components/form/champ';
@@ -17,20 +17,28 @@ import type { Courrier } from '../../../services/courrier/courriers';
 import { uploadPieceJointe } from '../../../services/courrier/piecesJointes';
 import { fr } from '../../../utils/dateFr';
 import { FicheExploitationModal } from '../FicheExploitationModal';
+import { controlerDatesCourrier, maxDateHeure, maxJour } from '../reglesDates';
 import { ContactRapide } from './ContactRapide';
 import { PiecesJointesStagingList, type PieceJointeStagee } from './PiecesJointesStagingList';
 
-const schema = z.object({
-  objet: z.string().min(1, 'Requis'),
-  typeValeurId: z.string().optional(),
-  prioriteValeurId: z.string().optional(),
-  confidentialiteValeurId: z.string().optional(),
-  dateCourrier: z.string().optional(),
-  dateReception: z.string().optional(),
-  contactExpediteurId: z.string().optional(),
-  referenceExpediteur: z.string().optional(),
-  observations: z.string().optional(),
-});
+const schema = z
+  .object({
+    objet: z.string().trim().min(1, 'Requis'),
+    typeValeurId: z.string().optional(),
+    prioriteValeurId: z.string().optional(),
+    confidentialiteValeurId: z.string().optional(),
+    dateCourrier: z.string().min(1, 'Requis'),
+    dateReception: z.string().min(1, 'Requis'),
+    contactExpediteurId: z.string().min(1, "Sélectionnez l'expéditeur (ou créez-le)"),
+    referenceExpediteur: z.string().optional(),
+    observations: z.string().optional(),
+  })
+  .superRefine((v, ctx) => {
+    const erreurs = controlerDatesCourrier(v.dateCourrier, v.dateReception);
+    if (erreurs.dateCourrier) ctx.addIssue({ code: 'custom', path: ['dateCourrier'], message: erreurs.dateCourrier });
+    if (erreurs.dateReception) ctx.addIssue({ code: 'custom', path: ['dateReception'], message: erreurs.dateReception });
+  });
+const CHAMPS_ETAPE_INFOS = ['objet', 'dateCourrier', 'dateReception', 'contactExpediteurId'] as const;
 type FormValues = z.infer<typeof schema>;
 
 const defauts = (): FormValues => ({
@@ -73,6 +81,9 @@ export function CourrierArriveWizard({ open, organisationId, onClose, onTermine 
   const [enCours, setEnCours] = useState(false);
   const [courrierCree, setCourrierCree] = useState<Courrier | null>(null);
   const [ficheOuverte, setFicheOuverte] = useState(false);
+  // Contact créé à la volée : sélectionné dès que son option est rendue.
+  const [contactASelectionner, setContactASelectionner] = useState<string | null>(null);
+  const [creationContact, setCreationContact] = useState(false);
 
   const {
     register,
@@ -88,12 +99,21 @@ export function CourrierArriveWizard({ open, organisationId, onClose, onTermine 
   });
   const valeurs = watch();
 
+  useEffect(() => {
+    if (contactASelectionner && contacts?.some((c) => c.id === contactASelectionner)) {
+      setValue('contactExpediteurId', contactASelectionner, { shouldValidate: true });
+      setContactASelectionner(null);
+    }
+  }, [contactASelectionner, contacts, setValue]);
+
   const fermer = () => {
     onClose();
     setEtape(0);
     setFichiers([]);
     setCourrierCree(null);
     setFicheOuverte(false);
+    setCreationContact(false);
+    setContactASelectionner(null);
     reset(defauts());
   };
 
@@ -103,7 +123,7 @@ export function CourrierArriveWizard({ open, organisationId, onClose, onTermine 
 
   const suivant = async () => {
     if (etape === 0) {
-      const valide = await trigger(['objet']);
+      const valide = await trigger([...CHAMPS_ETAPE_INFOS]);
       if (!valide) return;
     }
     setEtape((e) => e + 1);
@@ -208,16 +228,38 @@ export function CourrierArriveWizard({ open, organisationId, onClose, onTermine 
             </Champ>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Champ label="Date du courrier" htmlFor="arrive-date">
-              <Input id="arrive-date" type="date" {...register('dateCourrier')} />
+            <Champ label="Date du courrier" htmlFor="arrive-date" requis erreur={errors.dateCourrier?.message}>
+              <Input
+                type="date"
+                max={maxJour()}
+                {...ariaErreur('arrive-date', errors.dateCourrier)}
+                {...register('dateCourrier')}
+              />
             </Champ>
-            <Champ label="Date et heure de réception" htmlFor="arrive-reception">
-              <Input id="arrive-reception" type="datetime-local" {...register('dateReception')} />
+            <Champ label="Date et heure de réception" htmlFor="arrive-reception" requis erreur={errors.dateReception?.message}>
+              <Input
+                type="datetime-local"
+                max={maxDateHeure()}
+                {...ariaErreur('arrive-reception', errors.dateReception)}
+                {...register('dateReception')}
+              />
             </Champ>
           </div>
-          <Champ label="Expéditeur" htmlFor="arrive-expediteur" aide="Contact existant, ou créez-le en un clic.">
+          <Champ
+            label="Expéditeur"
+            htmlFor="arrive-expediteur"
+            requis
+            erreur={errors.contactExpediteurId?.message}
+            aide="Contact existant, ou créez-le en un clic."
+          >
             <div className="flex flex-col gap-2 sm:flex-row">
-              <NativeSelect id="arrive-expediteur" className="min-w-0 flex-1" {...register('contactExpediteurId')}>
+              {/* Masqué pendant la saisie d'un nouveau contact : évite que la
+                  liste, compressée, ne chevauche le champ de saisie. */}
+              <NativeSelect
+                className={creationContact ? 'hidden' : 'min-w-0 flex-1'}
+                {...ariaErreur('arrive-expediteur', errors.contactExpediteurId)}
+                {...register('contactExpediteurId')}
+              >
                 <option value="">Sélectionner un contact</option>
                 {(contacts ?? []).map((c) => (
                   <option key={c.id} value={c.id}>
@@ -225,7 +267,11 @@ export function CourrierArriveWizard({ open, organisationId, onClose, onTermine 
                   </option>
                 ))}
               </NativeSelect>
-              <ContactRapide organisationId={organisationId} onCree={(c) => setValue('contactExpediteurId', c.id)} />
+              <ContactRapide
+                organisationId={organisationId}
+                onOuvertChange={setCreationContact}
+                onCree={(c) => setContactASelectionner(c.id)}
+              />
             </div>
           </Champ>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

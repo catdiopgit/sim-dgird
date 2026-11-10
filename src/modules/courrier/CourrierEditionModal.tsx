@@ -6,21 +6,40 @@ import { Champ } from '../../components/form/champ';
 import { FormDialog } from '../../components/form/form-dialog';
 import { Input, Textarea } from '../../components/ui/input';
 import { NativeSelect } from '../../components/ui/native-select';
+import dayjs from 'dayjs';
+import { useContacts } from '../../hooks/courrier/useContacts';
 import { useCourrierReferentiel, useUpdateCourrier } from '../../hooks/courrier/useCourriers';
 import { ariaErreur, versChampDate } from '../../lib/form';
 import type { Courrier } from '../../services/courrier/courriers';
+import { controlerDatesCourrier, maxDateHeure, maxJour } from './reglesDates';
 
-const schema = z.object({
-  objet: z.string().min(1, 'Requis'),
-  typeValeurId: z.string().optional(),
-  prioriteValeurId: z.string().optional(),
-  confidentialiteValeurId: z.string().optional(),
-  modeTransmissionValeurId: z.string().optional(),
-  dateCourrier: z.string().optional(),
-  expediteurNom: z.string().optional(),
-  destinataireTexte: z.string().optional(),
-  observations: z.string().optional(),
-});
+const schema = z
+  .object({
+    entrant: z.boolean(),
+    objet: z.string().trim().min(1, 'Requis'),
+    typeValeurId: z.string().optional(),
+    prioriteValeurId: z.string().optional(),
+    confidentialiteValeurId: z.string().optional(),
+    modeTransmissionValeurId: z.string().optional(),
+    dateCourrier: z.string().min(1, 'Requis'),
+    dateReception: z.string().optional(),
+    expediteurContactId: z.string().optional(),
+    expediteurNom: z.string().optional(),
+    referenceExpediteur: z.string().optional(),
+    destinataireTexte: z.string().optional(),
+    observations: z.string().optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.entrant) {
+      if (!v.dateReception) ctx.addIssue({ code: 'custom', path: ['dateReception'], message: 'Requis' });
+      if (!v.expediteurContactId && !v.expediteurNom) {
+        ctx.addIssue({ code: 'custom', path: ['expediteurContactId'], message: "Sélectionnez l'expéditeur" });
+      }
+    }
+    const erreurs = controlerDatesCourrier(v.dateCourrier, v.dateReception);
+    if (erreurs.dateCourrier) ctx.addIssue({ code: 'custom', path: ['dateCourrier'], message: erreurs.dateCourrier });
+    if (erreurs.dateReception) ctx.addIssue({ code: 'custom', path: ['dateReception'], message: erreurs.dateReception });
+  });
 type FormValues = z.infer<typeof schema>;
 
 interface Props {
@@ -35,6 +54,8 @@ interface Props {
 export function CourrierEditionModal({ courrier, organisationId, open, onClose }: Props) {
   const { data: referentiel } = useCourrierReferentiel(organisationId);
   const update = useUpdateCourrier(courrier.id);
+  const { data: contacts } = useContacts(organisationId);
+  const entrant = courrier.sens === 'entrant';
 
   const {
     register,
@@ -43,24 +64,28 @@ export function CourrierEditionModal({ courrier, organisationId, open, onClose }
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { objet: '', observations: '' },
+    defaultValues: { entrant, objet: '', dateCourrier: '', observations: '' },
   });
 
   useEffect(() => {
     if (open) {
       reset({
+        entrant,
         objet: courrier.objet,
         typeValeurId: courrier.type_valeur_id ?? '',
         prioriteValeurId: courrier.priorite_valeur_id ?? '',
         confidentialiteValeurId: courrier.confidentialite_valeur_id ?? '',
         modeTransmissionValeurId: courrier.mode_transmission_valeur_id ?? '',
         dateCourrier: versChampDate(courrier.date_courrier),
+        dateReception: courrier.date_reception ? dayjs(courrier.date_reception).format('YYYY-MM-DDTHH:mm') : '',
+        expediteurContactId: courrier.expediteur_contact_id ?? '',
         expediteurNom: courrier.expediteur_nom ?? '',
+        referenceExpediteur: courrier.reference_expediteur ?? '',
         destinataireTexte: courrier.destinataire_texte ?? '',
         observations: courrier.observations ?? '',
       });
     }
-  }, [open, courrier, reset]);
+  }, [open, courrier, reset, entrant]);
 
   const onSubmit = (values: FormValues) => {
     update.mutate(
@@ -71,7 +96,15 @@ export function CourrierEditionModal({ courrier, organisationId, open, onClose }
         confidentialite_valeur_id: values.confidentialiteValeurId || null,
         mode_transmission_valeur_id: values.modeTransmissionValeurId || null,
         date_courrier: values.dateCourrier || courrier.date_courrier,
-        expediteur_nom: values.expediteurNom || null,
+        ...(entrant
+          ? {
+              date_reception: values.dateReception ? dayjs(values.dateReception).toISOString() : null,
+              reference_expediteur: values.referenceExpediteur || null,
+              // Expéditeur choisi dans les contacts (le nom est recopié côté serveur) ;
+              // un ancien courrier saisi en texte libre garde son nom tant qu'on ne choisit rien.
+              ...(values.expediteurContactId ? { expediteur_contact_id: values.expediteurContactId } : {}),
+            }
+          : {}),
         destinataire_texte: values.destinataireTexte || null,
         observations: values.observations || null,
       },
@@ -106,8 +139,8 @@ export function CourrierEditionModal({ courrier, organisationId, open, onClose }
             {options(referentiel?.types)}
           </NativeSelect>
         </Champ>
-        <Champ label="Date du courrier" htmlFor="edition-date">
-          <Input id="edition-date" type="date" {...register('dateCourrier')} />
+        <Champ label="Date du courrier" htmlFor="edition-date" requis erreur={errors.dateCourrier?.message}>
+          <Input type="date" max={maxJour()} {...ariaErreur('edition-date', errors.dateCourrier)} {...register('dateCourrier')} />
         </Champ>
         <Champ label="Priorité" htmlFor="edition-priorite">
           <NativeSelect id="edition-priorite" {...register('prioriteValeurId')}>
@@ -121,10 +154,36 @@ export function CourrierEditionModal({ courrier, organisationId, open, onClose }
             {options(referentiel?.confidentialites)}
           </NativeSelect>
         </Champ>
-        {courrier.sens === 'entrant' && (
-          <Champ label="Expéditeur" htmlFor="edition-expediteur" className="sm:col-span-2">
-            <Input id="edition-expediteur" {...register('expediteurNom')} />
-          </Champ>
+        {entrant && (
+          <>
+            <Champ label="Expéditeur" htmlFor="edition-expediteur" requis erreur={errors.expediteurContactId?.message}>
+              <NativeSelect {...ariaErreur('edition-expediteur', errors.expediteurContactId)} {...register('expediteurContactId')}>
+                <option value="">{courrier.expediteur_contact_id ? '—' : (courrier.expediteur_nom ?? '—')}</option>
+                {(contacts ?? []).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.nom}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Champ>
+            <Champ label="Référence de l'expéditeur" htmlFor="edition-reference">
+              <Input id="edition-reference" {...register('referenceExpediteur')} />
+            </Champ>
+            <Champ
+              label="Date et heure de réception"
+              htmlFor="edition-reception"
+              requis
+              erreur={errors.dateReception?.message}
+              className="sm:col-span-2"
+            >
+              <Input
+                type="datetime-local"
+                max={maxDateHeure()}
+                {...ariaErreur('edition-reception', errors.dateReception)}
+                {...register('dateReception')}
+              />
+            </Champ>
+          </>
         )}
         {courrier.sens === 'sortant' && (
           <>

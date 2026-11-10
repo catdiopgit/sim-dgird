@@ -1,4 +1,4 @@
-import { ArrowLeft, Ellipsis, FileLock, FileSearch, Lock, Pencil, Printer, ShieldAlert, Trash2, Unlock } from 'lucide-react';
+import { ArrowLeft, Ban, Ellipsis, FileLock, FileSearch, Lock, Pencil, Printer, ShieldAlert, Unlock } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Champ } from '../../components/form/champ';
@@ -9,7 +9,7 @@ import { Textarea } from '../../components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../../components/ui/dropdown-menu';
 import { Skeleton } from '../../components/ui/skeleton';
 import { useEntites, useUtilisateursOptions } from '../../hooks/administration/useEntites';
-import { useCourrier, useCourrierReferentiel, useSupprimerCourrier } from '../../hooks/courrier/useCourriers';
+import { useAnnulerCourrier, useCourrier, useCourrierReferentiel } from '../../hooks/courrier/useCourriers';
 import { useDeverrouillerCourrier } from '../../hooks/courrier/useDecharge';
 import { useProfile } from '../../hooks/useProfile';
 import { cn } from '../../lib/utils';
@@ -35,12 +35,12 @@ export function CourrierDetailPage() {
   const { data: entites } = useEntites(organisationId);
   const { data: utilisateurs } = useUtilisateursOptions(organisationId);
   const { data: referentiel } = useCourrierReferentiel(organisationId);
-  const supprimer = useSupprimerCourrier();
+  const annuler = useAnnulerCourrier(id);
   const deverrouiller = useDeverrouillerCourrier(id);
   const [ficheOuverte, setFicheOuverte] = useState(false);
   const [dechargeOuverte, setDechargeOuverte] = useState(false);
   const [editionOuverte, setEditionOuverte] = useState(false);
-  const [suppressionOuverte, setSuppressionOuverte] = useState(false);
+  const [motifAnnulation, setMotifAnnulation] = useState<string | null>(null);
   const [motifDeverrouillage, setMotifDeverrouillage] = useState<string | null>(null);
 
   const entiteParId = useMemo(() => new Map((entites ?? []).map((e) => [e.id, e])), [entites]);
@@ -78,9 +78,11 @@ export function CourrierDetailPage() {
   }
 
   const estVerrouille = courrier.verrouille_le !== null;
+  const estAnnule = courrier.annule_le !== null && courrier.annule_le !== undefined;
   const peutModifier =
-    !estVerrouille && (courrier.created_by === profile?.id || can('courrier', 'modifier', courrier.entite_id));
-  const peutSupprimer = !estVerrouille && can('courrier', 'supprimer', courrier.entite_id);
+    !estAnnule && !estVerrouille && (courrier.created_by === profile?.id || can('courrier', 'modifier', courrier.entite_id));
+  // Recette 2026-11 : on annule (numéro conservé au registre), on ne supprime plus.
+  const peutAnnuler = !estAnnule && can('courrier', 'annuler', courrier.entite_id);
   const peutDeverrouiller = can('courrier', 'deverrouiller', courrier.entite_id);
   const peutAjouterDecharge = !estVerrouille && courrier.sens === 'sortant' && peutModifier;
 
@@ -95,6 +97,25 @@ export function CourrierDetailPage() {
         <ArrowLeft className="size-4" />
         Courriers
       </Link>
+
+      {estAnnule && (
+        <div role="status" className="flex items-start gap-3 rounded-xl border border-crit/40 bg-crit/10 p-4">
+          <Ban className="size-5 shrink-0 text-crit-text" />
+          <div className="text-[13px]">
+            <div className="font-semibold text-crit-text">Courrier annulé</div>
+            <div className="text-foreground/80">
+              Annulé{courrier.annule_par ? ` par ${utilisateurParId.get(courrier.annule_par) ?? '—'}` : ''} le{' '}
+              {fr(courrier.annule_le!).format('D MMMM YYYY à HH:mm')}. Le numéro reste au registre ; aucune action n'est plus
+              possible.
+            </div>
+            {courrier.motif_annulation && (
+              <div className="mt-1">
+                <span className="font-medium">Motif :</span> {courrier.motif_annulation}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {estVerrouille && (
         <div role="status" className="flex flex-col gap-3 rounded-xl border border-warn/40 bg-warn/10 p-4 sm:flex-row sm:items-center">
@@ -127,6 +148,11 @@ export function CourrierDetailPage() {
             </span>
             <span className="text-muted-foreground">·</span>
             <span className="font-mono text-[12px]">{courrier.numero}</span>
+            {estAnnule && (
+              <Badge variant="critical" shape="pill">
+                Annulé
+              </Badge>
+            )}
             {courrier.etape_libelle && (
               <Badge variant="muted" shape="pill">
                 {courrier.etape_libelle}
@@ -169,7 +195,7 @@ export function CourrierDetailPage() {
               Ajouter une décharge
             </Button>
           )}
-          {peutSupprimer && (
+          {peutAnnuler && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon" aria-label="Plus d'actions">
@@ -177,9 +203,9 @@ export function CourrierDetailPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem variant="destructive" onSelect={() => setSuppressionOuverte(true)}>
-                  <Trash2 />
-                  Supprimer le courrier
+                <DropdownMenuItem variant="destructive" onSelect={() => setMotifAnnulation('')}>
+                  <Ban />
+                  Annuler le courrier
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -226,17 +252,28 @@ export function CourrierDetailPage() {
       <CourrierDechargeModal courrierId={courrier.id} open={dechargeOuverte} onClose={() => setDechargeOuverte(false)} />
 
       <ConfirmDialog
-        open={suppressionOuverte}
-        onClose={() => setSuppressionOuverte(false)}
-        titre="Supprimer ce courrier ?"
-        libelleConfirmer="Supprimer"
+        open={motifAnnulation !== null}
+        onClose={() => setMotifAnnulation(null)}
+        titre="Annuler ce courrier ?"
+        libelleConfirmer="Annuler le courrier"
         destructif
-        enCours={supprimer.isPending}
-        onConfirmer={() => supprimer.mutate(courrier.id, { onSuccess: () => navigate('/courriers') })}
+        enCours={annuler.isPending}
+        confirmerDesactive={!motifAnnulation?.trim()}
+        onConfirmer={() => motifAnnulation?.trim() && annuler.mutate(motifAnnulation.trim(), { onSuccess: () => setMotifAnnulation(null) })}
       >
-        <p>
-          Le courrier <b>{courrier.numero}</b> sera retiré de la liste.
+        <p className="text-[13px]">
+          Le courrier <b>{courrier.numero}</b> restera au registre avec la mention « Annulé ». Son circuit de traitement sera
+          arrêté et il ne pourra plus être modifié. Cette action est définitive et tracée.
         </p>
+        <Champ label="Motif de l'annulation" htmlFor="motif-annulation" requis>
+          <Textarea
+            id="motif-annulation"
+            rows={3}
+            autoFocus
+            value={motifAnnulation ?? ''}
+            onChange={(e) => setMotifAnnulation(e.target.value)}
+          />
+        </Champ>
       </ConfirmDialog>
 
       <ConfirmDialog

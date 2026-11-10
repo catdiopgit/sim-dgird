@@ -46,11 +46,19 @@ export type CourrierPatchInfos = Pick<
   | 'destinataire_texte'
   | 'entite_destinataire_id'
   | 'agent_destinataire_id'
+  | 'expediteur_contact_id'
+  | 'reference_expediteur'
   | 'observations'
 >;
 
 export async function updateCourrier(id: string, patch: CourrierPatchInfos): Promise<Courrier> {
   const data = await api.patch<unknown>(`/courrier/courriers/${id}`, toCamelCase(patch));
+  return toSnakeCase<Courrier>(data);
+}
+
+// Annulation : le courrier reste au registre (numéro conservé), motif obligatoire.
+export async function annulerCourrier(id: string, motif: string): Promise<Courrier> {
+  const data = await api.post<unknown>(`/courrier/courriers/${id}/annuler`, { motif });
   return toSnakeCase<Courrier>(data);
 }
 

@@ -54,6 +54,9 @@ const BANNETTES: { cle: Vue; libelle: string }[] = [
 const BANNETTES_VALIDES = BANNETTES.map((b) => b.cle).filter((c) => c !== 'tous') as Bannette[];
 const TAILLE_PAGE = 20;
 
+// Recherche insensible à la casse et aux accents (« kedougou » trouve « Kédougou »).
+const sansAccent = (texte: string) => texte.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
 export function CourrierListePage() {
   const navigate = useNavigate();
   const { profile, can } = useProfile();
@@ -122,11 +125,15 @@ export function CourrierListePage() {
   // avant. Bannettes (fn_bannettes_courrier) : filtrés ici. Priorité, entité et
   // type sont des filtres d'affichage sur les lignes déjà chargées.
   const baseFiltree = useMemo(() => {
-    const q = recherche.toLowerCase();
+    const q = sansAccent(recherche);
     return (source ?? []).filter(
       (c) =>
         (sensFiltre === 'tous' || c.sens === sensFiltre) &&
-        (!q || vue === 'tous' || c.objet.toLowerCase().includes(q) || c.numero.toLowerCase().includes(q)),
+        (!q ||
+          vue === 'tous' ||
+          [c.objet, c.numero, c.expediteur_nom, c.reference_expediteur, c.destinataire_texte].some((champ) =>
+            sansAccent(champ ?? '').includes(q),
+          )),
     );
   }, [source, sensFiltre, recherche, vue]);
 
@@ -260,7 +267,7 @@ export function CourrierListePage() {
                 setSaisie(e.target.value);
                 setPage(1);
               }}
-              placeholder={vue === 'tous' ? 'Rechercher par objet…' : 'Rechercher par objet ou numéro…'}
+              placeholder="Numéro, objet, expéditeur, référence…"
               aria-label="Rechercher un courrier"
               className={cn(champBase, 'h-9 pl-9 pr-3 text-[13px]')}
             />
@@ -410,10 +417,15 @@ export function CourrierListePage() {
                           <Link
                             to={`/courriers/${c.id}`}
                             onClick={(e) => e.stopPropagation()}
-                            className="font-mono text-[12px] hover:underline"
+                            className={cn('font-mono text-[12px] hover:underline', c.annule_le && 'text-muted-foreground line-through')}
                           >
                             {c.numero}
                           </Link>
+                          {c.annule_le && (
+                            <Badge variant="critical" shape="pill">
+                              Annulé
+                            </Badge>
+                          )}
                         </div>
                       </td>
                       <td className="max-w-[420px] py-3 pr-4">

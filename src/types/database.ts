@@ -281,6 +281,9 @@ export type Database = {
           created_at: string;
           updated_at: string;
           supprime_le: string | null;
+          annule_le: string | null;
+          annule_par: string | null;
+          motif_annulation: string | null;
         };
         Insert: {
           id?: string;
@@ -317,6 +320,9 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           supprime_le?: string | null;
+          annule_le?: string | null;
+          annule_par?: string | null;
+          motif_annulation?: string | null;
         };
         Update: {
           id?: string;
@@ -353,6 +359,9 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           supprime_le?: string | null;
+          annule_le?: string | null;
+          annule_par?: string | null;
+          motif_annulation?: string | null;
         };
         Relationships: [];
       };

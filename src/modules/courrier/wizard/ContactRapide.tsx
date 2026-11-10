@@ -1,5 +1,5 @@
 import { LoaderCircle, Plus, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { useCreerContact } from '../../../hooks/courrier/useContacts';
@@ -10,14 +10,20 @@ export function ContactRapide({
   organisationId,
   onCree,
   libelle = 'Nouveau contact',
+  onOuvertChange,
 }: {
   organisationId: string;
   onCree: (contact: { id: string; nom: string }) => void;
   libelle?: string;
+  onOuvertChange?: (ouvert: boolean) => void;
 }) {
   const creerContact = useCreerContact(organisationId);
   const [ouvert, setOuvert] = useState(false);
   const [nom, setNom] = useState('');
+
+  useEffect(() => {
+    onOuvertChange?.(ouvert);
+  }, [ouvert, onOuvertChange]);
 
   const creer = async () => {
     if (!nom.trim()) return;

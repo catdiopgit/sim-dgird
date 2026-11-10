@@ -106,6 +106,17 @@ export class Courrier {
   @Column({ type: 'uuid', name: 'verrouille_par', nullable: true })
   verrouillePar: string | null;
 
+  // Annulation (recette 2026-11) : le courrier reste au registre avec son
+  // numéro — pas de suppression physique, pas de trou dans la numérotation.
+  @Column({ type: 'timestamptz', name: 'annule_le', nullable: true })
+  annuleLe: Date | null;
+
+  @Column({ type: 'uuid', name: 'annule_par', nullable: true })
+  annulePar: string | null;
+
+  @Column({ type: 'text', name: 'motif_annulation', nullable: true })
+  motifAnnulation: string | null;
+
   @Column({ type: 'uuid', name: 'created_by', nullable: true })
   createdBy: string | null;
 

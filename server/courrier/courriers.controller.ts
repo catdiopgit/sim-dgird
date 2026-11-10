@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, ParseEnumPipe, Patch, Post, Query } from '@nestjs/common';
-import { IsDateString, IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsDateString, IsIn, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { Bannette, CourriersService, type CreerCourrierData, type UpdateCourrierData } from './courriers.service';
@@ -44,7 +44,13 @@ class UpdateCourrierDto implements UpdateCourrierData {
   @IsOptional() @IsString() destinataireTexte?: string | null;
   @IsOptional() @IsUUID() entiteDestinataireId?: string | null;
   @IsOptional() @IsUUID() agentDestinataireId?: string | null;
+  @IsOptional() @IsUUID() expediteurContactId?: string | null;
+  @IsOptional() @IsString() referenceExpediteur?: string | null;
   @IsOptional() @IsString() observations?: string | null;
+}
+
+class AnnulerCourrierDto {
+  @IsString() @IsNotEmpty() @MaxLength(1000) motif: string;
 }
 
 const BANNETTES: Bannette[] = ['a_traiter', 'en_retard', 'archives', 'sortants', 'en_copie', 'clotures'];
@@ -79,6 +85,11 @@ export class CourriersController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateCourrierDto, @CurrentUser() user: AuthenticatedUser) {
     return this.courriersService.update(id, dto, user);
+  }
+
+  @Post(':id/annuler')
+  annuler(@Param('id') id: string, @Body() dto: AnnulerCourrierDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.courriersService.annuler(id, dto.motif, user);
   }
 
   @Delete(':id')

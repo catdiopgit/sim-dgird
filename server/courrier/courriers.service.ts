@@ -57,6 +57,8 @@ export interface UpdateCourrierData {
   destinataireTexte?: string | null;
   entiteDestinataireId?: string | null;
   agentDestinataireId?: string | null;
+  expediteurContactId?: string | null;
+  referenceExpediteur?: string | null;
   observations?: string | null;
 }
 
@@ -67,6 +69,51 @@ export interface AuditCourrierEntree {
   nouvelle_valeur: unknown;
   utilisateur_id: string | null;
   created_at: Date;
+}
+
+
+// --- Règles de dates (recette 2026-11) ---
+// Un courrier peut être daté d'avant sa réception (cas normal), mais aucune
+// des deux dates ne peut être future, et la réception ne peut précéder la
+// date du courrier. Tolérance de 5 minutes sur la réception (horloges des
+// postes de saisie).
+const TOLERANCE_FUTUR_MS = 5 * 60_000;
+
+function jourIso(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+export function validerDatesCourrier(dateCourrier: string | null | undefined, dateReception: Date | string | null | undefined): void {
+  const maintenant = Date.now();
+  const aujourdhui = jourIso(new Date(maintenant));
+  if (dateCourrier) {
+    const jour = String(dateCourrier).slice(0, 10);
+    if (jour > aujourdhui) throw new BadRequestException('La date du courrier ne peut pas être dans le futur.');
+  }
+  if (dateReception) {
+    const reception = new Date(dateReception);
+    if (Number.isNaN(reception.getTime())) throw new BadRequestException('Date de réception invalide.');
+    if (reception.getTime() > maintenant + TOLERANCE_FUTUR_MS) {
+      throw new BadRequestException('La date de réception ne peut pas être dans le futur.');
+    }
+    if (dateCourrier && jourIso(reception) < String(dateCourrier).slice(0, 10)) {
+      throw new BadRequestException('La date de réception ne peut pas être antérieure à la date du courrier.');
+    }
+  }
+}
+
+// Recherche insensible à la casse et aux accents (sans extension unaccent).
+const ACCENTS = 'àáâãäåçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ';
+const SANS_ACCENTS = 'aaaaaaceeeeiiiinooooouuuuyyAAAAAACEEEEIIIINOOOOOUUUUY';
+const sqlSansAccent = (expr: string) => `lower(translate(coalesce(${expr}, ''), '${ACCENTS}', '${SANS_ACCENTS}'))`;
+export function normaliserRecherche(texte: string): string {
+  return texte.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
+// Positionne l'auteur des écritures pour le trigger d'audit (auth.uid(),
+// migration 1794350000000) — local à la transaction en cours.
+async function definirAuteur(manager: EntityManager, userId: string): Promise<void> {
+  await manager.query(`select set_config('app.user_id', $1, true)`, [userId]);
 }
 
 // Portage de app.can_view_courrier, app.fn_creer_courrier, app.fn_bannettes_courrier,
@@ -108,6 +155,9 @@ export class CourriersService {
   // même pour un utilisateur avec la permission 'deverrouiller' — seul
   // fn_deverrouiller_courrier peut rouvrir l'écriture (stockage, différé).
   async assertWritable(courrier: Courrier, user: AuthenticatedUser): Promise<void> {
+    if (courrier.annuleLe) {
+      throw new ConflictException('Courrier annulé — aucune modification possible');
+    }
     if (courrier.verrouilleLe) {
       throw new ConflictException('Courrier verrouillé (décharge ajoutée) — aucune modification possible');
     }
@@ -135,8 +185,12 @@ export class CourriersService {
       .andWhere('c.supprimeLe is null')
       .orderBy('c.createdAt', 'DESC');
     if (filtres.sens) qb.andWhere('c.sens = :sens', { sens: filtres.sens });
-    if (filtres.recherche) {
-      qb.andWhere('(c.objet ILIKE :recherche OR c.numero ILIKE :recherche)', { recherche: `%${filtres.recherche}%` });
+    const recherche = filtres.recherche ? normaliserRecherche(filtres.recherche) : '';
+    if (recherche) {
+      const champs = ['c.objet', 'c.numero', 'c.expediteur_nom', 'c.reference_expediteur', 'c.destinataire_texte'];
+      qb.andWhere(`(${champs.map((ch) => `${sqlSansAccent(ch)} LIKE :recherche`).join(' OR ')})`, {
+        recherche: `%${recherche}%`,
+      });
     }
     // Filtrage de visibilité appliqué en mémoire (canView reproduit has_permission
     // + délégations, non trivial à inliner dans le SELECT) — volumes attendus
@@ -159,6 +213,16 @@ export class CourriersService {
 
       const autorise = await this.authorizationService.hasPermission(user.id, 'courrier', 'creer', entiteId);
       if (!autorise) throw new ForbiddenException("Vous n'êtes pas autorisé à créer un courrier pour cette entité");
+
+      if (data.sens === 'entrant') {
+        if (!data.expediteurContactId && !data.expediteurNom?.trim()) {
+          throw new BadRequestException("L'expéditeur est obligatoire pour un courrier arrivé.");
+        }
+        if (!data.dateReception) {
+          throw new BadRequestException('La date de réception est obligatoire pour un courrier arrivé.');
+        }
+      }
+      validerDatesCourrier(data.dateCourrier ?? jourIso(new Date()), data.dateReception);
 
       let expediteurNom = data.expediteurNom ?? null;
       if (data.expediteurContactId) {
@@ -189,6 +253,7 @@ export class CourriersService {
         if (cible) etape = cible;
       }
 
+      await definirAuteur(manager, user.id);
       const courrier = await manager.save(
         Courrier,
         manager.create(Courrier, {
@@ -289,7 +354,54 @@ export class CourriersService {
   async update(id: string, patch: UpdateCourrierData, user: AuthenticatedUser): Promise<Courrier> {
     const courrier = await this.findOne(id, user);
     await this.assertWritable(courrier, user);
-    await this.courriers.update(id, patch as Parameters<typeof this.courriers.update>[1]);
+
+    if (patch.objet !== undefined && !patch.objet.trim()) throw new BadRequestException("L'objet est obligatoire.");
+    const dateCourrier = patch.dateCourrier ?? courrier.dateCourrier;
+    const dateReception = patch.dateReception !== undefined ? patch.dateReception : courrier.dateReception;
+    if (courrier.sens === 'entrant' && patch.dateReception === null) {
+      throw new BadRequestException('La date de réception est obligatoire pour un courrier arrivé.');
+    }
+    validerDatesCourrier(String(dateCourrier), dateReception);
+
+    await this.dataSource.transaction(async (manager) => {
+      const changements: Record<string, unknown> = { ...patch };
+      if (patch.expediteurContactId) {
+        const rows: Array<{ nom: string }> = await manager.query(
+          'select nom from contacts where id = $1 and organisation_id = $2',
+          [patch.expediteurContactId, user.organisationId],
+        );
+        if (!rows[0]) throw new BadRequestException('Expéditeur introuvable.');
+        changements.expediteurNom = rows[0].nom;
+      }
+      if (patch.dateReception) changements.dateReception = new Date(patch.dateReception);
+      await definirAuteur(manager, user.id);
+      await manager.update(Courrier, id, changements as Parameters<typeof manager.update<Courrier>>[2]);
+    });
+    return this.findOne(id, user);
+  }
+
+  // Annulation (recette 2026-11) : le courrier reste au registre, son
+  // workflow est clos (statut 'annulee' → sort des bannettes « à traiter »
+  // et « en retard »), plus aucune écriture n'est possible.
+  async annuler(id: string, motif: string, user: AuthenticatedUser): Promise<Courrier> {
+    const courrier = await this.findOne(id, user);
+    if (courrier.annuleLe) throw new ConflictException('Ce courrier est déjà annulé.');
+    const motifPropre = motif?.trim();
+    if (!motifPropre) throw new BadRequestException("Le motif d'annulation est obligatoire.");
+    const autorise = await this.authorizationService.hasPermission(user.id, 'courrier', 'annuler', courrier.entiteId);
+    if (!autorise) throw new ForbiddenException("Vous n'êtes pas autorisé à annuler ce courrier");
+
+    await this.dataSource.transaction(async (manager) => {
+      await definirAuteur(manager, user.id);
+      await manager.update(Courrier, id, { annuleLe: new Date(), annulePar: user.id, motifAnnulation: motifPropre });
+      if (courrier.workflowInstanceId) {
+        await manager.update(
+          WorkflowInstance,
+          { id: courrier.workflowInstanceId, statutInstance: 'en_cours' },
+          { statutInstance: 'annulee' },
+        );
+      }
+    });
     return this.findOne(id, user);
   }
 

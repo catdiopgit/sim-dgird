@@ -94,6 +94,7 @@ export class CourrierWorkflowService {
     user: AuthenticatedUser,
   ): Promise<void> {
     const courrier = await this.courriersService.findOne(courrierId, user);
+    if (courrier.annuleLe) throw new ConflictException('Courrier annulé — aucune action de workflow possible');
     if (courrier.verrouilleLe) {
       throw new ConflictException('Courrier verrouillé (décharge ajoutée) — aucune action de workflow possible');
     }
@@ -128,6 +129,7 @@ export class CourrierWorkflowService {
       if (!courrier || courrier.organisationId !== user.organisationId) {
         throw new NotFoundException('Courrier introuvable');
       }
+      if (courrier.annuleLe) throw new ConflictException('Courrier annulé — imputation impossible');
       if (courrier.verrouilleLe) {
         throw new ConflictException('Courrier verrouillé (décharge ajoutée) — imputation impossible');
       }

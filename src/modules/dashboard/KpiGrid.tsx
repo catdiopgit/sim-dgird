@@ -1,3 +1,4 @@
+import { env } from '../../config/env';
 import { CalendarClock, Compass, KanbanSquare, Mail } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { EcheanceProchaine } from '../../services/dashboard/echeances';
@@ -37,7 +38,7 @@ export function KpiGrid({ courrier, projets, missions, echeances }: Props) {
   const echeancesProches = echeances.data ? echeances.data.length - (echeancesDepassees ?? 0) : undefined;
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${env.missionsEnabled ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`}>
       <KpiCard
         icone={<Mail />}
         titre="Courriers"
@@ -77,23 +78,25 @@ export function KpiGrid({ courrier, projets, missions, echeances }: Props) {
             : undefined
         }
       />
-      <KpiCard
-        icone={<Compass />}
-        titre="Missions"
-        valeur={missions.data?.totaux.total ?? null}
-        chargement={missions.loading}
-        onClick={() => navigate('/missions')}
-        evolution={evolution(missions.data?.totaux.total, missions.dataPrecedente?.totaux.total, () => null)}
-        sousValeurs={
-          missions.data
-            ? [
-                { libelle: 'En cours', valeur: missions.data.totaux.enCours },
-                { libelle: 'Terminées', valeur: missions.data.totaux.clotures, ton: 'succes' },
-                { libelle: 'En retard', valeur: missions.data.totaux.enRetard, ton: 'critique' },
-              ]
-            : undefined
-        }
-      />
+      {env.missionsEnabled && (
+        <KpiCard
+          icone={<Compass />}
+          titre="Missions"
+          valeur={missions.data?.totaux.total ?? null}
+          chargement={missions.loading}
+          onClick={() => navigate('/missions')}
+          evolution={evolution(missions.data?.totaux.total, missions.dataPrecedente?.totaux.total, () => null)}
+          sousValeurs={
+            missions.data
+              ? [
+                  { libelle: 'En cours', valeur: missions.data.totaux.enCours },
+                  { libelle: 'Terminées', valeur: missions.data.totaux.clotures, ton: 'succes' },
+                  { libelle: 'En retard', valeur: missions.data.totaux.enRetard, ton: 'critique' },
+                ]
+              : undefined
+          }
+        />
+      )}
       <KpiCard
         icone={<CalendarClock />}
         titre="Échéances à 30 jours"

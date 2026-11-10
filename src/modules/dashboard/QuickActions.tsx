@@ -1,6 +1,7 @@
 import { Compass, FilePlus, FileSearch, KanbanSquare, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
+import { env } from '../../config/env';
 import { useProfile } from '../../hooks/useProfile';
 
 // Raccourcis vers les pages où vivent déjà les actions de création (§20 du
@@ -14,7 +15,7 @@ export function QuickActions() {
     { cle: 'courrier', libelle: 'Nouveau courrier', icone: <Plus />, cible: '/courriers', visible: can('courrier', 'creer'), principal: true },
     { cle: 'ged', libelle: 'Document', titre: 'Ajouter un document', icone: <FilePlus />, cible: '/ged', visible: can('ged', 'creer') },
     { cle: 'projet', libelle: 'Projet', titre: 'Nouveau projet', icone: <KanbanSquare />, cible: '/projets', visible: can('projets', 'creer') },
-    { cle: 'mission', libelle: 'Mission', titre: 'Nouvelle mission', icone: <Compass />, cible: '/missions', visible: can('missions', 'creer') },
+    { cle: 'mission', libelle: 'Mission', titre: 'Nouvelle mission', icone: <Compass />, cible: '/missions', visible: env.missionsEnabled && can('missions', 'creer') },
     { cle: 'recherche', libelle: 'Rechercher', titre: 'Rechercher un document', icone: <FileSearch />, cible: '/ged/archives', visible: true },
   ].filter((a) => a.visible);
 

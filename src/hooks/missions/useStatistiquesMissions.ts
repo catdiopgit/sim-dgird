@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { env } from '../../config/env';
 import { fetchStatistiquesMissions, type FiltresStatistiquesMissions } from '../../services/missions/statistiques';
 
 export function useStatistiquesMissions(filtres: FiltresStatistiquesMissions) {
@@ -12,5 +13,7 @@ export function useStatistiquesMissions(filtres: FiltresStatistiquesMissions) {
       filtres.etapeCode,
     ],
     queryFn: () => fetchStatistiquesMissions(filtres),
+    // Module Missions désactivé (VITE_MISSIONS_ENABLED) : aucune requête.
+    enabled: env.missionsEnabled,
   });
 }

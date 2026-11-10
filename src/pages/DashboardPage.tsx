@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { env } from '../config/env';
 import { useEcheancesProchaines } from '../hooks/dashboard/useEcheancesProchaines';
 import { useStatistiquesCourrier } from '../hooks/courrier/useStatistiquesCourrier';
 import { useStatistiquesMissions } from '../hooks/missions/useStatistiquesMissions';
@@ -62,9 +63,9 @@ export function DashboardPage() {
         <MailStatusBreakdown parEtat={courrier?.parEtat} delaiMoyenJours={courrier?.delaiMoyenJours} chargement={chargementCourrier} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className={`grid grid-cols-1 gap-4 ${env.missionsEnabled ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
         <ProjectStatusBars parEtat={projets?.parEtat} />
-        <MissionStatusBars parEtape={missions?.parEtape} />
+        {env.missionsEnabled && <MissionStatusBars parEtape={missions?.parEtape} />}
         <ProjetsFinancierCard projets={projets} chargement={chargementProjets} />
       </div>
 

@@ -19,6 +19,7 @@ import type { Courrier } from '../../services/courrier/courriers';
 import type { TransitionDisponible, TypeActionCourrier } from '../../services/courrier/workflow';
 import { fr } from '../../utils/dateFr';
 import { CourrierActionWorkflowModal } from './CourrierActionWorkflowModal';
+import { CourrierTransitionModal } from './CourrierTransitionModal';
 
 interface Props {
   courrier: Courrier;
@@ -58,6 +59,7 @@ export function CourrierWorkflowPanel({ courrier, organisationId }: Props) {
   const { data: actionsHistorique } = useHistoriqueActions(courrier.id, historiqueIds);
 
   const [actionOuverte, setActionOuverte] = useState<TransitionDisponible | null>(null);
+  const [transitionOuverte, setTransitionOuverte] = useState<TransitionDisponible | null>(null);
 
   const etapeParId = useMemo(() => new Map((etapes ?? []).map((e) => [e.id, e])), [etapes]);
   const utilisateurParId = useMemo(
@@ -131,6 +133,16 @@ export function CourrierWorkflowPanel({ courrier, organisationId }: Props) {
                       // non tagguée), comportement inchangé.
                       courrier.sens === 'entrant' && t.type_action ? (
                         <Button key={t.transition_id} variant={i === 0 ? 'default' : 'outline'} onClick={() => setActionOuverte(t)}>
+                          {t.libelle_action}
+                        </Button>
+                      ) : courrier.sens === 'entrant' ? (
+                        // Recette 2026-11 : compte rendu / motif et fichiers Word-PDF.
+                        <Button
+                          key={t.transition_id}
+                          variant={i === 0 ? 'default' : 'outline'}
+                          disabled={executer.isPending}
+                          onClick={() => setTransitionOuverte(t)}
+                        >
                           {t.libelle_action}
                         </Button>
                       ) : (
@@ -211,7 +223,7 @@ export function CourrierWorkflowPanel({ courrier, organisationId }: Props) {
                           </div>
                         )}
                         {!principal && h.transition_id && h.commentaire && !COMMENTAIRES_SYSTEME.has(h.commentaire) && (
-                          <div className="mt-1 text-[13px] italic text-muted-foreground">« {h.commentaire} »</div>
+                          <div className="mt-1 whitespace-pre-line text-[13px] italic text-muted-foreground">« {h.commentaire} »</div>
                         )}
                         <div className="mt-1 text-[12px] text-muted-foreground">
                           {fr(h.date_action).format('D MMM YYYY à HH:mm')}
@@ -227,6 +239,7 @@ export function CourrierWorkflowPanel({ courrier, organisationId }: Props) {
         )}
       </CardContent>
 
+      <CourrierTransitionModal courrier={courrier} transition={transitionOuverte} onClose={() => setTransitionOuverte(null)} />
       {actionOuverte && (
         <CourrierActionWorkflowModal
           open={actionOuverte !== null}

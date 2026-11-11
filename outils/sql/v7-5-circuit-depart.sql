@@ -1,5 +1,5 @@
 -- v7.5 : circuit des courriers de départ (Enregistré -> Expédié -> Clôturé par décharge)
--- et numérotation séparée DEP-AAAA-NNNN.
+-- La numérotation des départs reste celle paramétrée (règle du sens « sortant »).
 \set ON_ERROR_STOP on
 SET client_encoding = 'UTF8';
 
@@ -28,15 +28,11 @@ BEGIN
       CONTINUE;
     END IF;
 
-    -- 2. Numérotation séparée des départs
+    -- 2. Numérotation des départs : on conserve la règle paramétrée
+    --    (Administration > Paramétrage > Règles de numérotation, sens « sortant »).
     IF NOT EXISTS (SELECT 1 FROM regles_numerotation WHERE organisation_id = r_org.id AND module_id = v_module
-                   AND entite_id IS NULL AND valeur_liste_id = v_sortant) THEN
-      SELECT format INTO v_format FROM regles_numerotation
-       WHERE organisation_id = r_org.id AND module_id = v_module AND entite_id IS NULL AND valeur_liste_id IS NULL;
-      v_format := coalesce(replace(v_format, 'COURRIER', 'DEP'), 'DEP-{ANNEE}-{SEQ:4}');
-      INSERT INTO regles_numerotation (organisation_id, module_id, entite_id, valeur_liste_id, format, sequence_courante, reinitialisation)
-      VALUES (r_org.id, v_module, NULL, v_sortant, v_format, 0, 'annuelle');
-      RAISE NOTICE 'Numérotation départ : %', v_format;
+                   AND valeur_liste_id = v_sortant) THEN
+      RAISE NOTICE 'ATTENTION : aucune règle de numérotation pour les départs — la règle par défaut s''appliquera';
     END IF;
 
     -- 3. Circuit départ
@@ -70,6 +66,8 @@ SELECT wd.libelle AS circuit, vl.code AS sens
 FROM workflow_definition_associations a
 JOIN workflow_definitions wd ON wd.id = a.workflow_definition_id
 JOIN valeurs_listes vl ON vl.id = a.valeur_liste_id;
-SELECT r.format, vl.code AS sens, r.sequence_courante FROM regles_numerotation r
+SELECT r.format, vl.code AS sens, r.niveau_racine_chemin, r.sequence_courante FROM regles_numerotation r
 LEFT JOIN valeurs_listes vl ON vl.id = r.valeur_liste_id
 JOIN modules m ON m.id = r.module_id WHERE m.code = 'courrier';
+SELECT coalesce(e.sigle, '(sans sigle)') AS sigle, e.niveau, left(e.libelle, 60) AS entite
+FROM entites e ORDER BY e.chemin;

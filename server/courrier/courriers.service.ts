@@ -15,7 +15,7 @@ import { Courrier, type SensCourrier } from './entities/courrier.entity';
 import { CourrierDestinataire } from './entities/courrier-destinataire.entity';
 import { courrierVersContexte, resoudreDestinataireCourantCourrier } from './courrier-contexte.util';
 
-export type Bannette = 'a_traiter' | 'en_retard' | 'archives' | 'sortants' | 'en_copie' | 'clotures';
+export type Bannette = 'a_traiter' | 'a_suivre' | 'en_retard' | 'archives' | 'sortants' | 'en_copie' | 'clotures';
 
 export interface CreerCourrierData {
   sens: SensCourrier;
@@ -144,6 +144,15 @@ export class CourriersService {
     }
     if (courrier.agentDestinataireId === user.id) return true;
     if (await this.authorizationService.hasPermission(user.id, 'courrier', 'consulter', courrier.entiteId)) return true;
+    // Responsable ou personne réceptrice de l'entité du courrier ou d'une entité parente.
+    if (courrier.entiteId) {
+      const rows: unknown[] = await this.dataSource.query(
+        `select 1 from entites ec join entites mien on mien.chemin OPERATOR(extensions.@>) ec.chemin
+         where ec.id = $1 and (mien.responsable_utilisateur_id = $2 or mien.personne_receptrice_id = $2) limit 1`,
+        [courrier.entiteId, user.id],
+      );
+      if (rows.length > 0) return true;
+    }
 
     const conditions: FindOptionsWhere<CourrierDestinataire>[] = [{ courrierId: courrier.id, utilisateurId: user.id }];
     if (user.entiteId) conditions.push({ courrierId: courrier.id, entiteId: user.entiteId });
@@ -456,7 +465,36 @@ export class CourriersService {
         );
       case 'a_traiter':
         return this.bannetteATraiter(user);
+      case 'a_suivre':
+        return this.bannetteASuivre(user);
     }
+  }
+
+  // « À suivre » (recette 2026-11) : courriers en cours des entités dont je suis
+  // responsable ou personne réceptrice, et de leurs sous-entités, qui ne sont pas
+  // dans ma bannette « À traiter » (donc entre les mains de quelqu'un d'autre).
+  private async bannetteASuivre(user: AuthenticatedUser): Promise<Courrier[]> {
+    const rows: Array<{ id: string }> = await this.dataSource.query(
+      `select c.id from courriers c
+       join workflow_instances wi on wi.id = c.workflow_instance_id
+       join entites ec on ec.id = c.entite_id
+       where c.organisation_id = $1 and c.supprime_le is null and c.annule_le is null
+         and wi.statut_instance = 'en_cours'
+         and exists (
+           select 1 from entites mien
+           where mien.organisation_id = $1
+             and (mien.responsable_utilisateur_id = $2 or mien.personne_receptrice_id = $2)
+             and mien.chemin OPERATOR(extensions.@>) ec.chemin
+         )
+       order by c.created_at desc`,
+      [user.organisationId, user.id],
+    );
+    if (rows.length === 0) return [];
+    const aTraiter = new Set((await this.bannetteATraiter(user)).map((c) => c.id));
+    return this.chargerEtFiltrer(
+      rows.map((r) => r.id).filter((id) => !aTraiter.has(id)),
+      user,
+    );
   }
 
   private async bannetteParEtat(user: AuthenticatedUser, condition: string): Promise<Courrier[]> {

@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { message } from '../../lib/notifications';
 import {
   executerTransitionCourrier,
@@ -12,6 +12,7 @@ import {
   listWorkflowHistorique,
   type ImputerCourrierPayload,
 } from '../../services/courrier/workflow';
+import { listWorkflowTransitions } from '../../services/administration/workflows';
 import { listWorkflowEtapes } from '../../services/workflow/generique';
 
 export function useWorkflowInstance(courrierId: string | undefined) {
@@ -56,6 +57,7 @@ export function useExecuterTransitionCourrier(courrierId: string | undefined) {
       message.success('Étape mise à jour.');
       void queryClient.invalidateQueries({ queryKey: ['courrier', courrierId] });
       void queryClient.invalidateQueries({ queryKey: ['courriers'] });
+      void queryClient.invalidateQueries({ queryKey: ['courriers-bannette'] });
       void queryClient.invalidateQueries({ queryKey: ['workflow-instance', courrierId] });
       void queryClient.invalidateQueries({ queryKey: ['workflow-historique', courrierId] });
       void queryClient.invalidateQueries({ queryKey: ['transitions-disponibles', courrierId] });
@@ -90,6 +92,9 @@ export function useHistoriqueActions(courrierId: string | undefined, workflowHis
     queryKey: ['historique-actions', courrierId, ...workflowHistoriqueIds],
     queryFn: () => listHistoriqueActions(courrierId!, workflowHistoriqueIds),
     enabled: Boolean(courrierId) && workflowHistoriqueIds.length > 0,
+    // Garde les précisions (imputation, affectation) affichées pendant le
+    // rechargement qui suit chaque nouvelle étape, au lieu de les faire disparaître.
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -102,11 +107,22 @@ export function useImputerCourrier(courrierId: string | undefined) {
       message.success('Courrier imputé.');
       void queryClient.invalidateQueries({ queryKey: ['courrier', courrierId] });
       void queryClient.invalidateQueries({ queryKey: ['courriers'] });
+      void queryClient.invalidateQueries({ queryKey: ['courriers-bannette'] });
       void queryClient.invalidateQueries({ queryKey: ['workflow-instance', courrierId] });
       void queryClient.invalidateQueries({ queryKey: ['workflow-historique', courrierId] });
       void queryClient.invalidateQueries({ queryKey: ['transitions-disponibles', courrierId] });
       void queryClient.invalidateQueries({ queryKey: ['destinataires', courrierId] });
     },
     onError: (error: Error) => message.error(error.message),
+  });
+}
+
+// Transitions du circuit (libellés d'action), pour titrer l'historique par l'action réalisée.
+export function useWorkflowTransitionsCourrier(workflowDefinitionId: string | undefined) {
+  return useQuery({
+    queryKey: ['workflow-transitions', workflowDefinitionId],
+    queryFn: () => listWorkflowTransitions(workflowDefinitionId!),
+    enabled: Boolean(workflowDefinitionId),
+    staleTime: 5 * 60_000,
   });
 }

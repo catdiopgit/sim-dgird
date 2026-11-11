@@ -160,7 +160,8 @@ export class WorkflowService {
     if (
       type === 'responsable_entite_courante' ||
       type === 'superieur_hierarchique_courant' ||
-      type === 'destinataire_courant'
+      type === 'destinataire_courant' ||
+      type === 'receptrice_deleguee_entite_courante'
     ) {
       if (renseignes.length > 0) {
         throw new BadRequestException(`Le type d'acteur '${type}' ne doit référencer aucune cible directe`);

@@ -20,6 +20,7 @@ const TYPES_ACTEUR: TypeActeurWorkflow[] = [
   'responsable_entite_courante',
   'superieur_hierarchique_courant',
   'destinataire_courant',
+  'receptrice_deleguee_entite_courante',
 ];
 
 class UpsertDefinitionDto {

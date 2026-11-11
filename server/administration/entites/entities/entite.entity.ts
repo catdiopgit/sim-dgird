@@ -33,6 +33,10 @@ export class Entite {
   @Column({ type: 'uuid', name: 'personne_receptrice_id', nullable: true })
   personneReceptriceId: string | null;
 
+  // Recette 2026-11 : la personne réceptrice peut affecter au nom du responsable.
+  @Column({ type: 'boolean', name: 'receptrice_peut_affecter', default: false })
+  receptricePeutAffecter: boolean;
+
   @Column({ type: 'int', default: 0 })
   niveau: number;
 

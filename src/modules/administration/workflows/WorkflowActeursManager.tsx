@@ -25,13 +25,15 @@ const LABEL_TYPE: Record<TypeActeur, string> = {
   utilisateur: 'Utilisateur',
   responsable_entite_courante: "Responsable de l'entité du dossier",
   superieur_hierarchique_courant: 'Supérieur hiérarchique du dossier',
-  destinataire_courant: 'Destinataire courant (agent affecté, ou personne réceptrice de son entité)',
+  destinataire_courant: 'Agent affecté au dossier',
+  receptrice_deleguee_entite_courante: "Personne réceptrice de l'entité (si délégation d'affectation)",
 };
 
 const TYPES_SANS_CIBLE: TypeActeur[] = [
   'responsable_entite_courante',
   'superieur_hierarchique_courant',
   'destinataire_courant',
+  'receptrice_deleguee_entite_courante',
 ];
 
 interface Props {

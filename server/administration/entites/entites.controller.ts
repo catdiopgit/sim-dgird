@@ -14,6 +14,8 @@ class UpsertEntiteDto {
   @IsOptional() @IsString() libelle?: string;
   @IsOptional() @IsString() sigle?: string | null;
   @IsOptional() @IsUUID() responsableUtilisateurId?: string | null;
+  @IsOptional() @IsUUID() personneReceptriceId?: string | null;
+  @IsOptional() @IsBoolean() receptricePeutAffecter?: boolean;
   @IsOptional() @IsBoolean() actif?: boolean;
 }
 

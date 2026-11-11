@@ -1,5 +1,4 @@
 import {
-  Bell,
   ChevronDown,
   ChevronRight,
   Compass,
@@ -38,6 +37,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
 import { cn } from '../lib/utils';
 import { PeriodSelector } from '../modules/dashboard/PeriodSelector';
+import { NotificationsMenu } from './NotificationsMenu';
 import { usePeriodeStore } from '../modules/dashboard/usePeriodeStore';
 import { useUiPreferences } from '../stores/uiPreferences';
 
@@ -255,20 +255,7 @@ export function AppShell() {
 
             {estTableauDeBord && <PeriodSelector periode={periode} onChange={setPeriode} />}
 
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative"
-              aria-label={nombreAlertes > 0 ? `${nombreAlertes} échéance(s) dépassée(s)` : 'Aucune alerte'}
-              title={nombreAlertes > 0 ? `${nombreAlertes} échéance(s) dépassée(s)` : 'Aucune alerte'}
-            >
-              <Bell className="size-[18px]" strokeWidth={1.75} />
-              {nombreAlertes > 0 && (
-                <span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-crit px-1 text-[10px] font-bold tabular-nums text-white">
-                  {nombreAlertes}
-                </span>
-              )}
-            </Button>
+            <NotificationsMenu echeancesDepassees={nombreAlertes} />
 
             <Button
               variant="ghost"

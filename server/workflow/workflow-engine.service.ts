@@ -299,7 +299,10 @@ export class WorkflowEngineService {
                  select 1 from entites e join entites parent on parent.id = e.parent_entite_id
                  where e.id = $6 and parent.responsable_utilisateur_id = u.id
                ))
-            or ($1::text = 'destinataire_courant' and $7::uuid is not null and u.id = $7::uuid)`,
+            or ($1::text = 'destinataire_courant' and $7::uuid is not null and u.id = $7::uuid)
+            or ($1::text = 'receptrice_deleguee_entite_courante' and $6::uuid is not null and exists (
+                 select 1 from entites e where e.id = $6 and e.personne_receptrice_id = u.id and e.receptrice_peut_affecter
+               ))`,
         [
           acteur.type_acteur,
           acteur.role_id,
@@ -417,6 +420,12 @@ export class WorkflowEngineService {
         // courrier, sinon personne réceptrice de son entité), pas ici — le moteur
         // reste générique et ignore ce qu'est concrètement l'objet porteur.
         return destinataireObjet !== null && candidatId === destinataireObjet;
+      case 'receptrice_deleguee_entite_courante':
+        if (!entiteObjet) return false;
+        return exists(
+          'select 1 from entites where id = $1 and personne_receptrice_id = $2 and receptrice_peut_affecter limit 1',
+          [entiteObjet, candidatId],
+        );
       default:
         return false;
     }

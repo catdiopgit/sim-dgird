@@ -44,22 +44,28 @@ export function courrierVersContexte(courrier: Courrier): Record<string, unknown
   };
 }
 
-// Acteur de transition 'destinataire_courant' (0083) : l'agent auquel le
-// courrier a été affecté (agent_destinataire_id) s'il y en a un, sinon la
-// personne réceptrice de son entité — utilisé aussi bien pour l'autorisation
-// d'agir sur le courrier (CourrierWorkflowService) que pour la bannette « à
-// traiter » (CourriersService.bannetteATraiter), d'où l'extraction ici plutôt
-// que la duplication (les deux services dépendraient sinon l'un de l'autre en
-// cercle pour se le partager).
+// Acteur de transition 'destinataire_courant' : uniquement l'agent auquel le
+// courrier a été affecté (agent_destinataire_id). Recette 2026-11 : la personne
+// réceptrice de l'entité ne remplace plus l'agent tant qu'aucune affectation
+// n'a eu lieu (elle reçoit et suit, elle ne traite pas) — voir l'acteur
+// 'receptrice_deleguee_entite_courante' pour l'affectation au nom du responsable.
 export async function resoudreDestinataireCourantCourrier(
   courrier: Pick<Courrier, 'agentDestinataireId' | 'entiteId'>,
-  runner: DataSource | EntityManager,
+  _runner?: DataSource | EntityManager,
 ): Promise<string | null> {
-  if (courrier.agentDestinataireId) return courrier.agentDestinataireId;
-  if (!courrier.entiteId) return null;
-  const rows: Array<{ personne_receptrice_id: string | null }> = await runner.query(
-    'select personne_receptrice_id from entites where id = $1',
-    [courrier.entiteId],
+  return courrier.agentDestinataireId ?? null;
+}
+
+// Personne réceptrice autorisée par son entité à affecter au nom du responsable.
+export async function estReceptriceDeleguee(
+  runner: DataSource | EntityManager,
+  utilisateurId: string,
+  entiteId: string | null,
+): Promise<boolean> {
+  if (!entiteId) return false;
+  const rows: unknown[] = await runner.query(
+    'select 1 from entites where id = $1 and personne_receptrice_id = $2 and receptrice_peut_affecter limit 1',
+    [entiteId, utilisateurId],
   );
-  return rows[0]?.personne_receptrice_id ?? null;
+  return rows.length > 0;
 }

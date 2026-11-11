@@ -45,6 +45,7 @@ type Vue = 'tous' | Bannette;
 const BANNETTES: { cle: Vue; libelle: string }[] = [
   { cle: 'tous', libelle: 'Tous les courriers' },
   { cle: 'a_traiter', libelle: 'À traiter' },
+  { cle: 'a_suivre', libelle: 'À suivre' },
   { cle: 'en_retard', libelle: 'En retard' },
   { cle: 'sortants', libelle: 'Courriers de départ' },
   { cle: 'en_copie', libelle: 'En copie' },
@@ -106,6 +107,7 @@ export function CourrierListePage() {
   });
   const { data: courriersBannette, isLoading: chargementBannette } = useBannetteCourriers(vue === 'tous' ? undefined : vue);
   const { data: aTraiter } = useBannetteCourriers('a_traiter');
+  const { data: aSuivre } = useBannetteCourriers('a_suivre');
   const { data: enRetard } = useBannetteCourriers('en_retard');
   const { data: entites } = useEntites(organisationId);
   const { data: referentiel } = useCourrierReferentiel(organisationId);
@@ -187,7 +189,7 @@ export function CourrierListePage() {
     );
   };
 
-  const compteurs: Partial<Record<Vue, number | undefined>> = { a_traiter: aTraiter?.length, en_retard: enRetard?.length };
+  const compteurs: Partial<Record<Vue, number | undefined>> = { a_traiter: aTraiter?.length, a_suivre: aSuivre?.length, en_retard: enRetard?.length };
 
   if (!organisationId) {
     return (

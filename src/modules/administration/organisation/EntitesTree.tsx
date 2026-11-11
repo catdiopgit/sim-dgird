@@ -115,6 +115,7 @@ export function EntitesTree({ organisationId, peutModifier }: Props) {
       sigle: values.sigle || null,
       responsable_utilisateur_id: values.responsable_utilisateur_id || null,
       personne_receptrice_id: values.personne_receptrice_id || null,
+      receptrice_peut_affecter: values.receptrice_peut_affecter ?? false,
     };
     if (modalState?.mode === 'creer-racine') {
       create.mutate(
@@ -197,6 +198,7 @@ export function EntitesTree({ organisationId, peutModifier }: Props) {
                 sigle: modalState.entite.sigle ?? '',
                 responsable_utilisateur_id: modalState.entite.responsable_utilisateur_id ?? '',
                 personne_receptrice_id: modalState.entite.personne_receptrice_id ?? '',
+                receptrice_peut_affecter: modalState.entite.receptrice_peut_affecter ?? false,
               }
             : undefined
         }

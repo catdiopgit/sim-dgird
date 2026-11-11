@@ -53,7 +53,7 @@ class AnnulerCourrierDto {
   @IsString() @IsNotEmpty() @MaxLength(1000) motif: string;
 }
 
-const BANNETTES: Bannette[] = ['a_traiter', 'en_retard', 'archives', 'sortants', 'en_copie', 'clotures'];
+const BANNETTES: Bannette[] = ['a_traiter', 'a_suivre', 'en_retard', 'archives', 'sortants', 'en_copie', 'clotures'];
 
 @Controller('courrier/courriers')
 export class CourriersController {

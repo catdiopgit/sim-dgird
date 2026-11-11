@@ -18,6 +18,7 @@ const schema = z.object({
   sigle: z.string().optional(),
   responsable_utilisateur_id: z.string().optional(),
   personne_receptrice_id: z.string().optional(),
+  receptrice_peut_affecter: z.boolean().optional(),
 });
 export type EntiteFormValues = z.infer<typeof schema>;
 
@@ -60,6 +61,7 @@ export function EntiteFormModal({
       sigle: '',
       responsable_utilisateur_id: '',
       personne_receptrice_id: '',
+      receptrice_peut_affecter: false,
     },
   });
 
@@ -72,6 +74,7 @@ export function EntiteFormModal({
         sigle: valeursInitiales?.sigle ?? '',
         responsable_utilisateur_id: valeursInitiales?.responsable_utilisateur_id ?? '',
         personne_receptrice_id: valeursInitiales?.personne_receptrice_id ?? '',
+        receptrice_peut_affecter: valeursInitiales?.receptrice_peut_affecter ?? false,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -129,7 +132,7 @@ export function EntiteFormModal({
         <Champ
           label="Personne réceptrice des courriers"
           htmlFor="entite-receptrice"
-          aide="Reçoit une copie des courriers imputés à l'entité (souvent un secrétariat)."
+          aide="Reçoit et suit les courriers imputés à l'entité (souvent un secrétariat). Ne traite pas à la place de l'agent."
         >
           <NativeSelect id="entite-receptrice" {...register('personne_receptrice_id')}>
             <option value="">Aucune</option>
@@ -137,6 +140,15 @@ export function EntiteFormModal({
           </NativeSelect>
         </Champ>
       </div>
+      <label className="flex items-start gap-2 text-[13px]">
+        <input type="checkbox" className="mt-0.5 size-4 accent-primary" {...register('receptrice_peut_affecter')} />
+        <span>
+          La personne réceptrice peut affecter les courriers à un agent <strong>au nom du responsable</strong>
+          <span className="block text-[12px] text-muted-foreground">
+            L'historique indiquera « pour le compte de » le responsable.
+          </span>
+        </span>
+      </label>
     </FormDialog>
   );
 }

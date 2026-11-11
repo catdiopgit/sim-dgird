@@ -644,6 +644,7 @@ export type Database = {
           sigle: string | null;
           responsable_utilisateur_id: string | null;
           personne_receptrice_id: string | null;
+          receptrice_peut_affecter: boolean;
           chemin: unknown | null;
           niveau: number;
           ordre: number;
@@ -661,6 +662,7 @@ export type Database = {
           sigle?: string | null;
           responsable_utilisateur_id?: string | null;
           personne_receptrice_id?: string | null;
+          receptrice_peut_affecter?: boolean;
           chemin?: unknown | null;
           niveau?: number;
           ordre?: number;
@@ -678,6 +680,7 @@ export type Database = {
           sigle?: string | null;
           responsable_utilisateur_id?: string | null;
           personne_receptrice_id?: string | null;
+          receptrice_peut_affecter?: boolean;
           chemin?: unknown | null;
           niveau?: number;
           ordre?: number;
@@ -2893,7 +2896,8 @@ export type Database = {
         | 'utilisateur'
         | 'responsable_entite_courante'
         | 'superieur_hierarchique_courant'
-        | 'destinataire_courant';
+        | 'destinataire_courant'
+        | 'receptrice_deleguee_entite_courante';
     };
     CompositeTypes: Record<string, never>;
   };

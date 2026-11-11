@@ -118,7 +118,7 @@ export async function creerCourrier(payload: CreerCourrierPayload): Promise<Cour
   return toSnakeCase<Courrier>(data);
 }
 
-export type Bannette = 'a_traiter' | 'en_retard' | 'archives' | 'sortants' | 'en_copie' | 'clotures';
+export type Bannette = 'a_traiter' | 'a_suivre' | 'en_retard' | 'archives' | 'sortants' | 'en_copie' | 'clotures';
 
 // Architecture bannettes (plan V3 §H) : une route serveur unique par
 // bannette, réutilisant les briques du moteur de workflow (acteur autorisé,

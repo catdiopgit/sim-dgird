@@ -10,7 +10,7 @@ import { WorkflowInstance } from '../workflow/entities/workflow-instance.entity'
 import type { TypeActionCourrier } from '../workflow/entities/workflow-transition.entity';
 import { Courrier } from './entities/courrier.entity';
 import { CourrierDestinataire } from './entities/courrier-destinataire.entity';
-import { courrierVersContexte, resoudreDestinataireCourantCourrier } from './courrier-contexte.util';
+import { courrierVersContexte, estReceptriceDeleguee, resoudreDestinataireCourantCourrier } from './courrier-contexte.util';
 import { CourriersService, definirAuteur } from './courriers.service';
 
 export interface TransitionDisponible {
@@ -143,9 +143,12 @@ export class CourrierWorkflowService {
       }
 
       const destinataireCourant = await resoudreDestinataireCourantCourrier(courrier, manager);
+      // Personne réceptrice déléguée : affecte au nom du responsable, au sein de son entité uniquement.
+      const receptriceDeleguee = await estReceptriceDeleguee(manager, user.id, courrier.entiteId);
       const autoriseEcriture =
         courrier.createdBy === user.id ||
         destinataireCourant === user.id ||
+        receptriceDeleguee ||
         (await this.authorizationService.hasPermission(user.id, 'courrier', 'modifier', courrier.entiteId));
       if (!autoriseEcriture) throw new ForbiddenException("Vous n'êtes pas autorisé à imputer ce courrier");
 
@@ -154,7 +157,10 @@ export class CourrierWorkflowService {
       }
 
       const actionPermission = data.typeAction === 'transmission' || data.typeAction === 'redirection' ? 'transmettre' : 'affecter';
-      const autoriseAction = await this.authorizationService.hasPermission(user.id, 'courrier', actionPermission, data.entiteId);
+      const parPermission = await this.authorizationService.hasPermission(user.id, 'courrier', actionPermission, data.entiteId);
+      const parDelegation =
+        !parPermission && actionPermission === 'affecter' && receptriceDeleguee && data.entiteId === courrier.entiteId;
+      const autoriseAction = parPermission || parDelegation;
       if (!autoriseAction) {
         throw new ForbiddenException(`Vous n'êtes pas autorisé à ${actionPermission === 'transmettre' ? 'transmettre vers' : 'affecter à'} cette entité`);
       }
@@ -197,7 +203,11 @@ export class CourrierWorkflowService {
           [copieUtilisateurId, user.organisationId],
         );
         const entiteCopie = rows[0]?.entite_id;
-        if (!entiteCopie || !(await this.authorizationService.hasPermission(user.id, 'courrier', 'affecter', entiteCopie))) {
+        const copieAutorisee =
+          !!entiteCopie &&
+          ((parDelegation && entiteCopie === courrier.entiteId) ||
+            (await this.authorizationService.hasPermission(user.id, 'courrier', 'affecter', entiteCopie)));
+        if (!copieAutorisee) {
           throw new ForbiddenException("Vous n'êtes pas autorisé à mettre cette personne en copie");
         }
         const copie = await manager.save(
@@ -233,11 +243,21 @@ export class CourrierWorkflowService {
 
       if (data.transitionId) {
         if (!courrier.workflowInstanceId) throw new BadRequestException("Ce courrier n'a pas de workflow associé");
+        let commentaire = data.commentaire ?? null;
+        if (parDelegation) {
+          const resp: Array<{ nom: string | null }> = await manager.query(
+            `select u.prenom || ' ' || u.nom as nom from entites e
+             join utilisateurs u on u.id = e.responsable_utilisateur_id where e.id = $1`,
+            [courrier.entiteId],
+          );
+          const mention = `Pour le compte de ${resp[0]?.nom ?? 'le responsable'}`;
+          commentaire = commentaire ? `${mention}\n${commentaire}` : mention;
+        }
         const historiqueId = await this.workflowEngineService.executerTransition(
           courrier.workflowInstanceId,
           data.transitionId,
           user.id,
-          data.commentaire ?? null,
+          commentaire,
           courrier.entiteId,
           courrierVersContexte(courrier),
           manager,
@@ -265,7 +285,13 @@ export class CourrierWorkflowService {
   // --- Périmètres dynamiques (portage 0034/0042/0044) ---
 
   async entitesImputables(user: AuthenticatedUser): Promise<Entite[]> {
-    return this.entitesAvecPermission(user, 'affecter');
+    const entites = await this.entitesAvecPermission(user, 'affecter');
+    // Personne réceptrice déléguée : son (ou ses) entité(s), pour affecter au nom du responsable.
+    const deleguees = await this.dataSource.manager.find(Entite, {
+      where: { organisationId: user.organisationId, actif: true, personneReceptriceId: user.id, receptricePeutAffecter: true },
+    });
+    for (const e of deleguees) if (!entites.some((x) => x.id === e.id)) entites.push(e);
+    return entites;
   }
 
   async entitesTransmissibles(user: AuthenticatedUser): Promise<Entite[]> {

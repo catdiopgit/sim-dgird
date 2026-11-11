@@ -8,7 +8,8 @@ export type TypeActeurWorkflow =
   | 'utilisateur'
   | 'responsable_entite_courante'
   | 'superieur_hierarchique_courant'
-  | 'destinataire_courant';
+  | 'destinataire_courant'
+  | 'receptrice_deleguee_entite_courante';
 
 // Table `workflow_transition_roles` (nom hérité de la v1, étendue en v2/0020 pour
 // porter tous les types d'acteur). Aucune ligne pour une transition = ouverte à
@@ -33,6 +34,7 @@ export class WorkflowTransitionActeur {
       'responsable_entite_courante',
       'superieur_hierarchique_courant',
       'destinataire_courant',
+      'receptrice_deleguee_entite_courante',
     ],
     enumName: 'type_acteur_workflow',
     name: 'type_acteur',

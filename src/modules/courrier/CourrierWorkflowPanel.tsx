@@ -13,6 +13,7 @@ import {
   useWorkflowEtapes,
   useWorkflowHistorique,
   useWorkflowInstance,
+  useWorkflowTransitionsCourrier,
 } from '../../hooks/courrier/useWorkflow';
 import { cn } from '../../lib/utils';
 import type { Courrier } from '../../services/courrier/courriers';
@@ -25,6 +26,14 @@ interface Props {
   courrier: Courrier;
   organisationId: string;
 }
+
+// Titre de l'historique : l'action réalisée plutôt que l'étape d'arrivée.
+const TITRE_PAR_CODE: Record<string, string> = {
+  traiter: 'Traité et soumis au responsable',
+  validerdr: 'Soumis au responsable',
+  'valider-cloturer': 'Validé et clôturé',
+  'demander-correction': 'Correction demandée',
+};
 
 const LIBELLE_TYPE_ACTION: Record<TypeActionCourrier, string> = {
   imputation: 'Imputation',
@@ -44,6 +53,7 @@ const COMMENTAIRES_SYSTEME = new Set([
 export function CourrierWorkflowPanel({ courrier, organisationId }: Props) {
   const { data: instance, isLoading: chargementInstance } = useWorkflowInstance(courrier.id);
   const { data: etapes } = useWorkflowEtapes(instance?.workflow_definition_id);
+  const { data: transitions } = useWorkflowTransitionsCourrier(instance?.workflow_definition_id);
   const { data: historique, isLoading: chargementHistorique } = useWorkflowHistorique(courrier.id);
   const { data: utilisateurs } = useUtilisateursOptions(organisationId);
   const { data: entites } = useEntites(organisationId);
@@ -62,6 +72,13 @@ export function CourrierWorkflowPanel({ courrier, organisationId }: Props) {
   const [transitionOuverte, setTransitionOuverte] = useState<TransitionDisponible | null>(null);
 
   const etapeParId = useMemo(() => new Map((etapes ?? []).map((e) => [e.id, e])), [etapes]);
+  const titreTransition = useMemo(
+    () =>
+      new Map(
+        (transitions ?? []).map((t) => [t.id, TITRE_PAR_CODE[t.code] ?? t.libelle_action ?? null] as const),
+      ),
+    [transitions],
+  );
   const utilisateurParId = useMemo(
     () => new Map((utilisateurs ?? []).map((u) => [u.id, `${u.prenom} ${u.nom}`])),
     [utilisateurs],
@@ -194,7 +211,13 @@ export function CourrierWorkflowPanel({ courrier, organisationId }: Props) {
                           : 'Enregistrement du courrier'
                         : !h.transition_id && h.commentaire && !COMMENTAIRES_SYSTEME.has(h.commentaire)
                           ? h.commentaire
-                          : (etapeParId.get(h.etape_suivante_id)?.libelle ?? h.etape_suivante_id);
+                          : ((h.transition_id ? titreTransition.get(h.transition_id) : null) ??
+                            etapeParId.get(h.etape_suivante_id)?.libelle ??
+                            h.etape_suivante_id);
+                    const pourLeCompteDe =
+                      principal && h.commentaire?.startsWith('Pour le compte de ')
+                        ? h.commentaire.split('\n')[0]
+                        : null;
                     const auteur = h.utilisateur_id ? utilisateurParId.get(h.utilisateur_id) : undefined;
 
                     return (
@@ -220,6 +243,7 @@ export function CourrierWorkflowPanel({ courrier, organisationId }: Props) {
                             )}
                             {principal.echeance && <div>Échéance : {fr(principal.echeance).format('D MMMM YYYY')}</div>}
                             {principal.instruction && <div className="italic">« {principal.instruction} »</div>}
+                            {pourLeCompteDe && <div>{pourLeCompteDe}</div>}
                           </div>
                         )}
                         {!principal && h.transition_id && h.commentaire && !COMMENTAIRES_SYSTEME.has(h.commentaire) && (

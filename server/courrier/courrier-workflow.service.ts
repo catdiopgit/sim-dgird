@@ -122,6 +122,15 @@ export class CourrierWorkflowService {
         manager,
         destinataireCourant,
       );
+      // Les notifications créées par la transition (trigger SQL) portent le
+      // commentaire saisi (ex. motif d'une demande de correction).
+      if (commentaire?.trim()) {
+        await manager.query(
+          `update notifications set message = $2
+           where objet_id = $1 and message is null and created_at >= now()`,
+          [courrierId, commentaire.trim()],
+        );
+      }
     });
   }
 

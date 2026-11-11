@@ -136,28 +136,82 @@ export class CourriersService {
 
   // --- Visibilité / écriture (portage de app.can_view_courrier, 0015) ---
 
+  // Recette 2026-11 : chacun ne voit que ce qui le concerne — plus de
+  // visibilité automatique de tous les courriers de son entité.
   async canView(courrier: Courrier, user: AuthenticatedUser): Promise<boolean> {
     if (courrier.organisationId !== user.organisationId) return false;
-    if (courrier.createdBy === user.id) return true;
-    if (user.entiteId && (courrier.entiteId === user.entiteId || courrier.entiteDestinataireId === user.entiteId)) {
-      return true;
-    }
-    if (courrier.agentDestinataireId === user.id) return true;
-    if (await this.authorizationService.hasPermission(user.id, 'courrier', 'consulter', courrier.entiteId)) return true;
-    // Responsable ou personne réceptrice de l'entité du courrier ou d'une entité parente.
-    if (courrier.entiteId) {
-      const rows: unknown[] = await this.dataSource.query(
-        `select 1 from entites ec join entites mien on mien.chemin OPERATOR(extensions.@>) ec.chemin
-         where ec.id = $1 and (mien.responsable_utilisateur_id = $2 or mien.personne_receptrice_id = $2) limit 1`,
-        [courrier.entiteId, user.id],
+    // 1. Enregistré par moi, ou affecté à moi
+    if (courrier.createdBy === user.id || courrier.agentDestinataireId === user.id) return true;
+    // 2. Consultation étendue par rôle (Bureau Courrier, DG, administration…) —
+    //    la portée « personnel » ne donne PAS accès aux courriers des autres.
+    if (await this.aConsultationEtendue(user.id, courrier.entiteId)) return true;
+    // 3. Destinataire nominatif (principal ou copie)
+    const nominatif = await this.destinataires.findOne({ where: { courrierId: courrier.id, utilisateurId: user.id } });
+    if (nominatif) return true;
+    // 4. Responsable ou personne réceptrice de l'entité du courrier, d'une entité
+    //    parente, ou d'une entité mise en copie
+    const encadrement: unknown[] = await this.dataSource.query(
+      `select 1 from entites mien
+       where (mien.responsable_utilisateur_id = $2 or mien.personne_receptrice_id = $2)
+         and exists (
+           select 1 from entites cible
+           where mien.chemin OPERATOR(extensions.@>) cible.chemin
+             and (cible.id = $3::uuid or cible.id in (
+               select cd.entite_id from courrier_destinataires cd where cd.courrier_id = $1 and cd.entite_id is not null))
+         )
+       limit 1`,
+      [courrier.id, user.id, courrier.entiteId],
+    );
+    if (encadrement.length > 0) return true;
+    // 5. A déjà agi sur le circuit de ce courrier
+    if (courrier.workflowInstanceId) {
+      const participe: unknown[] = await this.dataSource.query(
+        'select 1 from workflow_historique where workflow_instance_id = $1 and utilisateur_id = $2 limit 1',
+        [courrier.workflowInstanceId, user.id],
       );
-      if (rows.length > 0) return true;
+      if (participe.length > 0) return true;
+      // 6. Peut agir sur l'étape en cours (ex. DG à l'étape « Transmission au DG »)
+      const rows: Array<{ workflow_definition_id: string; etape_courante_id: string }> = await this.dataSource.query(
+        `select workflow_definition_id, etape_courante_id from workflow_instances
+         where id = $1 and statut_instance = 'en_cours'`,
+        [courrier.workflowInstanceId],
+      );
+      if (rows[0]) {
+        const transitions = await this.workflowEngineService.transitionsDisponibles(
+          rows[0].workflow_definition_id,
+          rows[0].etape_courante_id,
+          user.id,
+          courrier.entiteId,
+          courrierVersContexte(courrier),
+          await resoudreDestinataireCourantCourrier(courrier, this.dataSource),
+        );
+        if (transitions.length > 0) return true;
+      }
     }
+    return false;
+  }
 
-    const conditions: FindOptionsWhere<CourrierDestinataire>[] = [{ courrierId: courrier.id, utilisateurId: user.id }];
-    if (user.entiteId) conditions.push({ courrierId: courrier.id, entiteId: user.entiteId });
-    const destinataire = await this.destinataires.findOne({ where: conditions });
-    return !!destinataire;
+  private async aConsultationEtendue(utilisateurId: string, entiteId: string | null): Promise<boolean> {
+    const rows: unknown[] = await this.dataSource.query(
+      `select 1
+       from utilisateur_roles ur
+       join permissions p on p.role_id = ur.role_id
+       join modules m on m.id = p.module_id and m.code = 'courrier'
+       join actions a on a.id = p.action_id and a.code = 'consulter'
+       left join entites ue on ue.id = ur.entite_id
+       where ur.utilisateur_id = $1
+         and (ur.date_fin is null or ur.date_fin >= current_date)
+         and (
+           p.portee = 'organisation'
+           or ($2::uuid is not null and p.portee = 'entite' and ur.entite_id = $2::uuid)
+           or ($2::uuid is not null and p.portee = 'entite_et_descendants' and ue.chemin is not null
+               and exists (select 1 from entites cible where cible.id = $2::uuid
+                           and ue.chemin OPERATOR(extensions.@>) cible.chemin))
+         )
+       limit 1`,
+      [utilisateurId, entiteId],
+    );
+    return rows.length > 0;
   }
 
   // Reflète courriers_update (0037) : verrouille_le n'a plus aucune exception,

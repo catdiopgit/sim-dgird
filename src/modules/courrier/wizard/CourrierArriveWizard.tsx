@@ -19,7 +19,8 @@ import { fr } from '../../../utils/dateFr';
 import { FicheExploitationModal } from '../FicheExploitationModal';
 import { controlerDatesCourrier, maxDateHeure, maxJour } from '../reglesDates';
 import { ContactRapide } from './ContactRapide';
-import { PiecesJointesStagingList, type PieceJointeStagee } from './PiecesJointesStagingList';
+import { DocumentsArriveStaging } from './DocumentsArriveStaging';
+import type { PieceJointeStagee } from './PiecesJointesStagingList';
 
 const schema = z
   .object({
@@ -53,7 +54,7 @@ const defauts = (): FormValues => ({
   observations: '',
 });
 
-const ETAPES = ['Informations', 'Pièces jointes', 'Récapitulatif', 'Confirmation'];
+const ETAPES = ['Informations', 'Documents', 'Récapitulatif', 'Confirmation'];
 
 interface Props {
   open: boolean;
@@ -78,6 +79,7 @@ export function CourrierArriveWizard({ open, organisationId, onClose, onTermine 
 
   const [etape, setEtape] = useState(0);
   const [fichiers, setFichiers] = useState<PieceJointeStagee[]>([]);
+  const [erreurDocument, setErreurDocument] = useState<string | undefined>();
   const [enCours, setEnCours] = useState(false);
   const [courrierCree, setCourrierCree] = useState<Courrier | null>(null);
   const [ficheOuverte, setFicheOuverte] = useState(false);
@@ -110,6 +112,7 @@ export function CourrierArriveWizard({ open, organisationId, onClose, onTermine 
     onClose();
     setEtape(0);
     setFichiers([]);
+    setErreurDocument(undefined);
     setCourrierCree(null);
     setFicheOuverte(false);
     setCreationContact(false);
@@ -126,11 +129,21 @@ export function CourrierArriveWizard({ open, organisationId, onClose, onTermine 
       const valide = await trigger([...CHAMPS_ETAPE_INFOS]);
       if (!valide) return;
     }
+    if (etape === 1 && !fichiers.some((f) => f.estScan)) {
+      setErreurDocument('Le document principal est obligatoire : choisissez un PDF ou numérisez le courrier.');
+      return;
+    }
+    setErreurDocument(undefined);
     setEtape((e) => e + 1);
   };
   const precedent = () => setEtape((e) => e - 1);
 
   const valider = handleSubmit(async (values) => {
+    if (!fichiers.some((f) => f.estScan)) {
+      setEtape(1);
+      setErreurDocument('Le document principal est obligatoire.');
+      return;
+    }
     setEnCours(true);
     try {
       const courrier = await creer.mutateAsync({
@@ -146,7 +159,8 @@ export function CourrierArriveWizard({ open, organisationId, onClose, onTermine 
         p_observations: values.observations || null,
       });
 
-      for (const f of fichiers) {
+      // Document principal en premier, puis les pièces jointes.
+      for (const f of [...fichiers].sort((a, b) => Number(b.estScan) - Number(a.estScan))) {
         await uploadPieceJointe(courrier.id, f.file, f.estScan);
       }
 
@@ -285,7 +299,7 @@ export function CourrierArriveWizard({ open, organisationId, onClose, onTermine 
         </div>
       )}
 
-      {etape === 1 && <PiecesJointesStagingList fichiers={fichiers} onChange={setFichiers} />}
+      {etape === 1 && <DocumentsArriveStaging fichiers={fichiers} onChange={setFichiers} erreurPrincipal={erreurDocument} />}
 
       {etape === 2 && (
         <div>
@@ -299,15 +313,17 @@ export function CourrierArriveWizard({ open, organisationId, onClose, onTermine 
             <LigneRecap label="Expéditeur">{libelleContact(valeurs.contactExpediteurId)}</LigneRecap>
             <LigneRecap label="Référence expéditeur">{valeurs.referenceExpediteur}</LigneRecap>
             <LigneRecap label="Observations">{valeurs.observations}</LigneRecap>
+            <LigneRecap label="Document principal">{fichiers.find((f) => f.estScan)?.file.name}</LigneRecap>
             <LigneRecap label="Pièces jointes">
-              {fichiers.length > 0 && (
+              {fichiers.some((f) => !f.estScan) && (
                 <span className="flex flex-wrap gap-1.5">
-                  {fichiers.map((f) => (
-                    <Badge key={f.id} variant={f.estScan ? 'primary' : 'muted'}>
-                      {f.file.name}
-                      {f.estScan ? ' · scan' : ''}
-                    </Badge>
-                  ))}
+                  {fichiers
+                    .filter((f) => !f.estScan)
+                    .map((f) => (
+                      <Badge key={f.id} variant="muted">
+                        {f.file.name}
+                      </Badge>
+                    ))}
                 </span>
               )}
             </LigneRecap>

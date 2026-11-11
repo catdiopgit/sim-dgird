@@ -1,0 +1,6 @@
+{
+  "port": 7777,
+  "naps2": "C:\\Program Files\\NAPS2\\NAPS2.Console.exe",
+  "profil": "SIM",
+  "originesAutorisees": ["http://10.121.221.141:8080"]
+}

@@ -12,4 +12,7 @@ export const env = {
   // sans code à retoucher pour les ré-activer plus tard.
   missionsEnabled: import.meta.env.VITE_MISSIONS_ENABLED === 'true',
   marchesEnabled: import.meta.env.VITE_MARCHES_ENABLED !== 'false',
+  // Agent de numérisation installé sur le poste (outils/agent-scan) : le
+  // navigateur ne peut pas piloter un scanner lui-même.
+  agentScanUrl: import.meta.env.VITE_SCAN_AGENT_URL || 'http://localhost:7777',
 };

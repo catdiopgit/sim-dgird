@@ -84,7 +84,9 @@ export function CourrierDetailPage() {
   // Recette 2026-11 : on annule (numéro conservé au registre), on ne supprime plus.
   const peutAnnuler = !estAnnule && can('courrier', 'annuler', courrier.entite_id);
   const peutDeverrouiller = can('courrier', 'deverrouiller', courrier.entite_id);
-  const peutAjouterDecharge = !estVerrouille && courrier.sens === 'sortant' && peutModifier;
+  // Circuit départ (recette 2026-11) : la décharge se joint une fois le courrier expédié.
+  const peutAjouterDecharge =
+    !estVerrouille && !estAnnule && courrier.sens === 'sortant' && courrier.etape_code === 'expedie' && peutModifier;
 
   const entite = courrier.entite_id ? entiteParId.get(courrier.entite_id) : undefined;
   const priorite = (referentiel?.priorites ?? []).find((v) => v.id === courrier.priorite_valeur_id);

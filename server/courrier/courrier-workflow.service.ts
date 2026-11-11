@@ -122,6 +122,11 @@ export class CourrierWorkflowService {
         manager,
         destinataireCourant,
       );
+      // Circuit départ : « Expédier » renseigne la date d'envoi si elle manque.
+      if (courrier.sens === 'sortant' && !courrier.dateEnvoi) {
+        const t: Array<{ code: string }> = await manager.query('select code from workflow_transitions where id = $1', [transitionId]);
+        if (t[0]?.code === 'expedier') await manager.update(Courrier, courrierId, { dateEnvoi: new Date() });
+      }
       // Les notifications créées par la transition (trigger SQL) portent le
       // commentaire saisi (ex. motif d'une demande de correction).
       if (commentaire?.trim()) {

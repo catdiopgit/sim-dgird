@@ -117,6 +117,20 @@ export class CourrierStorageService {
         (await this.authorizationService.hasPermission(user.id, 'courrier', 'modifier', courrier.entiteId));
       if (!autorise) throw new ForbiddenException("Vous n'êtes pas autorisé à ajouter une décharge à ce courrier");
 
+      // Circuit départ : la décharge suppose le courrier expédié.
+      if (courrier.workflowInstanceId) {
+        const etapes: Array<{ a_expedie: boolean; code: string | null }> = await manager.query(
+          `select exists (select 1 from workflow_etapes e where e.workflow_definition_id = wi.workflow_definition_id and e.code = 'expedie') as a_expedie,
+                  ec.code
+           from workflow_instances wi join workflow_etapes ec on ec.id = wi.etape_courante_id
+           where wi.id = $1`,
+          [courrier.workflowInstanceId],
+        );
+        if (etapes[0]?.a_expedie && etapes[0].code !== 'expedie') {
+          throw new BadRequestException("Le courrier doit d'abord être expédié avant d'y joindre la décharge");
+        }
+      }
+
       const storagePath = await this.ecrireFichier(courrierId, fichier);
       await manager.save(
         CourrierPieceJointe,
@@ -148,6 +162,23 @@ export class CourrierStorageService {
           [courrier.workflowInstanceId],
         );
         const etapeCouranteId = rows[0]?.etape_courante_id;
+        // Circuit départ : passage à l'étape finale « Clôturé » quand elle existe.
+        const finales: Array<{ id: string; code: string; libelle: string }> = etapeCouranteId
+          ? await manager.query(
+              `select e.id, e.code, e.libelle from workflow_etapes e
+               join workflow_instances wi on wi.workflow_definition_id = e.workflow_definition_id
+               where wi.id = $1 and e.type_etape = 'finale' order by e.ordre limit 1`,
+              [courrier.workflowInstanceId],
+            )
+          : [];
+        const finale = finales[0];
+        if (finale) {
+          await manager.query('update workflow_instances set etape_courante_id = $2, etape_courante_depuis = now() where id = $1', [
+            courrier.workflowInstanceId,
+            finale.id,
+          ]);
+          await manager.update(Courrier, courrierId, { etapeCode: finale.code, etapeLibelle: finale.libelle });
+        }
         if (etapeCouranteId) {
           await manager.save(
             WorkflowHistorique,
@@ -157,7 +188,7 @@ export class CourrierStorageService {
               // Marqueur "même étape" (pas une vraie transition) — fidèle à
               // fn_ajouter_decharge_courrier, uniquement pour la trace d'audit.
               etapePrecedenteId: etapeCouranteId,
-              etapeSuivanteId: etapeCouranteId,
+              etapeSuivanteId: finale?.id ?? etapeCouranteId,
               utilisateurId: user.id,
               commentaire: 'Décharge ajoutée — courrier clôturé',
             }),

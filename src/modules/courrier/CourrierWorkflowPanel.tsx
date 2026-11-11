@@ -29,6 +29,7 @@ interface Props {
 
 // Titre de l'historique : l'action réalisée plutôt que l'étape d'arrivée.
 const TITRE_PAR_CODE: Record<string, string> = {
+  expedier: 'Expédié',
   enregistrer: 'Transmis au DG',
   imputer: 'Imputé',
   affecter: 'Affecté',
@@ -155,7 +156,7 @@ export function CourrierWorkflowPanel({ courrier, organisationId }: Props) {
                         <Button key={t.transition_id} variant={i === 0 ? 'default' : 'outline'} onClick={() => setActionOuverte(t)}>
                           {t.libelle_action}
                         </Button>
-                      ) : courrier.sens === 'entrant' ? (
+                      ) : courrier.sens === 'entrant' || courrier.sens === 'sortant' ? (
                         // Recette 2026-11 : compte rendu / motif et fichiers Word-PDF.
                         <Button
                           key={t.transition_id}

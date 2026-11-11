@@ -295,7 +295,19 @@ export class CourriersService {
         if (contactRows[0]) expediteurNom = contactRows[0].nom;
       }
 
-      const numero = await this.parametrageService.genererNumero(manager, user.organisationId, 'courrier', entiteId, null);
+      // Recette 2026-11 : les départs ont leur numérotation (DEP-…) et leur circuit
+      // (enregistrement → expédition → décharge), associés à la valeur 'sortant'
+      // de la liste courrier_sens. Repli sur la règle / le circuit par défaut.
+      let sensValeurId: string | null = null;
+      if (data.sens === 'sortant') {
+        const sensRows: Array<{ id: string }> = await manager.query(
+          `select vl.id from valeurs_listes vl join listes_valeurs lv on lv.id = vl.liste_id
+           where lv.organisation_id = $1 and lv.code = 'courrier_sens' and vl.code = 'sortant' limit 1`,
+          [user.organisationId],
+        );
+        sensValeurId = sensRows[0]?.id ?? null;
+      }
+      const numero = await this.parametrageService.genererNumero(manager, user.organisationId, 'courrier', entiteId, sensValeurId);
 
       // Pas de p_valeur_liste_id transmis à demarrerWorkflow : le corps final de
       // fn_creer_courrier (depuis 0026) n'en passe plus non plus, malgré
@@ -305,7 +317,7 @@ export class CourriersService {
         'courrier',
         user.organisationId,
         user.id,
-        null,
+        sensValeurId,
         manager,
       );
       const instance = await manager.findOneByOrFail(WorkflowInstance, { id: workflowInstanceId });

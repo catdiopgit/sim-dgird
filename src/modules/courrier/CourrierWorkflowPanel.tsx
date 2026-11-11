@@ -29,6 +29,9 @@ interface Props {
 
 // Titre de l'historique : l'action réalisée plutôt que l'étape d'arrivée.
 const TITRE_PAR_CODE: Record<string, string> = {
+  enregistrer: 'Transmis au DG',
+  imputer: 'Imputé',
+  affecter: 'Affecté',
   traiter: 'Traité et soumis au responsable',
   validerdr: 'Soumis au responsable',
   'valider-cloturer': 'Validé et clôturé',

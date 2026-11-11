@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -17,6 +18,8 @@ import { memoryStorage } from 'multer';
 import type { Response } from 'express';
 import { IsBoolean, IsOptional, IsString } from 'class-validator';
 import { Public } from '../../common/decorators/public.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../auth/strategies/jwt.strategy';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequirePermission } from '../permissions/require-permission.decorator';
 import { OrganisationsService } from './organisations.service';
@@ -74,9 +77,12 @@ export class OrganisationsController {
     return this.organisationsService.getBranding();
   }
 
+  // Sa propre organisation est lisible par tout utilisateur connecté (en-têtes,
+  // fiche d'exploitation) ; les autres restent réservées à l'administration
+  // multi-organisation via GET / (recette 2026-11).
   @Get(':id')
-  @RequirePermission('administration', 'consulter')
-  findOne(@Param('id') id: string) {
+  findOne(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    if (id !== user.organisationId) throw new ForbiddenException('Organisation hors de votre périmètre');
     return this.organisationsService.findOne(id);
   }
 

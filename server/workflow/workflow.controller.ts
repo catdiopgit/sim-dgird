@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { IsBoolean, IsIn, IsInt, IsOptional, IsString, IsUUID } from 'class-validator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
@@ -74,15 +74,22 @@ export class WorkflowController {
 
   // --- Définitions ---
 
+  // Lecture des définitions/étapes/transitions : nécessaire à tous les
+  // utilisateurs (libellés d'étapes dans les fiches courrier), limitée à leur
+  // organisation (recette 2026-11). Les écritures restent « administration ».
+  private async assertMemeOrganisation(definitionId: string, user: AuthenticatedUser): Promise<void> {
+    const definition = await this.workflowService.findDefinition(definitionId);
+    if (definition.organisationId !== user.organisationId) throw new ForbiddenException('Workflow hors de votre organisation');
+  }
+
   @Get('definitions')
-  @RequirePermission('administration', 'consulter')
   findDefinitions(@CurrentUser() user: AuthenticatedUser, @Query('moduleId') moduleId?: string) {
     return this.workflowService.findDefinitions(user.organisationId, moduleId);
   }
 
   @Get('definitions/:id')
-  @RequirePermission('administration', 'consulter')
-  findDefinition(@Param('id') id: string) {
+  async findDefinition(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    await this.assertMemeOrganisation(id, user);
     return this.workflowService.findDefinition(id);
   }
 
@@ -113,8 +120,8 @@ export class WorkflowController {
   // --- Étapes ---
 
   @Get('definitions/:id/etapes')
-  @RequirePermission('administration', 'consulter')
-  findEtapes(@Param('id') workflowDefinitionId: string) {
+  async findEtapes(@Param('id') workflowDefinitionId: string, @CurrentUser() user: AuthenticatedUser) {
+    await this.assertMemeOrganisation(workflowDefinitionId, user);
     return this.workflowService.findEtapes(workflowDefinitionId);
   }
 
@@ -139,8 +146,8 @@ export class WorkflowController {
   // --- Transitions ---
 
   @Get('definitions/:id/transitions')
-  @RequirePermission('administration', 'consulter')
-  findTransitions(@Param('id') workflowDefinitionId: string) {
+  async findTransitions(@Param('id') workflowDefinitionId: string, @CurrentUser() user: AuthenticatedUser) {
+    await this.assertMemeOrganisation(workflowDefinitionId, user);
     return this.workflowService.findTransitions(workflowDefinitionId);
   }
 

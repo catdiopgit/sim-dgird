@@ -1,4 +1,6 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../auth/strategies/jwt.strategy';
 import { IsOptional, IsString, IsUUID } from 'class-validator';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequirePermission } from '../permissions/require-permission.decorator';
@@ -23,15 +25,18 @@ class CreateValeurDto {
 export class ParametrageController {
   constructor(private readonly parametrageService: ParametrageService) {}
 
+  // Référentiel en lecture, nécessaire à tous les utilisateurs (formulaires et
+  // fiches courrier) : pas de permission « administration », mais toujours
+  // limité à l'organisation de l'utilisateur connecté (recette 2026-11).
   @Get('listes')
-  @RequirePermission('administration', 'consulter')
-  listListes(@Query('organisationId') organisationId: string) {
-    return this.parametrageService.listListes(organisationId);
+  listListes(@CurrentUser() user: AuthenticatedUser) {
+    return this.parametrageService.listListes(user.organisationId);
   }
 
   @Get('listes/:listeId/valeurs')
-  @RequirePermission('administration', 'consulter')
-  listValeurs(@Param('listeId') listeId: string) {
+  async listValeurs(@Param('listeId') listeId: string, @CurrentUser() user: AuthenticatedUser) {
+    const listes = await this.parametrageService.listListes(user.organisationId);
+    if (!listes.some((l) => l.id === listeId)) throw new ForbiddenException('Liste hors de votre organisation');
     return this.parametrageService.listValeurs(listeId);
   }
 

@@ -1,4 +1,6 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../auth/strategies/jwt.strategy';
 import { IsBoolean, IsOptional, IsString, IsUUID } from 'class-validator';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequirePermission } from '../permissions/require-permission.decorator';
@@ -31,15 +33,18 @@ class UpdateTypeEntiteDto {
 export class EntitesController {
   constructor(private readonly entitesService: EntitesService) {}
 
+  // Référentiel en lecture, nécessaire à tous les utilisateurs (formulaires et
+  // fiches courrier) : pas de permission « administration », mais toujours
+  // limité à l'organisation de l'utilisateur connecté (recette 2026-11).
   @Get()
-  @RequirePermission('administration', 'consulter')
-  findByOrganisation(@Query('organisationId') organisationId: string) {
+  findByOrganisation(@CurrentUser() user: AuthenticatedUser) {
+    const organisationId = user.organisationId;
     return this.entitesService.findByOrganisation(organisationId);
   }
 
   @Get('types')
-  @RequirePermission('administration', 'consulter')
-  listTypeEntites(@Query('organisationId') organisationId: string) {
+  listTypeEntites(@CurrentUser() user: AuthenticatedUser) {
+    const organisationId = user.organisationId;
     return this.entitesService.listTypeEntites(organisationId);
   }
 
@@ -50,8 +55,9 @@ export class EntitesController {
   }
 
   @Get(':id')
-  @RequirePermission('administration', 'consulter')
-  findOne(@Param('id') id: string) {
+  async findOne(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    const entite = await this.entitesService.findOne(id);
+    if (entite.organisationId !== user.organisationId) throw new ForbiddenException('Entité hors de votre organisation');
     return this.entitesService.findOne(id);
   }
 

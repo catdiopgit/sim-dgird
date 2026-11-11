@@ -589,7 +589,20 @@ export class CourriersService {
         courrierVersContexte(courrier),
         await resoudreDestinataireCourantCourrier(courrier, this.dataSource),
       );
-      if (transitions.length > 0) idsRetenus.push(candidat.id);
+      if (transitions.length === 0) continue;
+      // Recette 2026-11 : un courrier affecté à un autre agent, à l'étape où
+      // c'est à cet agent d'agir, relève de « À suivre » pour le responsable
+      // (qui garde la possibilité d'agir) et non de son « À traiter ».
+      if (courrier.agentDestinataireId && courrier.agentDestinataireId !== user.id) {
+        const rows: Array<{ n: number }> = await this.dataSource.query(
+          `select count(distinct workflow_transition_id)::int as n from workflow_transition_roles
+           where workflow_transition_id = any($1::uuid[]) and type_acteur = 'destinataire_courant'`,
+          [transitions.map((t) => t.id)],
+        );
+        // Toutes les actions possibles sont celles de l'agent : c'est son tour.
+        if (rows[0]?.n === transitions.length) continue;
+      }
+      idsRetenus.push(candidat.id);
     }
     return this.chargerEtFiltrer(idsRetenus, user);
   }

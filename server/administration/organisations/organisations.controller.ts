@@ -98,9 +98,12 @@ export class OrganisationsController {
     return this.organisationsService.update(id, dto);
   }
 
+  // Recette 2026-11 : lecture ouverte aux utilisateurs de l'organisation (en-tête
+  // des documents imprimés, paramètres du circuit courrier) ; la modification
+  // reste réservée à l'administration. Les secrets SMTP sont sur /smtp.
   @Get(':id/parametres')
-  @RequirePermission('administration', 'consulter')
-  listParametres(@Param('id') id: string) {
+  listParametres(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    if (id !== user.organisationId) throw new ForbiddenException('Organisation hors de votre périmètre');
     return this.organisationsService.listParametres(id);
   }
 

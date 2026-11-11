@@ -112,6 +112,31 @@ export class OrganisationsService {
     return logoUrl;
   }
 
+  // Recette 2026-11 : images de l'en-tête des documents (logo droit / sceau),
+  // stockées à part du logo de l'organisation (qu'elles écrasaient auparavant).
+  async uploadImage(organisationId: string, nom: string, fichier: FichierEntrant): Promise<string> {
+    if (!/^[a-z0-9-]{1,40}$/.test(nom) || nom === 'logo') throw new BadRequestException('Nom d\'image invalide');
+    await this.findOne(organisationId);
+    const dossier = path.resolve(this.storageRoot, 'organisations', organisationId);
+    await fs.mkdir(dossier, { recursive: true });
+    const anciens = await fs.readdir(dossier).catch(() => [] as string[]);
+    await Promise.all(
+      anciens.filter((f) => f.startsWith(`${nom}.`)).map((f) => fs.unlink(path.join(dossier, f)).catch(() => undefined)),
+    );
+    const extension = this.extensionSuivant(fichier.originalname, fichier.mimetype);
+    await fs.writeFile(path.join(dossier, `${nom}${extension}`), fichier.buffer);
+    return `/api/administration/organisations/${organisationId}/images/${nom}?v=${randomUUID()}`;
+  }
+
+  async resoudreImage(organisationId: string, nom: string): Promise<{ cheminAbsolu: string; typeMime: string } | null> {
+    if (!/^[a-z0-9-]{1,40}$/.test(nom)) return null;
+    const dossier = path.resolve(this.storageRoot, 'organisations', organisationId);
+    const fichiers = await fs.readdir(dossier).catch(() => [] as string[]);
+    const image = fichiers.find((f) => f.startsWith(`${nom}.`));
+    if (!image) return null;
+    return { cheminAbsolu: path.join(dossier, image), typeMime: this.typeMime(path.extname(image)) };
+  }
+
   async resoudreLogo(organisationId: string): Promise<{ cheminAbsolu: string; typeMime: string } | null> {
     const dossier = path.resolve(this.storageRoot, 'organisations', organisationId);
     const fichiers = await fs.readdir(dossier).catch(() => [] as string[]);

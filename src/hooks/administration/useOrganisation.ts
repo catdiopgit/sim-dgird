@@ -3,7 +3,7 @@ import { message } from '../../lib/notifications';
 import {
   fetchOrganisation,
   updateOrganisation,
-  uploadOrganisationImage,
+  uploadImageEntete, uploadOrganisationImage,
   type OrganisationUpdate,
 } from '../../services/administration/organisations';
 
@@ -31,6 +31,13 @@ export function useUpdateOrganisation(organisationId: string | undefined) {
 export function useUploadOrganisationImage(organisationId: string | undefined) {
   return useMutation({
     mutationFn: (file: File) => uploadOrganisationImage(organisationId!, file),
+    onError: (error: Error) => message.error(error.message),
+  });
+}
+
+export function useUploadImageEntete(organisationId: string | undefined) {
+  return useMutation({
+    mutationFn: (file: File) => uploadImageEntete(organisationId!, file),
     onError: (error: Error) => message.error(error.message),
   });
 }

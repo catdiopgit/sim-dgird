@@ -137,6 +137,27 @@ export class OrganisationsController {
     res.sendFile(logo.cheminAbsolu);
   }
 
+  @Post(':id/images/:nom')
+  @RequirePermission('administration', 'modifier')
+  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: TAILLE_MAX_LOGO_OCTETS } }))
+  async uploadImage(@Param('id') id: string, @Param('nom') nom: string, @UploadedFile() file: Express.Multer.File | undefined) {
+    if (!file) throw new BadRequestException('Fichier requis');
+    const url = await this.organisationsService.uploadImage(id, nom, file);
+    return { url };
+  }
+
+  @Public()
+  @Get(':id/images/:nom')
+  async getImage(@Param('id') id: string, @Param('nom') nom: string, @Res() res: Response) {
+    const image = await this.organisationsService.resoudreImage(id, nom);
+    if (!image) {
+      res.status(404).end();
+      return;
+    }
+    res.type(image.typeMime);
+    res.sendFile(image.cheminAbsolu);
+  }
+
   @Get(':id/smtp')
   @RequirePermission('administration', 'consulter')
   getParametresSmtp(@Param('id') id: string) {

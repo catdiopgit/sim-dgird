@@ -11,7 +11,7 @@ import { Input } from '../../../components/ui/input';
 import { EnTeteSection } from '../../../components/ui/page-header';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { CLE_ENTETE_DOCUMENT, useEnteteDocument, type EnteteDocument } from '../../../hooks/administration/useEnteteDocument';
-import { useUploadOrganisationImage } from '../../../hooks/administration/useOrganisation';
+import { useUploadImageEntete } from '../../../hooks/administration/useOrganisation';
 import {
   useParametreOrganisationMutations,
   useParametresOrganisation,
@@ -25,7 +25,8 @@ interface Props {
 
 const schema = z.object({
   lignes: z.array(z.object({ valeur: z.string() })),
-  logoDroitUrl: z.string().url('URL invalide').optional().or(z.literal('')),
+  // URL relative de l'API (/api/administration/organisations/…/images/logo-droit).
+  logoDroitUrl: z.string().optional(),
   piedDePage: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
@@ -46,7 +47,7 @@ function versFormValues(entete: EnteteDocument): FormValues {
 export function EnteteDocumentManager({ organisationId, peutModifier }: Props) {
   const { isLoading } = useParametresOrganisation(organisationId);
   const { upsert } = useParametreOrganisationMutations(organisationId);
-  const uploadImage = useUploadOrganisationImage(organisationId);
+  const uploadImage = useUploadImageEntete(organisationId);
   const entete = useEnteteDocument(organisationId);
 
   const {

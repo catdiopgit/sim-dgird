@@ -25,6 +25,14 @@ export async function updateOrganisation(id: string, patch: OrganisationUpdate):
 // disque local (STORAGE_ROOT/organisations, server/administration/organisations)
 // et servi par un endpoint public dédié (les logos doivent rester visibles sans
 // authentification, comme /administration/organisations/branding).
+// Image de l'en-tête des documents (logo droit), distincte du logo de l'organisation.
+export async function uploadImageEntete(organisationId: string, file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { url } = await api.upload<{ url: string }>(`/administration/organisations/${organisationId}/images/logo-droit`, formData);
+  return url;
+}
+
 export async function uploadOrganisationImage(organisationId: string, file: File): Promise<string> {
   const formData = new FormData();
   formData.append('file', file);

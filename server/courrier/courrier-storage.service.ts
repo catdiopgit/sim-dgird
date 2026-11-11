@@ -11,6 +11,7 @@ import { WorkflowHistorique } from '../workflow/entities/workflow-historique.ent
 import { Courrier } from './entities/courrier.entity';
 import { CourrierPieceJointe } from './entities/courrier-piece-jointe.entity';
 import { CourriersService } from './courriers.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export interface FichierEntrant {
   buffer: Buffer;
@@ -39,6 +40,7 @@ export class CourrierStorageService {
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly authorizationService: AuthorizationService,
     private readonly courriersService: CourriersService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async listByCourrier(courrierId: string, user: AuthenticatedUser): Promise<CourrierPieceJointe[]> {
@@ -201,20 +203,23 @@ export class CourrierStorageService {
             "select prenom || ' ' || nom as nom from utilisateurs where id = $1",
             [user.id],
           );
-          await manager.query(
-            `insert into notifications (destinataire_id, module_id, titre, message, objet_module, objet_id)
-             select distinct u.id, (select id from modules where code = 'courrier'), $2, $3, 'courrier', $1
-             from entites e
+          const destinataires: Array<{ id: string }> = await manager.query(
+            `select distinct u.id from entites e
              join utilisateurs u on u.id in (e.responsable_utilisateur_id, e.personne_receptrice_id)
-             where e.id = $4 and u.id <> $5`,
-            [
-              courrierId,
-              `Décharge reçue : ${courrierApres.numero || courrierApres.objet}`,
-              `${courrierApres.objet}\nDécharge ajoutée par ${auteur[0]?.nom ?? '—'} — le courrier est clôturé.`,
-              courrierApres.entiteId,
-              user.id,
-            ],
+             where e.id = $1::uuid and u.id <> $2::uuid`,
+            [courrierApres.entiteId, user.id],
           );
+          const moduleRows: Array<{ id: string }> = await manager.query("select id from modules where code = 'courrier'");
+          for (const d of destinataires) {
+            await this.notificationsService.notifier(manager, {
+              destinataireId: d.id,
+              moduleId: moduleRows[0]?.id ?? null,
+              titre: `Décharge reçue : ${courrierApres.numero || courrierApres.objet}`,
+              message: `${courrierApres.objet}\nDécharge ajoutée par ${auteur[0]?.nom ?? '—'} — le courrier est clôturé.`,
+              objetModule: 'courrier',
+              objetId: courrierId,
+            });
+          }
         }
       }
 

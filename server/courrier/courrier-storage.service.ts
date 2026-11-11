@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { AuthorizationService } from '../administration/permissions/authorization.service';
 import { getStorageRoot } from '../config/storage.config';
@@ -63,7 +63,7 @@ export class CourrierStorageService {
         this.piecesJointes.create({
           courrierId,
           storagePath,
-          nomFichier: this.nomSanitise(fichier.originalname),
+          nomFichier: await this.nomNormalise(courrier, fichier.originalname, estScan ? 'principal' : 'pj'),
           tailleOctets: fichier.size,
           typeMime: fichier.mimetype || null,
           estScan,
@@ -139,7 +139,7 @@ export class CourrierStorageService {
         manager.create(CourrierPieceJointe, {
           courrierId,
           storagePath,
-          nomFichier: this.nomSanitise(fichier.originalname),
+          nomFichier: await this.nomNormalise(courrier, fichier.originalname, 'decharge', manager),
           tailleOctets: fichier.size,
           typeMime: fichier.mimetype || null,
           estDecharge: true,
@@ -306,6 +306,28 @@ export class CourrierStorageService {
   private nomOrigine(nom: string): string {
     const recode = Buffer.from(nom, 'latin1').toString('utf8');
     return recode.includes('�') ? nom : recode;
+  }
+
+  // Recette 2026-11 : nommage normalisé à partir du numéro du courrier,
+  // « / » remplacés par « _ » : 00002_MI_DGIRD_DPRRA_Principal.pdf,
+  // …_PJ1.pdf, …_PJ2.docx, …_DC1.pdf. L'extension d'origine est conservée.
+  private async nomNormalise(
+    courrier: Courrier,
+    nomOriginal: string,
+    nature: 'principal' | 'pj' | 'decharge',
+    manager?: EntityManager,
+  ): Promise<string> {
+    const ext = path.extname(this.nomOrigine(nomOriginal)).toLowerCase().replace(/[^.a-z0-9]/g, '');
+    const base = (courrier.numero || courrier.id).replace(/[\\/]+/g, '_').replace(/[^\w.\-]+/g, '_');
+    if (nature === 'principal') return `${base}_Principal${ext}`;
+    const runner = manager ?? this.dataSource.manager;
+    const rows: Array<{ n: number }> = await runner.query(
+      nature === 'decharge'
+        ? 'select count(*)::int as n from courrier_pieces_jointes where courrier_id = $1 and est_decharge'
+        : 'select count(*)::int as n from courrier_pieces_jointes where courrier_id = $1 and not est_decharge and not est_scan',
+      [courrier.id],
+    );
+    return `${base}_${nature === 'decharge' ? 'DC' : 'PJ'}${(rows[0]?.n ?? 0) + 1}${ext}`;
   }
 
   private nomSanitise(nom: string): string {

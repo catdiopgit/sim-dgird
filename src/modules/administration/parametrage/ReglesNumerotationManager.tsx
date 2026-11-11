@@ -14,8 +14,10 @@ import { NativeSelect } from '../../../components/ui/native-select';
 import { ariaErreur } from '../../../lib/form';
 import { useEntites } from '../../../hooks/administration/useEntites';
 import {
+  useListesValeurs,
   useRegleNumerotationMutations,
   useReglesNumerotation,
+  useValeursListes,
 } from '../../../hooks/administration/useParametrage';
 import { useModulesActions } from '../../../hooks/administration/useRolesAdmin';
 import type { RegleNumerotation } from '../../../services/administration/parametrage';
@@ -31,6 +33,9 @@ const schema = z.object({
   format: z.string().min(1, 'Requis'),
   reinitialisation: z.enum(['annuelle', 'mensuelle', 'jamais']),
   niveauRacineChemin: z.number().nullable().optional(),
+  // Recette 2026-11 : sens du courrier (arrivée / départ / interne) et numéro de départ.
+  valeurListeId: z.string().optional(),
+  prochainNumero: z.number().int().min(1, 'Minimum 1').nullable().optional(),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -49,6 +54,10 @@ export function ReglesNumerotationManager({ organisationId, peutModifier }: Prop
 
   const moduleParId = useMemo(() => new Map((modules.data ?? []).map((m) => [m.id, m.libelle])), [modules.data]);
   const entiteParId = useMemo(() => new Map((entites ?? []).map((e) => [e.id, e.libelle])), [entites]);
+  const { data: listes } = useListesValeurs(organisationId);
+  const listeSens = (listes ?? []).find((l) => l.code === 'courrier_sens');
+  const { data: valeursSens } = useValeursListes(listeSens?.id);
+  const sensParId = useMemo(() => new Map((valeursSens ?? []).map((v) => [v.id, v.libelle])), [valeursSens]);
 
   const {
     register,
@@ -57,12 +66,12 @@ export function ReglesNumerotationManager({ organisationId, peutModifier }: Prop
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { moduleId: '', entiteId: '', format: '', reinitialisation: 'annuelle', niveauRacineChemin: null },
+    defaultValues: { moduleId: '', entiteId: '', format: '', reinitialisation: 'annuelle', niveauRacineChemin: null, valeurListeId: '', prochainNumero: null },
   });
 
   useEffect(() => {
     if (edition === 'nouveau') {
-      reset({ moduleId: '', entiteId: '', format: '', reinitialisation: 'annuelle', niveauRacineChemin: null });
+      reset({ moduleId: '', entiteId: '', format: '', reinitialisation: 'annuelle', niveauRacineChemin: null, valeurListeId: '', prochainNumero: null });
     } else if (edition) {
       reset({
         moduleId: edition.module_id,
@@ -70,6 +79,8 @@ export function ReglesNumerotationManager({ organisationId, peutModifier }: Prop
         format: edition.format,
         reinitialisation: edition.reinitialisation,
         niveauRacineChemin: edition.niveau_racine_chemin,
+        valeurListeId: edition.valeur_liste_id ?? '',
+        prochainNumero: edition.sequence_courante + 1,
       });
     }
   }, [edition, reset]);
@@ -81,6 +92,12 @@ export function ReglesNumerotationManager({ organisationId, peutModifier }: Prop
       format: values.format,
       reinitialisation: values.reinitialisation,
       niveau_racine_chemin: values.niveauRacineChemin ?? null,
+      valeur_liste_id: values.valeurListeId || null,
+      // « Prochain numéro » = n : la séquence courante devient n - 1 ; la date de
+      // remise à zéro est posée pour que le compteur ne soit pas réinitialisé.
+      ...(values.prochainNumero
+        ? { sequence_courante: values.prochainNumero - 1, derniere_reinitialisation_le: new Date().toISOString() }
+        : {}),
     };
     if (edition === 'nouveau') {
       create.mutate({ organisation_id: organisationId, ...patch }, { onSuccess: () => setEdition(null) });
@@ -128,12 +145,17 @@ export function ReglesNumerotationManager({ organisationId, peutModifier }: Prop
             rendu: (r) =>
               r.entite_id ? entiteParId.get(r.entite_id) : <span className="text-muted-foreground">Organisation entière</span>,
           },
+          {
+            cle: 'sens',
+            titre: 'Sens',
+            rendu: (r) => (r.valeur_liste_id ? (sensParId.get(r.valeur_liste_id) ?? '—') : <span className="text-muted-foreground">Tous</span>),
+          },
           { cle: 'format', titre: 'Format', rendu: (r) => <span className="font-mono text-[12px]">{r.format}</span> },
           {
             cle: 'sequence',
-            titre: 'Séquence',
-            className: 'w-24 text-right tabular-nums',
-            rendu: (r) => r.sequence_courante,
+            titre: 'Prochain numéro',
+            className: 'w-32 text-right tabular-nums',
+            rendu: (r) => r.sequence_courante + 1,
           },
           {
             cle: 'reinitialisation',
@@ -217,6 +239,34 @@ export function ReglesNumerotationManager({ organisationId, peutModifier }: Prop
               placeholder="Depuis la racine"
               {...ariaErreur('regle-niveau', errors.niveauRacineChemin)}
               {...register('niveauRacineChemin', { setValueAs: (v) => (v === '' || v === null ? null : Number(v)) })}
+            />
+          </Champ>
+          <Champ
+            label="Sens du courrier"
+            htmlFor="regle-sens"
+            aide="Module Courrier : une règle par sens (arrivée, départ, interne). Vide = tous les sens."
+          >
+            <NativeSelect id="regle-sens" {...register('valeurListeId')}>
+              <option value="">Tous les sens</option>
+              {(valeursSens ?? []).map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.libelle}
+                </option>
+              ))}
+            </NativeSelect>
+          </Champ>
+          <Champ
+            label="Prochain numéro"
+            htmlFor="regle-prochain"
+            aide="Numéro attribué au prochain courrier (ex. 1203 pour reprendre la suite du registre papier)."
+            erreur={errors.prochainNumero?.message}
+          >
+            <Input
+              id="regle-prochain"
+              type="number"
+              min={1}
+              step={1}
+              {...register('prochainNumero', { setValueAs: (v) => (v === '' || v === null ? null : Number(v)) })}
             />
           </Champ>
           <Champ label="Réinitialisation" htmlFor="regle-reinitialisation">

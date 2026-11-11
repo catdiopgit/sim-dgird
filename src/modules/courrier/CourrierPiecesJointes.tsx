@@ -54,7 +54,7 @@ export function CourrierPiecesJointes({ courrierId, peutModifier }: Props) {
                 onChange={(e) => setEstScan(e.target.checked)}
                 className="size-4 rounded accent-[var(--primary)]"
               />
-              Scan du courrier
+              Document principal
             </label>
             <input
               ref={inputRef}
@@ -97,7 +97,7 @@ export function CourrierPiecesJointes({ courrierId, peutModifier }: Props) {
                       <span className="truncate text-[13px] font-medium" title={p.nom_fichier}>
                         {p.nom_fichier}
                       </span>
-                      {p.est_scan && <Badge variant="muted">Scan</Badge>}
+                      {p.est_scan && <Badge variant="muted">Document principal</Badge>}
                       {p.est_decharge && <Badge variant="success">Décharge</Badge>}
                     </div>
                     <div className="text-[12px] text-muted-foreground">{details}</div>

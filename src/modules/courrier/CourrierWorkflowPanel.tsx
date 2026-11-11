@@ -32,6 +32,14 @@ const LIBELLE_TYPE_ACTION: Record<TypeActionCourrier, string> = {
   redirection: 'Redirection',
 };
 
+// Commentaires techniques écrits automatiquement par le serveur : sans intérêt
+// pour l'utilisateur, ils ne sont pas affichés dans l'historique du circuit.
+// Les commentaires saisis par les utilisateurs (instructions, motifs) le restent.
+const COMMENTAIRES_SYSTEME = new Set([
+  'Démarrage du workflow',
+  'Étape initiale automatique (configuration Administration > Paramètres > Courrier)',
+]);
+
 export function CourrierWorkflowPanel({ courrier, organisationId }: Props) {
   const { data: instance, isLoading: chargementInstance } = useWorkflowInstance(courrier.id);
   const { data: etapes } = useWorkflowEtapes(instance?.workflow_definition_id);
@@ -168,9 +176,11 @@ export function CourrierWorkflowPanel({ courrier, organisationId }: Props) {
                         // pour un courrier départ), soit une clôture (ex. décharge, cf.
                         // fn_ajouter_decharge_courrier) où le commentaire porte le libellé de
                         // l'événement puisque l'étape n'a pas changé.
-                        !h.transition_id && !h.etape_precedente_id && courrier.sens === 'sortant'
-                        ? 'Enregistrement courrier départ'
-                        : !h.transition_id && h.commentaire
+                        !h.transition_id && !h.etape_precedente_id
+                        ? courrier.sens === 'sortant'
+                          ? 'Enregistrement courrier départ'
+                          : 'Enregistrement du courrier'
+                        : !h.transition_id && h.commentaire && !COMMENTAIRES_SYSTEME.has(h.commentaire)
                           ? h.commentaire
                           : (etapeParId.get(h.etape_suivante_id)?.libelle ?? h.etape_suivante_id);
                     const auteur = h.utilisateur_id ? utilisateurParId.get(h.utilisateur_id) : undefined;
@@ -200,7 +210,7 @@ export function CourrierWorkflowPanel({ courrier, organisationId }: Props) {
                             {principal.instruction && <div className="italic">« {principal.instruction} »</div>}
                           </div>
                         )}
-                        {!principal && h.transition_id && h.commentaire && (
+                        {!principal && h.transition_id && h.commentaire && !COMMENTAIRES_SYSTEME.has(h.commentaire) && (
                           <div className="mt-1 text-[13px] italic text-muted-foreground">« {h.commentaire} »</div>
                         )}
                         <div className="mt-1 text-[12px] text-muted-foreground">

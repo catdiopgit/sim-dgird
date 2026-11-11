@@ -342,7 +342,9 @@ export class CourriersService {
         etapePrecedenteId: etapeInitiale.id,
         etapeSuivanteId: etapeCible.id,
         utilisateurId: user.id,
-        commentaire: 'Étape initiale automatique (configuration Administration > Paramètres > Courrier)',
+        // Passage automatique à l'étape initiale configurée : pas de commentaire
+        // technique (il s'afficherait dans l'historique du circuit).
+        commentaire: null,
       }),
     );
     await manager.update(WorkflowInstance, instance.id, { etapeCouranteId: etapeCible.id, etapeCouranteDepuis: new Date() });

@@ -226,7 +226,7 @@ export function CourrierDetailPage() {
           {/* Version 5 §3/§13 : sur un courrier arrivé, l'imputation se fait
               désormais via les actions modales du workflow (CourrierWorkflowPanel)
               — le panneau statique ci-dessous reste utile pour départ/interne. */}
-          {courrier.sens !== 'entrant' && (
+          {courrier.sens === 'interne' && (
             <CourrierImputationPanel courrier={courrier} organisationId={organisationId} peutModifier={peutModifier} />
           )}
           <CourrierAuditCard courrierId={courrier.id} organisationId={organisationId} />

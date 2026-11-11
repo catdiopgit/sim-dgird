@@ -21,7 +21,8 @@ import { uploadPieceJointe } from '../../../services/courrier/piecesJointes';
 import { fr } from '../../../utils/dateFr';
 import { FicheExploitationModal } from '../FicheExploitationModal';
 import { ContactRapide } from './ContactRapide';
-import { PiecesJointesStagingList, type PieceJointeStagee } from './PiecesJointesStagingList';
+import { DocumentsArriveStaging } from './DocumentsArriveStaging';
+import type { PieceJointeStagee } from './PiecesJointesStagingList';
 
 const schema = z.object({
   objet: z.string().min(1, 'Requis'),
@@ -55,7 +56,7 @@ interface Ampliataire {
   interne: boolean;
 }
 
-const ETAPES = ['Informations', 'Pièces jointes', 'Destinataires', 'Récapitulatif', 'Confirmation'];
+const ETAPES = ['Informations', 'Documents', 'Destinataires', 'Récapitulatif', 'Confirmation'];
 const TYPES_AMPLIATAIRE: { valeur: AmpliataireType; libelle: string; Icone: typeof Building2 }[] = [
   { valeur: 'entite', libelle: 'Entité (interne)', Icone: Building2 },
   { valeur: 'utilisateur', libelle: 'Utilisateur (interne)', Icone: User },
@@ -82,6 +83,7 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
 
   const [etape, setEtape] = useState(0);
   const [fichiers, setFichiers] = useState<PieceJointeStagee[]>([]);
+  const [erreurDocument, setErreurDocument] = useState<string | undefined>();
   const [contactPrincipalId, setContactPrincipalId] = useState('');
   const [ampliataires, setAmpliataires] = useState<Ampliataire[]>([]);
   const [ampliCibleType, setAmpliCibleType] = useState<AmpliataireType>('entite');
@@ -125,6 +127,12 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
       const valide = await trigger(['objet', 'entiteId']);
       if (!valide) return;
     }
+    // Recette 2026-11 : le courrier signé (document principal) est obligatoire.
+    if (etape === 1 && !fichiers.some((f) => f.estScan)) {
+      setErreurDocument('Le document principal est obligatoire : choisissez le PDF du courrier signé ou numérisez-le.');
+      return;
+    }
+    setErreurDocument(undefined);
     setEtape((e) => e + 1);
   };
   const precedent = () => setEtape((e) => e - 1);
@@ -146,6 +154,11 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
   };
 
   const valider = handleSubmit(async (values) => {
+    if (!fichiers.some((f) => f.estScan)) {
+      setEtape(1);
+      setErreurDocument('Le document principal est obligatoire.');
+      return;
+    }
     setEnCours(true);
     try {
       const courrier = await creer.mutateAsync({
@@ -278,7 +291,7 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
         </div>
       )}
 
-      {etape === 1 && <PiecesJointesStagingList fichiers={fichiers} onChange={setFichiers} />}
+      {etape === 1 && <DocumentsArriveStaging fichiers={fichiers} onChange={setFichiers} erreurPrincipal={erreurDocument} />}
 
       {etape === 2 && (
         <div className="space-y-6">
@@ -400,10 +413,11 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
               )}
             </LigneRecap>
             <LigneRecap label="Observations">{valeurs.observations}</LigneRecap>
+            <LigneRecap label="Document principal">{fichiers.find((f) => f.estScan)?.file.name}</LigneRecap>
             <LigneRecap label="Pièces jointes">
-              {fichiers.length > 0 && (
+              {fichiers.some((f) => !f.estScan) && (
                 <span className="flex flex-wrap gap-1.5">
-                  {fichiers.map((f) => (
+                  {fichiers.filter((f) => !f.estScan).map((f) => (
                     <Badge key={f.id} variant={f.estScan ? 'primary' : 'muted'}>
                       {f.file.name}
                     </Badge>

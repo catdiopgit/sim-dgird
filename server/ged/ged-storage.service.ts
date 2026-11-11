@@ -124,7 +124,7 @@ export class GedStorageService {
   }
 
   private async ecrireFichier(documentId: string, fichier: FichierEntrant): Promise<string> {
-    const relatif = `${documentId}/${randomUUID()}-${this.nomSanitise(fichier.originalname)}`;
+    const relatif = `${documentId}/${randomUUID()}-${this.nomDisque(fichier.originalname)}`;
     const absolu = this.resoudreCheminSecurise(relatif);
     await fs.mkdir(path.dirname(absolu), { recursive: true });
     await fs.writeFile(absolu, fichier.buffer);
@@ -148,8 +148,26 @@ export class GedStorageService {
     return absolu;
   }
 
+  // Multer/busboy décode le nom de fichier en latin1 : on le ré-interprète en
+  // UTF-8 (« Présentation » et non « PrÃ©sentation »), puis on garde les lettres
+  // accentuées pour l'affichage. Le chemin disque, lui, reste en ASCII.
+  private nomOrigine(nom: string): string {
+    const recode = Buffer.from(nom, 'latin1').toString('utf8');
+    return recode.includes('�') ? nom : recode;
+  }
+
   private nomSanitise(nom: string): string {
-    const base = path.basename(nom).replace(/[^\w.\- ]+/g, '_').trim();
+    const base = path.basename(this.nomOrigine(nom)).replace(/[^\p{L}\p{N}._\- ()]+/gu, '_').trim();
+    return base.slice(0, 200) || 'fichier';
+  }
+
+  private nomDisque(nom: string): string {
+    const base = path
+      .basename(this.nomOrigine(nom))
+      .normalize('NFD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^\w.\- ]+/g, '_')
+      .trim();
     return base.slice(0, 200) || 'fichier';
   }
 }

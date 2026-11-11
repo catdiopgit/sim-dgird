@@ -21,6 +21,7 @@ class ImputerCourrierDto implements ImputerCourrierData {
   @IsOptional() @IsString() commentaire?: string | null;
   @IsOptional() @IsIn(TYPES_ACTION) typeAction?: TypeActionCourrier | null;
   @IsOptional() @IsArray() @IsUUID('4', { each: true }) entitesCopieIds?: string[] | null;
+  @IsOptional() @IsArray() @IsUUID('4', { each: true }) utilisateursCopieIds?: string[] | null;
   @IsOptional() @IsArray() @IsUUID('4', { each: true }) actionsDemandeesIds?: string[] | null;
   @IsOptional() @IsUUID() prioriteValeurId?: string | null;
 }

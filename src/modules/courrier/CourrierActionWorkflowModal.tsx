@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import { Info } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Champ } from '../../components/form/champ';
 import { FormDialog } from '../../components/form/form-dialog';
 import { ListeCases } from '../../components/ui/checkbox';
@@ -8,6 +8,7 @@ import { Input, Textarea } from '../../components/ui/input';
 import { NativeSelect } from '../../components/ui/native-select';
 import { useEntites, useUtilisateursOptions } from '../../hooks/administration/useEntites';
 import { useCourrierReferentiel } from '../../hooks/courrier/useCourriers';
+import { useDestinataires } from '../../hooks/courrier/useDestinataires';
 import {
   useEntitesImputables,
   useEntitesTransmissibles,
@@ -58,6 +59,7 @@ export function CourrierActionWorkflowModal({
   const { data: entitesOrganisation } = useEntites(organisationId);
   const { data: referentiel } = useCourrierReferentiel(organisationId);
   const imputer = useImputerCourrier(courrier.id);
+  const { data: destinataires } = useDestinataires(open ? courrier.id : undefined);
 
   // « Imputer à » : entités du périmètre d'affectation (imputation/
   // affectation) ou de transmission (transmission/redirection), + personnes
@@ -88,15 +90,27 @@ export function CourrierActionWorkflowModal({
   );
 
   const [cibleValeur, setCibleValeur] = useState('');
-  const [entitesCopieIds, setEntitesCopieIds] = useState<string[]>([]);
+  // « En copie » mélange entités et personnes : valeurs préfixées entite:/personne:.
+  const [copieValeurs, setCopieValeurs] = useState<string[]>([]);
   const [actionsDemandeesIds, setActionsDemandeesIds] = useState<string[]>([]);
   const [prioriteValeurId, setPrioriteValeurId] = useState(courrier.priorite_valeur_id ?? '');
   const [dateLimite, setDateLimite] = useState('');
   const [observation, setObservation] = useState('');
 
+  // Date limite proposée = échéance de l'étape précédente (ex. celle fixée par
+  // le DG à l'imputation), modifiable. Seulement si elle n'est pas dépassée.
+  const echeancePrecedente = useMemo(() => {
+    const avecEcheance = (destinataires ?? []).filter((d) => d.type_diffusion === 'principal' && d.echeance);
+    const derniere = avecEcheance.at(-1)?.echeance ?? '';
+    return derniere && !dayjs(derniere).isBefore(dayjs(), 'day') ? derniere.slice(0, 10) : '';
+  }, [destinataires]);
+  useEffect(() => {
+    if (open && echeancePrecedente) setDateLimite((actuelle) => actuelle || echeancePrecedente);
+  }, [open, echeancePrecedente]);
+
   const reinitialiser = () => {
     setCibleValeur('');
-    setEntitesCopieIds([]);
+    setCopieValeurs([]);
     setActionsDemandeesIds([]);
     setPrioriteValeurId(courrier.priorite_valeur_id ?? '');
     setDateLimite('');
@@ -107,6 +121,9 @@ export function CourrierActionWorkflowModal({
     onClose();
     reinitialiser();
   };
+
+  const idsCopie = (prefixe: 'entite' | 'personne') =>
+    copieValeurs.filter((v) => v.startsWith(`${prefixe}:`)).map((v) => v.slice(prefixe.length + 1));
 
   const onValider = () => {
     if (!cibleValeur) return;
@@ -136,7 +153,8 @@ export function CourrierActionWorkflowModal({
         p_echeance: dateLimite || null,
         p_transition_id: transitionId,
         p_type_action: typeAction,
-        p_entites_copie_ids: entitesCopieIds.length > 0 ? entitesCopieIds : null,
+        p_entites_copie_ids: idsCopie('entite').length > 0 ? idsCopie('entite') : null,
+        p_utilisateurs_copie_ids: idsCopie('personne').length > 0 ? idsCopie('personne') : null,
         p_actions_demandees_ids: actionsDemandeesIds.length > 0 ? actionsDemandeesIds : null,
         p_priorite_valeur_id: prioriteValeurId || null,
       },
@@ -161,7 +179,11 @@ export function CourrierActionWorkflowModal({
       libelleValider={`Valider l'${libelle.toLowerCase()}`}
       largeur="lg"
     >
-      <Champ label={estTransmissionOuRedirection ? 'Transmettre à' : 'Imputer à'} htmlFor="action-cible" requis>
+      <Champ
+        label={estTransmissionOuRedirection ? 'Transmettre à' : typeAction === 'affectation' ? 'Affecter à' : 'Imputer à'}
+        htmlFor="action-cible"
+        requis
+      >
         <NativeSelect id="action-cible" autoFocus value={cibleValeur} onChange={(e) => setCibleValeur(e.target.value)}>
           <option value="">Choisir l'entité ou {estTransmissionOuRedirection ? 'la personne' : "l'agent"}</option>
           <optgroup label="Entités">
@@ -193,13 +215,25 @@ export function CourrierActionWorkflowModal({
       </Champ>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Champ label="En copie" htmlFor="action-copie" aide={entitesCopieIds.length > 0 ? `${entitesCopieIds.length} entité(s) sélectionnée(s)` : undefined}>
+        <Champ
+          label="En copie"
+          htmlFor="action-copie"
+          aide={copieValeurs.length > 0 ? `${copieValeurs.length} destinataire(s) en copie` : 'Entités ou personnes'}
+        >
           <ListeCases
             id="action-copie"
-            options={(entitesImputables ?? []).map((e) => ({ valeur: e.id, libelle: e.libelle }))}
-            valeurs={entitesCopieIds}
-            onChange={setEntitesCopieIds}
-            vide="Aucune entité disponible"
+            options={[
+              ...(entitesImputables ?? []).map((e) => ({ valeur: `entite:${e.id}`, libelle: e.libelle })),
+              ...agentsImputables
+                .filter((u) => `personne:${u.id}` !== cibleValeur)
+                .map((u) => ({
+                  valeur: `personne:${u.id}`,
+                  libelle: `${u.prenom} ${u.nom} (${entiteParIdOrganisation.get(u.entiteId!) ?? '—'})`,
+                })),
+            ]}
+            valeurs={copieValeurs}
+            onChange={setCopieValeurs}
+            vide="Aucun destinataire disponible"
           />
         </Champ>
         <Champ label="Actions demandées" htmlFor="action-demandees">

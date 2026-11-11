@@ -11,7 +11,7 @@ import type { TypeActionCourrier } from '../workflow/entities/workflow-transitio
 import { Courrier } from './entities/courrier.entity';
 import { CourrierDestinataire } from './entities/courrier-destinataire.entity';
 import { courrierVersContexte, resoudreDestinataireCourantCourrier } from './courrier-contexte.util';
-import { CourriersService } from './courriers.service';
+import { CourriersService, definirAuteur } from './courriers.service';
 
 export interface TransitionDisponible {
   transitionId: string;
@@ -31,6 +31,8 @@ export interface ImputerCourrierData {
   commentaire?: string | null;
   typeAction?: TypeActionCourrier | null;
   entitesCopieIds?: string[] | null;
+  // Recette 2026-11 : copie à une personne (agent du périmètre de l'utilisateur).
+  utilisateursCopieIds?: string[] | null;
   actionsDemandeesIds?: string[] | null;
   prioriteValeurId?: string | null;
 }
@@ -106,16 +108,21 @@ export class CourrierWorkflowService {
     if (!autorise) throw new ForbiddenException("Vous n'êtes pas autorisé à agir sur ce courrier");
     if (!courrier.workflowInstanceId) throw new BadRequestException("Ce courrier n'a pas de workflow associé");
 
-    await this.workflowEngineService.executerTransition(
-      courrier.workflowInstanceId,
-      transitionId,
-      user.id,
-      commentaire,
-      courrier.entiteId,
-      courrierVersContexte(courrier),
-      undefined,
-      destinataireCourant,
-    );
+    const workflowInstanceId = courrier.workflowInstanceId;
+    await this.dataSource.transaction(async (manager) => {
+      // Auteur des modifications induites (étape, entité…) dans le journal d'audit.
+      await definirAuteur(manager, user.id);
+      await this.workflowEngineService.executerTransition(
+        workflowInstanceId,
+        transitionId,
+        user.id,
+        commentaire,
+        courrier.entiteId,
+        courrierVersContexte(courrier),
+        manager,
+        destinataireCourant,
+      );
+    });
   }
 
   // Portage de app.fn_imputer_courrier, corps 0054 — avec correction assumée
@@ -125,6 +132,7 @@ export class CourrierWorkflowService {
   // introduite en 0043 ; listHistoriqueActions côté frontend en dépend).
   async imputerCourrier(courrierId: string, data: ImputerCourrierData, user: AuthenticatedUser): Promise<Courrier> {
     return this.dataSource.transaction(async (manager) => {
+      await definirAuteur(manager, user.id);
       const courrier = await manager.findOneBy(Courrier, { id: courrierId });
       if (!courrier || courrier.organisationId !== user.organisationId) {
         throw new NotFoundException('Courrier introuvable');
@@ -178,6 +186,23 @@ export class CourrierWorkflowService {
         const copie = await manager.save(
           CourrierDestinataire,
           manager.create(CourrierDestinataire, { courrierId, entiteId: copieId, typeDiffusion: 'copie' }),
+        );
+        destinatairesACorreler.push(copie);
+      }
+
+      for (const copieUtilisateurId of [...new Set(data.utilisateursCopieIds ?? [])]) {
+        if (copieUtilisateurId === data.agentId) continue;
+        const rows: Array<{ entite_id: string | null }> = await manager.query(
+          'select entite_id from utilisateurs where id = $1 and organisation_id = $2',
+          [copieUtilisateurId, user.organisationId],
+        );
+        const entiteCopie = rows[0]?.entite_id;
+        if (!entiteCopie || !(await this.authorizationService.hasPermission(user.id, 'courrier', 'affecter', entiteCopie))) {
+          throw new ForbiddenException("Vous n'êtes pas autorisé à mettre cette personne en copie");
+        }
+        const copie = await manager.save(
+          CourrierDestinataire,
+          manager.create(CourrierDestinataire, { courrierId, utilisateurId: copieUtilisateurId, typeDiffusion: 'copie' }),
         );
         destinatairesACorreler.push(copie);
       }

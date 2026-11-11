@@ -112,7 +112,7 @@ export function normaliserRecherche(texte: string): string {
 
 // Positionne l'auteur des écritures pour le trigger d'audit (auth.uid(),
 // migration 1794350000000) — local à la transaction en cours.
-async function definirAuteur(manager: EntityManager, userId: string): Promise<void> {
+export async function definirAuteur(manager: EntityManager, userId: string): Promise<void> {
   await manager.query(`select set_config('app.user_id', $1, true)`, [userId]);
 }
 

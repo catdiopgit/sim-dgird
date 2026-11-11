@@ -59,6 +59,7 @@ export interface ImputerCourrierPayload {
   // même route — le type d'action est une donnée, pas 4 endpoints parallèles.
   p_type_action?: TypeActionCourrier | null;
   p_entites_copie_ids?: string[] | null;
+  p_utilisateurs_copie_ids?: string[] | null;
   p_actions_demandees_ids?: string[] | null;
   p_priorite_valeur_id?: string | null;
 }
@@ -77,6 +78,7 @@ export async function imputerCourrier(payload: ImputerCourrierPayload): Promise<
     commentaire: payload.p_commentaire ?? null,
     typeAction: payload.p_type_action ?? null,
     entitesCopieIds: payload.p_entites_copie_ids ?? null,
+    utilisateursCopieIds: payload.p_utilisateurs_copie_ids ?? null,
     actionsDemandeesIds: payload.p_actions_demandees_ids ?? null,
     prioriteValeurId: payload.p_priorite_valeur_id ?? null,
   });

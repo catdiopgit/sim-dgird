@@ -122,6 +122,33 @@ export class CourrierWorkflowService {
         manager,
         destinataireCourant,
       );
+      // Note interne : « Diffuser » prévient chaque destinataire (personne, ou
+      // responsable + personne réceptrice d'une entité) — à la place des
+      // notifications génériques créées par le trigger pour cette transition.
+      if (courrier.sens === 'interne') {
+        const t: Array<{ code: string }> = await manager.query('select code from workflow_transitions where id = $1', [transitionId]);
+        if (t[0]?.code === 'diffuser' || t[0]?.code === 'cloturer-note') {
+          await manager.query('delete from notifications where objet_id = $1 and created_at >= now()', [courrierId]);
+        }
+        if (t[0]?.code === 'diffuser') {
+          const dest: Array<{ id: string }> = await manager.query(
+            `select distinct u.id from courrier_destinataires cd
+             left join entites e on e.id = cd.entite_id
+             join utilisateurs u on u.id = cd.utilisateur_id
+                                 or u.id = e.responsable_utilisateur_id
+                                 or u.id = e.personne_receptrice_id
+             where cd.courrier_id = $1 and u.id <> $2`,
+            [courrierId, user.id],
+          );
+          for (const d of dest) {
+            await manager.query(
+              `insert into notifications (destinataire_id, module_id, titre, message, objet_module, objet_id)
+               values ($1::uuid, (select id from modules where code = 'courrier'), $2::text, $3::text, 'courrier', $4::uuid)`,
+              [d.id, `Note interne : ${courrier.numero ?? ''}`.trim(), courrier.objet, courrierId],
+            );
+          }
+        }
+      }
       // Circuit départ : « Expédier » renseigne la date d'envoi si elle manque.
       if (courrier.sens === 'sortant' && !courrier.dateEnvoi) {
         const t: Array<{ code: string }> = await manager.query('select code from workflow_transitions where id = $1', [transitionId]);

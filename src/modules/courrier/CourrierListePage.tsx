@@ -79,6 +79,7 @@ export function CourrierListePage() {
   const [page, setPage] = useState(1);
   const [wizardArriveOuvert, setWizardArriveOuvert] = useState(false);
   const [wizardDepartOuvert, setWizardDepartOuvert] = useState(false);
+  const [wizardInterneOuvert, setWizardInterneOuvert] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setRecherche(saisie.trim()), 250);
@@ -237,7 +238,7 @@ export function CourrierListePage() {
                     <span className="block text-[12px] text-muted-foreground">Assistant de rédaction et d'envoi</span>
                   </span>
                 </DropdownMenuItem>
-                <DropdownMenuItem className="h-auto items-start py-2.5" onSelect={() => navigate('/courriers/nouveau?sens=interne')}>
+                <DropdownMenuItem className="h-auto items-start py-2.5" onSelect={() => setWizardInterneOuvert(true)}>
                   <ArrowLeftRight className="mt-0.5 text-gold" />
                   <span>
                     <span className="block font-medium">Courrier interne</span>
@@ -514,6 +515,17 @@ export function CourrierListePage() {
         onClose={() => setWizardArriveOuvert(false)}
         onTermine={(courrier) => {
           setWizardArriveOuvert(false);
+          navigate(`/courriers/${courrier.id}`);
+        }}
+      />
+
+      <CourrierDepartWizard
+        sens="interne"
+        open={wizardInterneOuvert}
+        organisationId={organisationId}
+        onClose={() => setWizardInterneOuvert(false)}
+        onTermine={(courrier) => {
+          setWizardInterneOuvert(false);
           navigate(`/courriers/${courrier.id}`);
         }}
       />

@@ -299,11 +299,11 @@ export class CourriersService {
       // (enregistrement → expédition → décharge), associés à la valeur 'sortant'
       // de la liste courrier_sens. Repli sur la règle / le circuit par défaut.
       let sensValeurId: string | null = null;
-      if (data.sens === 'sortant') {
+      if (data.sens === 'sortant' || data.sens === 'interne') {
         const sensRows: Array<{ id: string }> = await manager.query(
           `select vl.id from valeurs_listes vl join listes_valeurs lv on lv.id = vl.liste_id
-           where lv.organisation_id = $1 and lv.code = 'courrier_sens' and vl.code = 'sortant' limit 1`,
-          [user.organisationId],
+           where lv.organisation_id = $1 and lv.code = 'courrier_sens' and vl.code = $2 limit 1`,
+          [user.organisationId, data.sens],
         );
         sensValeurId = sensRows[0]?.id ?? null;
       }

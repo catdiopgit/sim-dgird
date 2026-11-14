@@ -32,6 +32,8 @@ const schema = z.object({
   dateCourrier: z.string().optional(),
   dateEnvoi: z.string().optional(),
   modeTransmissionValeurId: z.string().optional(),
+  prioriteValeurId: z.string().optional(),
+  confidentialiteValeurId: z.string().optional(),
   observations: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
@@ -44,6 +46,8 @@ const defauts = (): FormValues => ({
   dateCourrier: dayjs().format('YYYY-MM-DD'),
   dateEnvoi: '',
   modeTransmissionValeurId: '',
+  prioriteValeurId: '',
+  confidentialiteValeurId: '',
   observations: '',
 });
 
@@ -64,6 +68,9 @@ const TYPES_AMPLIATAIRE: { valeur: AmpliataireType; libelle: string; Icone: type
 ];
 
 interface Props {
+  // Recette 2026-11 : le même assistant sert aux notes internes (diffusion pour
+  // information, sans destinataire principal ni contact externe).
+  sens?: 'sortant' | 'interne';
   open: boolean;
   organisationId: string;
   onClose: () => void;
@@ -74,7 +81,8 @@ interface Props {
 // §9-11, §E) : informations → pièces jointes → destinataires (principal +
 // ampliataires internes/externes, contacts recherchables/créables à la
 // volée) → récapitulatif → confirmation avec numéro généré.
-export function CourrierDepartWizard({ open, organisationId, onClose, onTermine }: Props) {
+export function CourrierDepartWizard({ sens = 'sortant', open, organisationId, onClose, onTermine }: Props) {
+  const interne = sens === 'interne';
   const { data: referentiel } = useCourrierReferentiel(organisationId);
   const { data: entites } = useEntites(organisationId);
   const { data: utilisateurs } = useUtilisateursOptions(organisationId);
@@ -84,6 +92,7 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
   const [etape, setEtape] = useState(0);
   const [fichiers, setFichiers] = useState<PieceJointeStagee[]>([]);
   const [erreurDocument, setErreurDocument] = useState<string | undefined>();
+  const [erreurDestinataires, setErreurDestinataires] = useState<string | undefined>();
   const [contactPrincipalId, setContactPrincipalId] = useState('');
   const [ampliataires, setAmpliataires] = useState<Ampliataire[]>([]);
   const [ampliCibleType, setAmpliCibleType] = useState<AmpliataireType>('entite');
@@ -129,10 +138,15 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
     }
     // Recette 2026-11 : le courrier signé (document principal) est obligatoire.
     if (etape === 1 && !fichiers.some((f) => f.estScan)) {
-      setErreurDocument('Le document principal est obligatoire : choisissez le PDF du courrier signé ou numérisez-le.');
+      setErreurDocument('Le document principal est obligatoire : choisissez le PDF ou numérisez-le.');
+      return;
+    }
+    if (etape === 2 && interne && ampliataires.length === 0) {
+      setErreurDestinataires('Ajoutez au moins un destinataire (entité ou personne).');
       return;
     }
     setErreurDocument(undefined);
+    setErreurDestinataires(undefined);
     setEtape((e) => e + 1);
   };
   const precedent = () => setEtape((e) => e - 1);
@@ -161,18 +175,31 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
     }
     setEnCours(true);
     try {
-      const courrier = await creer.mutateAsync({
-        p_sens: 'sortant',
-        p_objet: values.objet,
-        p_entite_id: values.entiteId,
-        p_type_valeur_id: values.typeValeurId || null,
-        p_date_courrier: values.dateCourrier || null,
-        p_date_envoi: values.dateEnvoi ? dayjs(values.dateEnvoi).toISOString() : null,
-        p_mode_transmission_valeur_id: values.modeTransmissionValeurId || null,
-        p_destinataire_texte: contactPrincipalId ? libelleContact(contactPrincipalId) : null,
-        p_contact_destinataire_id: contactPrincipalId || null,
-        p_observations: values.observations || null,
-      });
+      const courrier = await creer.mutateAsync(
+        interne
+          ? {
+              p_sens: 'interne',
+              p_objet: values.objet,
+              p_entite_id: values.entiteId,
+              p_type_valeur_id: values.typeValeurId || null,
+              p_priorite_valeur_id: values.prioriteValeurId || null,
+              p_confidentialite_valeur_id: values.confidentialiteValeurId || null,
+              p_date_courrier: values.dateCourrier || null,
+              p_observations: values.observations || null,
+            }
+          : {
+              p_sens: 'sortant',
+              p_objet: values.objet,
+              p_entite_id: values.entiteId,
+              p_type_valeur_id: values.typeValeurId || null,
+              p_date_courrier: values.dateCourrier || null,
+              p_date_envoi: values.dateEnvoi ? dayjs(values.dateEnvoi).toISOString() : null,
+              p_mode_transmission_valeur_id: values.modeTransmissionValeurId || null,
+              p_destinataire_texte: contactPrincipalId ? libelleContact(contactPrincipalId) : null,
+              p_contact_destinataire_id: contactPrincipalId || null,
+              p_observations: values.observations || null,
+            },
+      );
 
       for (const f of fichiers) {
         await uploadPieceJointe(courrier.id, f.file, f.estScan);
@@ -241,7 +268,7 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
     <WizardDialog
       open={open}
       onClose={fermer}
-      titre="Nouveau courrier départ"
+      titre={interne ? 'Nouvelle note interne' : 'Nouveau courrier départ'}
       etapes={ETAPES}
       courante={etape}
       pied={pied}
@@ -253,7 +280,7 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
             <Input autoFocus {...ariaErreur('depart-objet', errors.objet)} {...register('objet')} />
           </Champ>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Champ label="Entité en charge" htmlFor="depart-entite" requis erreur={errors.entiteId?.message}>
+            <Champ label={interne ? 'Entité émettrice' : 'Entité en charge'} htmlFor="depart-entite" requis erreur={errors.entiteId?.message}>
               <NativeSelect {...ariaErreur('depart-entite', errors.entiteId)} {...register('entiteId')}>
                 <option value="">Sélectionner une entité</option>
                 {(entites ?? []).map((e) => (
@@ -272,18 +299,37 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
             <Champ label="Référence" htmlFor="depart-reference">
               <Input id="depart-reference" {...register('reference')} />
             </Champ>
-            <Champ label="Mode de transmission" htmlFor="depart-transmission">
-              <NativeSelect id="depart-transmission" {...register('modeTransmissionValeurId')}>
-                <option value="">—</option>
-                {options(referentiel?.modesTransmission)}
-              </NativeSelect>
-            </Champ>
-            <Champ label="Date du courrier" htmlFor="depart-date">
+            {interne ? (
+              <>
+                <Champ label="Priorité" htmlFor="interne-priorite">
+                  <NativeSelect id="interne-priorite" {...register('prioriteValeurId')}>
+                    <option value="">—</option>
+                    {options(referentiel?.priorites)}
+                  </NativeSelect>
+                </Champ>
+                <Champ label="Confidentialité" htmlFor="interne-confidentialite">
+                  <NativeSelect id="interne-confidentialite" {...register('confidentialiteValeurId')}>
+                    <option value="">—</option>
+                    {options(referentiel?.confidentialites)}
+                  </NativeSelect>
+                </Champ>
+              </>
+            ) : (
+              <Champ label="Mode de transmission" htmlFor="depart-transmission">
+                <NativeSelect id="depart-transmission" {...register('modeTransmissionValeurId')}>
+                  <option value="">—</option>
+                  {options(referentiel?.modesTransmission)}
+                </NativeSelect>
+              </Champ>
+            )}
+            <Champ label={interne ? 'Date de la note' : 'Date du courrier'} htmlFor="depart-date">
               <Input id="depart-date" type="date" {...register('dateCourrier')} />
             </Champ>
-            <Champ label="Date et heure d'envoi" htmlFor="depart-envoi">
-              <Input id="depart-envoi" type="datetime-local" {...register('dateEnvoi')} />
-            </Champ>
+            {!interne && (
+              <Champ label="Date et heure d'envoi" htmlFor="depart-envoi">
+                <Input id="depart-envoi" type="datetime-local" {...register('dateEnvoi')} />
+              </Champ>
+            )}
           </div>
           <Champ label="Observations" htmlFor="depart-observations">
             <Textarea id="depart-observations" rows={2} {...register('observations')} />
@@ -295,6 +341,7 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
 
       {etape === 2 && (
         <div className="space-y-6">
+          {!interne && (
           <section>
             <h3 className="mb-2 text-[14px] font-semibold">Destinataire principal</h3>
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -314,12 +361,17 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
               <ContactRapide organisationId={organisationId} onCree={(c) => setContactPrincipalId(c.id)} />
             </div>
           </section>
+          )}
 
           <section>
-            <h3 className="text-[14px] font-semibold">Ampliataires</h3>
-            <p className="mb-3 text-[13px] text-muted-foreground">Destinataires en copie, internes ou externes.</p>
+            <h3 className="text-[14px] font-semibold">{interne ? 'Destinataires' : 'Ampliataires'}</h3>
+            <p className="mb-3 text-[13px] text-muted-foreground">
+              {interne
+                ? "Entités et personnes informées par la note. Pour une entité, son responsable et sa personne réceptrice sont notifiés."
+                : 'Destinataires en copie, internes ou externes.'}
+            </p>
             <div role="radiogroup" aria-label="Type d'ampliataire" className="mb-3 flex flex-wrap gap-1.5">
-              {TYPES_AMPLIATAIRE.map(({ valeur, libelle, Icone }) => (
+              {TYPES_AMPLIATAIRE.filter((t) => !interne || t.valeur !== 'contact').map(({ valeur, libelle, Icone }) => (
                 <button
                   key={valeur}
                   type="button"
@@ -367,6 +419,7 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
                 />
               )}
             </div>
+            {erreurDestinataires && <p className="mt-2 text-[13px] text-crit-text">{erreurDestinataires}</p>}
             {ampliataires.length > 0 && (
               <ul className="mt-3 flex flex-wrap gap-2">
                 {ampliataires.map((a) => (
@@ -395,13 +448,22 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
         <div>
           <dl className="rounded-lg border border-border px-4">
             <LigneRecap label="Objet">{valeurs.objet}</LigneRecap>
-            <LigneRecap label="Entité en charge">{libelleEntite(valeurs.entiteId)}</LigneRecap>
+            <LigneRecap label={interne ? 'Entité émettrice' : 'Entité en charge'}>{libelleEntite(valeurs.entiteId)}</LigneRecap>
             <LigneRecap label="Type">{libelleValeur(referentiel?.types, valeurs.typeValeurId)}</LigneRecap>
             <LigneRecap label="Date du courrier">{valeurs.dateCourrier ? fr(valeurs.dateCourrier).format('D MMMM YYYY') : null}</LigneRecap>
-            <LigneRecap label="Envoi">{valeurs.dateEnvoi ? fr(valeurs.dateEnvoi).format('D MMMM YYYY à HH:mm') : null}</LigneRecap>
-            <LigneRecap label="Mode de transmission">{libelleValeur(referentiel?.modesTransmission, valeurs.modeTransmissionValeurId)}</LigneRecap>
-            <LigneRecap label="Destinataire principal">{contactPrincipalId ? libelleContact(contactPrincipalId) : null}</LigneRecap>
-            <LigneRecap label="Ampliataires">
+            {interne ? (
+              <>
+                <LigneRecap label="Priorité">{libelleValeur(referentiel?.priorites, valeurs.prioriteValeurId)}</LigneRecap>
+                <LigneRecap label="Confidentialité">{libelleValeur(referentiel?.confidentialites, valeurs.confidentialiteValeurId)}</LigneRecap>
+              </>
+            ) : (
+              <>
+                <LigneRecap label="Envoi">{valeurs.dateEnvoi ? fr(valeurs.dateEnvoi).format('D MMMM YYYY à HH:mm') : null}</LigneRecap>
+                <LigneRecap label="Mode de transmission">{libelleValeur(referentiel?.modesTransmission, valeurs.modeTransmissionValeurId)}</LigneRecap>
+                <LigneRecap label="Destinataire principal">{contactPrincipalId ? libelleContact(contactPrincipalId) : null}</LigneRecap>
+              </>
+            )}
+            <LigneRecap label={interne ? 'Destinataires' : 'Ampliataires'}>
               {ampliataires.length > 0 && (
                 <span className="flex flex-wrap gap-1.5">
                   {ampliataires.map((a) => (
@@ -437,7 +499,7 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
           <div className="grid size-14 place-items-center rounded-full bg-good/15">
             <CircleCheck className="size-7 text-good-text" />
           </div>
-          <h3 className="mt-4 text-[18px] font-semibold">Courrier enregistré</h3>
+          <h3 className="mt-4 text-[18px] font-semibold">{interne ? 'Note enregistrée' : 'Courrier enregistré'}</h3>
           <p className="mt-1 text-muted-foreground">
             Numéro attribué : <span className="font-mono font-semibold text-foreground">{courrierCree.numero}</span>
           </p>
@@ -445,6 +507,11 @@ export function CourrierDepartWizard({ open, organisationId, onClose, onTermine 
             <Printer />
             Imprimer la fiche d'exploitation
           </Button>
+          {interne && (
+            <p className="mt-4 max-w-sm text-[13px] text-muted-foreground">
+              La note est enregistrée. Cliquez sur « Diffuser » depuis sa fiche pour prévenir les destinataires.
+            </p>
+          )}
         </div>
       )}
 

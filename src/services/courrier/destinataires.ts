@@ -30,3 +30,9 @@ export async function marquerPriseConnaissance(id: string): Promise<Destinataire
 export async function listActionsDemandeesDestinataire(destinataireId: string): Promise<string[]> {
   return api.get<string[]>(`/courrier/destinataires/${destinataireId}/actions`);
 }
+
+// Note interne : marque comme lues toutes les lignes de destinataire qui
+// concernent l'utilisateur connecté (lui-même ou une entité qu'il encadre).
+export async function priseConnaissanceCourrier(courrierId: string): Promise<{ marques: number }> {
+  return api.post<{ marques: number }>(`/courrier/courriers/${courrierId}/prise-connaissance`);
+}

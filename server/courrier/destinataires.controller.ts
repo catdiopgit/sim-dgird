@@ -38,6 +38,11 @@ export class DestinatairesController {
     return this.destinatairesService.marquerPriseConnaissance(id, user);
   }
 
+  @Post('courriers/:id/prise-connaissance')
+  priseConnaissanceCourrier(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.destinatairesService.priseConnaissanceCourrier(id, user);
+  }
+
   @Get('destinataires/:id/actions')
   listActionsDemandees(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.destinatairesService.listActionsDemandees(id, user);

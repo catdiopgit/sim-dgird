@@ -17,8 +17,8 @@ import { couleurReferentiel } from '../../utils/couleurReferentiel';
 import { fr } from '../../utils/dateFr';
 import { CourrierAuditCard } from './CourrierAuditCard';
 import { CourrierDechargeModal } from './CourrierDechargeModal';
+import { CourrierDiffusionCard } from './CourrierDiffusionCard';
 import { CourrierEditionModal } from './CourrierEditionModal';
-import { CourrierImputationPanel } from './CourrierImputationPanel';
 import { CourrierInfoCard } from './CourrierInfoCard';
 import { CourrierPiecesJointes } from './CourrierPiecesJointes';
 import { CourrierWorkflowPanel } from './CourrierWorkflowPanel';
@@ -222,13 +222,13 @@ export function CourrierDetailPage() {
             organisationId={organisationId}
             entiteLibelle={entite?.libelle ?? 'Non imputé'}
           />
+          {courrier.sens !== 'entrant' && (
+            <CourrierDiffusionCard courrier={courrier} organisationId={organisationId} utilisateurId={profile?.id} />
+          )}
           <CourrierPiecesJointes courrierId={courrier.id} peutModifier={peutModifier} />
           {/* Version 5 §3/§13 : sur un courrier arrivé, l'imputation se fait
               désormais via les actions modales du workflow (CourrierWorkflowPanel)
               — le panneau statique ci-dessous reste utile pour départ/interne. */}
-          {courrier.sens === 'interne' && (
-            <CourrierImputationPanel courrier={courrier} organisationId={organisationId} peutModifier={peutModifier} />
-          )}
           <CourrierAuditCard courrierId={courrier.id} organisationId={organisationId} />
         </div>
         {/* Étape actuelle et actions : en tête sur écran étroit, colonne latérale collante sur grand écran. */}

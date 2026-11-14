@@ -30,6 +30,8 @@ interface Props {
 // Titre de l'historique : l'action réalisée plutôt que l'étape d'arrivée.
 const TITRE_PAR_CODE: Record<string, string> = {
   expedier: 'Expédié',
+  diffuser: 'Diffusé aux destinataires',
+  'cloturer-note': 'Note clôturée',
   enregistrer: 'Transmis au DG',
   imputer: 'Imputé',
   affecter: 'Affecté',
@@ -156,7 +158,7 @@ export function CourrierWorkflowPanel({ courrier, organisationId }: Props) {
                         <Button key={t.transition_id} variant={i === 0 ? 'default' : 'outline'} onClick={() => setActionOuverte(t)}>
                           {t.libelle_action}
                         </Button>
-                      ) : courrier.sens === 'entrant' || courrier.sens === 'sortant' ? (
+                      ) : courrier.sens === 'entrant' || courrier.sens === 'sortant' || courrier.sens === 'interne' ? (
                         // Recette 2026-11 : compte rendu / motif et fichiers Word-PDF.
                         <Button
                           key={t.transition_id}
@@ -212,7 +214,9 @@ export function CourrierWorkflowPanel({ courrier, organisationId }: Props) {
                         !h.transition_id && !h.etape_precedente_id
                         ? courrier.sens === 'sortant'
                           ? 'Enregistrement courrier départ'
-                          : 'Enregistrement du courrier'
+                          : courrier.sens === 'interne'
+                            ? 'Enregistrement de la note interne'
+                            : 'Enregistrement du courrier'
                         : !h.transition_id && h.commentaire && !COMMENTAIRES_SYSTEME.has(h.commentaire)
                           ? h.commentaire
                           : ((h.transition_id ? titreTransition.get(h.transition_id) : null) ??

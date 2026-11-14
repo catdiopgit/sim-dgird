@@ -5,6 +5,7 @@ import {
   listActionsDemandeesDestinataire,
   listDestinataires,
   marquerPriseConnaissance,
+  priseConnaissanceCourrier,
   retirerDestinataire,
   type DestinataireInsert,
 } from '../../services/courrier/destinataires';
@@ -54,4 +55,20 @@ export function useDestinataireMutations(courrierId: string | undefined) {
   });
 
   return { ajouter, retirer, marquerLu };
+}
+
+export function usePriseConnaissanceCourrier(courrierId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => priseConnaissanceCourrier(courrierId!),
+    onSuccess: () => {
+      message.success('Prise de connaissance enregistrée.');
+      for (const cle of ['destinataires', 'courrier', 'workflow-instance', 'workflow-historique', 'transitions-disponibles']) {
+        void queryClient.invalidateQueries({ queryKey: [cle, courrierId] });
+      }
+      void queryClient.invalidateQueries({ queryKey: ['courriers'] });
+      void queryClient.invalidateQueries({ queryKey: ['courriers-bannette'] });
+    },
+    onError: (error: Error) => message.error(error.message),
+  });
 }

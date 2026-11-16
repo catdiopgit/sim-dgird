@@ -14,6 +14,7 @@ import type { PhaseTypeMarche } from '../../../services/marches/typesMarche';
 const schema = z.object({
   nom: z.string().min(1, 'Requis'),
   description: z.string().optional(),
+  responsable: z.string().optional(),
   ordre: z.number().optional(),
   duree: z.number({ message: 'Requis' }).min(1, 'Doit être supérieur à 0'),
   uniteDuree: z.enum(['jour', 'semaine', 'mois']),
@@ -29,7 +30,27 @@ interface Props {
   onClose: () => void;
 }
 
-const DEFAUTS: FormValues = { nom: '', description: '', ordre: 0, duree: 5, uniteDuree: 'jour', obligatoire: true, actif: true };
+// Intitulés du modèle PPM (DGIRD), proposés à la saisie ; tout autre texte est accepté.
+const RESPONSABLES_PHASE = [
+  'Chargé de projet',
+  'Directeur DPRRA',
+  'DG DGIRD',
+  'PRM',
+  'CSE-PM',
+  'CPM / DCMP',
+  'CPM MITTD',
+  'DCMP',
+  'CM',
+  'Commission marché MITTD',
+  'Comité technique',
+  'Évaluateurs',
+  'Bureau courrier',
+  'FERA',
+  'Prestataire/Consultant',
+  'Fournisseurs/entreprises',
+];
+
+const DEFAUTS: FormValues = { nom: '', description: '', responsable: '', ordre: 0, duree: 5, uniteDuree: 'jour', obligatoire: true, actif: true };
 
 // §7 Phases-modèles d'un type de marché : nom, ordre, durée, unité, caractère
 // obligatoire/optionnel — dupliquées en phases réelles à la création d'un
@@ -52,6 +73,7 @@ export function PhaseTypeMarcheFormModal({ open, typeMarcheId, phase, onClose }:
         ? {
             nom: phase.nom,
             description: phase.description ?? '',
+            responsable: phase.responsable ?? '',
             ordre: phase.ordre,
             duree: phase.duree,
             uniteDuree: phase.unite_duree,
@@ -66,6 +88,7 @@ export function PhaseTypeMarcheFormModal({ open, typeMarcheId, phase, onClose }:
     const patch = {
       nom: values.nom,
       description: values.description || null,
+      responsable: values.responsable?.trim() || null,
       ordre: values.ordre ?? 0,
       duree: values.duree,
       unite_duree: values.uniteDuree,
@@ -96,6 +119,14 @@ export function PhaseTypeMarcheFormModal({ open, typeMarcheId, phase, onClose }:
           <Input id="phase-type-ordre" type="number" step={1} {...register('ordre', { setValueAs: (v) => (v === '' ? 0 : Number(v)) })} />
         </Champ>
       </div>
+      <Champ label="Responsable (qui fait la phase)" htmlFor="phase-type-responsable">
+        <Input id="phase-type-responsable" list="responsables-phase" placeholder="Ex. PRM, CSE-PM, Chargé de projet" {...register('responsable')} />
+        <datalist id="responsables-phase">
+          {RESPONSABLES_PHASE.map((r) => (
+            <option key={r} value={r} />
+          ))}
+        </datalist>
+      </Champ>
       <Champ label="Description" htmlFor="phase-type-description">
         <Textarea id="phase-type-description" rows={2} {...register('description')} />
       </Champ>

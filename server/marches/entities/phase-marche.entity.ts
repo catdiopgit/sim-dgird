@@ -46,6 +46,11 @@ export class PhaseMarche {
   @Column({ type: 'boolean', default: true })
   obligatoire: boolean;
 
+  // Recette 2026-11 (modèle PPM) : qui réalise la phase — un intitulé
+  // (« PRM », « CSE-PM », « Chargé de projet »…), pas un utilisateur.
+  @Column({ type: 'text', nullable: true })
+  responsable: string | null;
+
   @Column({ type: 'date', name: 'date_debut_prevue', nullable: true })
   dateDebutPrevue: string | null;
 

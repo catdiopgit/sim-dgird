@@ -122,7 +122,10 @@ export function MarcheSituationImprimable({ open, marche, entiteParId, typeParId
                     ) : (
                       (phases ?? []).map((p) => (
                         <tr key={p.id}>
-                          <td className={TD}>{p.nom}</td>
+                          <td className={TD}>
+                            {p.nom}
+                            {p.responsable ? <span className="block text-[11px] text-[#5f6661]">{p.responsable}</span> : null}
+                          </td>
                           <td className={TD}>
                             {p.duree_prevue} {p.unite_duree}(s)
                           </td>

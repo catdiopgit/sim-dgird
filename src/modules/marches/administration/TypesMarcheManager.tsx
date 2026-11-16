@@ -69,6 +69,12 @@ function PhasesDuType({ type, peutModifier }: { type: TypeMarche; peutModifier: 
               ),
             },
             {
+              cle: 'responsable',
+              titre: 'Responsable',
+              className: 'whitespace-nowrap text-muted-foreground',
+              rendu: (p) => p.responsable ?? '—',
+            },
+            {
               cle: 'duree',
               titre: 'Durée',
               className: 'w-28 whitespace-nowrap tabular-nums',

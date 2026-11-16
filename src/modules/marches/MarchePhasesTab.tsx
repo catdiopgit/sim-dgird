@@ -44,6 +44,7 @@ export function MarchePhasesTab({ marcheId, peutModifier, cloture }: Props) {
         <div>
           <div className="font-medium">{p.nom}</div>
           <div className="text-[12px] text-muted-foreground">
+            {p.responsable ? `${p.responsable} · ` : ''}
             {p.duree_prevue} {p.unite_duree}(s){p.obligatoire ? ' · obligatoire' : ''}
           </div>
         </div>

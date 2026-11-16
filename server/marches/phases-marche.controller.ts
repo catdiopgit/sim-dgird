@@ -5,6 +5,7 @@ import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { PhasesMarcheService, type UpdatePhaseMarcheData } from './phases-marche.service';
 
 class UpdatePhaseMarcheDto implements UpdatePhaseMarcheData {
+  @IsOptional() @IsString() responsable?: string | null;
   @IsOptional() @IsString() dateDebutReelle?: string | null;
   @IsOptional() @IsString() dateFinReelle?: string | null;
   @IsOptional() @IsString() observations?: string | null;

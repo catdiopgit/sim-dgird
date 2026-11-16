@@ -1,0 +1,456 @@
+[
+ {
+  "code": "FST",
+  "libelle": "Fournitures, services et travaux",
+  "phases": [
+   {
+    "nom": "Transmission DRPCR à CSE-PM",
+    "responsable": "Chargé de projet"
+   },
+   {
+    "nom": "Transmission DRPCR au CPM",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Avis CPM sur DRPCR",
+    "responsable": "CPM / DCMP"
+   },
+   {
+    "nom": "Lancement (Lettres d'invitations)",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Ouverture plis (PVO)",
+    "responsable": "CM"
+   },
+   {
+    "nom": "Evaluation offres et transmission rapport à la commission",
+    "responsable": "comité technique"
+   },
+   {
+    "nom": "Restitution de l'évalution des offres (PVA)",
+    "responsable": "CM"
+   },
+   {
+    "nom": "Approbation PVA par la PRM",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Demande avis CPM sur RE et PVA",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Notification d'attribution et Lettre d'information de rejet",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Demande attestation d'existence de crédit FERA",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "transmision du projet de contrat à la CPM pour avis",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Avis CPM sur projet de contrat",
+    "responsable": "CPM / DCMP"
+   },
+   {
+    "nom": "Transmission du contrat au titulaire pour signature",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Signature du contrat par la PRM",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Transmission du contrat au titulaire pour enregistrement",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Bon de Commande ou OS",
+    "responsable": "PRM"
+   }
+  ]
+ },
+ {
+  "code": "PI-DRPCR",
+  "libelle": "Prestations intellectuelles (DRPCR)",
+  "phases": [
+   {
+    "nom": "Signature note de service de désignation des responsables de projets",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Elaboration TDRs",
+    "responsable": "Chargé de projet"
+   },
+   {
+    "nom": "Validation TDRs par DG",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Transmission DRPCR à CSE-PM",
+    "responsable": "Chargé de projet"
+   },
+   {
+    "nom": "Avis CSE-PM sur DRPCR",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Transmission DRPCR au CPM",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Avis CPM sur DRPCR",
+    "responsable": "CPM / DCMP"
+   },
+   {
+    "nom": "Lancement",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Ouverture plis proposition techniques",
+    "responsable": "CM"
+   },
+   {
+    "nom": "Evaluation des propositions techniques et transmission rapport à la commission",
+    "responsable": "comité technique"
+   },
+   {
+    "nom": "Examen rapport d'évaluation des propositions techniques",
+    "responsable": "CM"
+   },
+   {
+    "nom": "Elaboration du PV des notes technique",
+    "responsable": "CPM"
+   },
+   {
+    "nom": "Approbation du PV des notes technique",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Demande avis CPM sur rapport et PV des notes technique",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Information aux soumissionnaires des notes techniques",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Invitation à la seance d'ouverture des propositions financieres",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Examen de rapport combiné des propositions technique et financière",
+    "responsable": "CM"
+   },
+   {
+    "nom": "Elaboration du PVA",
+    "responsable": "CPM"
+   },
+   {
+    "nom": "approbation PVA",
+    "responsable": null
+   },
+   {
+    "nom": "Demande avis CPM sur RE et PVA",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Invitation de l'attributaire provisoire à une négociation",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Notification d'attribution",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Lettre d'information de rejet",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Demande attestation d'existance de crédit FERA",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Elaboration du projet de contrat",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Avis DPRRA sur le contrat",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Transmission projet de contrat au Prestataire ou Consultant pour avis",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Demande d'attestation d'existance de crédit",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Transmission projet de contrat au CPM pour avis",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Avis CPM sur projet de contrat",
+    "responsable": "CPM"
+   },
+   {
+    "nom": "Signature contrat Prestataire ou Consultant",
+    "responsable": "Prestataire/Consultant"
+   },
+   {
+    "nom": "Signature contrat",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Transmission contrat signé au Prestataire ou Consultant pour enregistrement",
+    "responsable": "PRM"
+   },
+   {
+    "nom": "Ordre de service ou bon de commande",
+    "responsable": "PRM"
+   }
+  ]
+ },
+ {
+  "code": "AMI-150",
+  "libelle": "AMI – budget prévisionnel inférieur à 150 millions FCFA",
+  "phases": [
+   {
+    "nom": "Elaboration TDRs et AMI",
+    "responsable": "Chargé de projet"
+   },
+   {
+    "nom": "Validation TDRs et AMI DPRRA",
+    "responsable": "Directeur DPRRA"
+   },
+   {
+    "nom": "Validation TDRs et AMI par DG",
+    "responsable": "DG DGIRD"
+   },
+   {
+    "nom": "Transmission AMI et TDRS à CSE-PM",
+    "responsable": "Directeur DPRRA"
+   },
+   {
+    "nom": "Avis CSE-PM sur AMI et TDRs",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Transmission AMI et TDRs au CPM",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Avis CPM sur AMI et TDRs",
+    "responsable": "CPM MITTD"
+   },
+   {
+    "nom": "Signature bon de commande pour publication AMI",
+    "responsable": "DG DGIRD"
+   },
+   {
+    "nom": "Publication AMI dans le journal officiel",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Ouverture plis offres AMI",
+    "responsable": "Commission marché MITTD"
+   },
+   {
+    "nom": "PV ouvertures offres AMI",
+    "responsable": "CPM MITTD"
+   },
+   {
+    "nom": "Evaluation offres AMI et transmission rapport à la commission",
+    "responsable": "Evaluateurs"
+   },
+   {
+    "nom": "Restitution rapport offres AMI",
+    "responsable": "Commission marché MITTD"
+   },
+   {
+    "nom": "Signature rapport évaluation des offres AMI et transmission au CSE-PM",
+    "responsable": "Evaluateurs"
+   },
+   {
+    "nom": "PV validation offres AMI et liste restreinte",
+    "responsable": "Commission marché MITTD"
+   },
+   {
+    "nom": "Lettres d'information soumissionnaires AMI",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Elaboration DP et transmission DPRRA pour avis",
+    "responsable": "Chargé de projet"
+   },
+   {
+    "nom": "Validation DP par DPRRA",
+    "responsable": "Directeur DPRRA"
+   },
+   {
+    "nom": "Transmission DP à CSE-PM",
+    "responsable": "Directeur DPRRA"
+   },
+   {
+    "nom": "Avis CSE-PM sur DP",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Transmission DP au CPM",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Avis CPM sur DP",
+    "responsable": "CPM MITTD"
+   },
+   {
+    "nom": "Lettre d'invitation et transmission DP",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Lettres d'invitation DP déchargées",
+    "responsable": "Bureau courrier"
+   },
+   {
+    "nom": "Ouverture plis offres techniques (Report)",
+    "responsable": "Commission marché MITTD"
+   },
+   {
+    "nom": "PV ouvertures offres techniques",
+    "responsable": "CPM MITTD"
+   },
+   {
+    "nom": "Evaluation offres techniques et transmission rapport à la commission",
+    "responsable": "Evaluateurs"
+   },
+   {
+    "nom": "Restitution rapport offres techniques",
+    "responsable": "Commission marché MITTD"
+   },
+   {
+    "nom": "Signature rapport évaluation des offres techniques et transmission au CSE-PM",
+    "responsable": "Evaluateurs"
+   },
+   {
+    "nom": "PV validation offres techniques",
+    "responsable": "Commission marché MITTD"
+   },
+   {
+    "nom": "Lettres d'information soumissionnaires",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Ouverture offres financières",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "PV d'ouverture des offres financières",
+    "responsable": "CPM MITTD"
+   },
+   {
+    "nom": "Evaluation offres techniques et financières et transmission rapport à la commission",
+    "responsable": "Evaluateurs"
+   },
+   {
+    "nom": "Restitution offres combinées",
+    "responsable": "Commission marché MITTD"
+   },
+   {
+    "nom": "Signature rapport évaluation des offres combinées et transmission au CSE-PM",
+    "responsable": "Evaluateurs"
+   },
+   {
+    "nom": "PV validation offres combinées (tech & fin)",
+    "responsable": "Commission marché MITTD"
+   },
+   {
+    "nom": "Transmission PV validation et d'attribution au DG",
+    "responsable": "CPM MITTD"
+   },
+   {
+    "nom": "approbation PVA DG",
+    "responsable": "DG DGIRD"
+   },
+   {
+    "nom": "Demande avis CPM sur rapport et PVA",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Avis CPM sur rapport évaluation et PVA",
+    "responsable": "CPM MITTD"
+   },
+   {
+    "nom": "Lettre d'invitation du Consultant à la réunion de négociation",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Tenue de la réunion de négociation",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "PV de la réunion de négociation signé",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Lettre d'information candidats",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Demande attestation d'existance de crédit FERA",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Elaboration projet de contrat et transmision à la DPRRA",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Avis DPRRA sur le contrat",
+    "responsable": "Directeur DPRRA"
+   },
+   {
+    "nom": "Transmission projet de contrat au Prestataire ou Consultant pour avis",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Avis Prestataire ou Consultant sur le projet de contrat",
+    "responsable": "Prestataire/Consultant"
+   },
+   {
+    "nom": "Transmission attestation d'existance de crédit",
+    "responsable": "FERA"
+   },
+   {
+    "nom": "Transmission projet de contrat au CPM pour avis",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Avis CPM sur projet de contrat",
+    "responsable": "CPM MITTD"
+   },
+   {
+    "nom": "Signature contrat Prestataire ou Consultant",
+    "responsable": "Prestataire/Consultant"
+   },
+   {
+    "nom": "Signature contrat DGIRD",
+    "responsable": "DG DGIRD"
+   },
+   {
+    "nom": "Transmission contrat signé au Prestataire ou Consultant",
+    "responsable": "CSE-PM"
+   },
+   {
+    "nom": "Enregistrement contrat et transmission à la DGIRD",
+    "responsable": "Prestataire/Consultant"
+   },
+   {
+    "nom": "Ordre de service ou bon de commande",
+    "responsable": "CSE-PM"
+   }
+  ]
+ }
+]

@@ -28,6 +28,7 @@ import { MarchesDocumentsController } from './marches-documents.controller';
 import { MarchesStatistiquesService } from './marches-statistiques.service';
 import { MarchesStatistiquesController } from './marches-statistiques.controller';
 import { MarchesNotificationsService } from './marches-notifications.service';
+import { MarchesSchemaService } from './marches-schema.service';
 import { MarchesAccesModule } from './acces/marches-acces.module';
 import { MarchesAccesController } from './acces/marches-acces.controller';
 
@@ -58,6 +59,7 @@ import { MarchesAccesController } from './acces/marches-acces.controller';
     MarchesDocumentsService,
     MarchesStatistiquesService,
     MarchesNotificationsService,
+    MarchesSchemaService,
   ],
   controllers: [
     MarchesAccesController,

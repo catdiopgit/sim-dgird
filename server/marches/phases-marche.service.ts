@@ -21,6 +21,7 @@ export interface PhaseMarcheAvecStatut extends PhaseMarche {
 }
 
 export interface UpdatePhaseMarcheData {
+  responsable?: string | null;
   dateDebutReelle?: string | null;
   dateFinReelle?: string | null;
   observations?: string | null;
@@ -115,6 +116,7 @@ export class PhasesMarcheService {
             dureePrevue: modele.duree,
             uniteDuree: modele.uniteDuree,
             obligatoire: modele.obligatoire,
+            responsable: modele.responsable,
           }),
         ),
       );

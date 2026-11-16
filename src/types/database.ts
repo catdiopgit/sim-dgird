@@ -2644,6 +2644,7 @@ export type Database = {
           duree: number;
           unite_duree: 'jour' | 'semaine' | 'mois';
           obligatoire: boolean;
+          responsable: string | null;
           actif: boolean;
           created_at: string;
           updated_at: string;
@@ -2657,6 +2658,7 @@ export type Database = {
           duree?: number;
           unite_duree?: 'jour' | 'semaine' | 'mois';
           obligatoire?: boolean;
+          responsable?: string | null;
           actif?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -2670,6 +2672,7 @@ export type Database = {
           duree?: number;
           unite_duree?: 'jour' | 'semaine' | 'mois';
           obligatoire?: boolean;
+          responsable?: string | null;
           actif?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -2750,6 +2753,7 @@ export type Database = {
           duree_prevue: number;
           unite_duree: 'jour' | 'semaine' | 'mois';
           obligatoire: boolean;
+          responsable: string | null;
           date_debut_prevue: string | null;
           date_fin_prevue: string | null;
           date_debut_reelle: string | null;
@@ -2768,6 +2772,7 @@ export type Database = {
           duree_prevue: number;
           unite_duree?: 'jour' | 'semaine' | 'mois';
           obligatoire?: boolean;
+          responsable?: string | null;
           date_debut_prevue?: string | null;
           date_fin_prevue?: string | null;
           date_debut_reelle?: string | null;
@@ -2786,6 +2791,7 @@ export type Database = {
           duree_prevue?: number;
           unite_duree?: 'jour' | 'semaine' | 'mois';
           obligatoire?: boolean;
+          responsable?: string | null;
           date_debut_prevue?: string | null;
           date_fin_prevue?: string | null;
           date_debut_reelle?: string | null;

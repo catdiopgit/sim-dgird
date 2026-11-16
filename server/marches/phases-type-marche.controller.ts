@@ -19,6 +19,7 @@ class CreerPhaseTypeMarcheDto implements Omit<CreerPhaseTypeMarcheData, 'typeMar
   @IsOptional() @IsInt() duree?: number;
   @IsOptional() @IsIn(UNITES_DUREE) uniteDuree?: UniteDureePhase;
   @IsOptional() @IsBoolean() obligatoire?: boolean;
+  @IsOptional() @IsString() responsable?: string | null;
 }
 
 class UpdatePhaseTypeMarcheDto implements UpdatePhaseTypeMarcheData {
@@ -29,6 +30,7 @@ class UpdatePhaseTypeMarcheDto implements UpdatePhaseTypeMarcheData {
   @IsOptional() @IsIn(UNITES_DUREE) uniteDuree?: UniteDureePhase;
   @IsOptional() @IsBoolean() obligatoire?: boolean;
   @IsOptional() @IsBoolean() actif?: boolean;
+  @IsOptional() @IsString() responsable?: string | null;
 }
 
 @Controller('marches/types/:typeMarcheId/phases')

@@ -12,6 +12,7 @@ export interface CreerPhaseTypeMarcheData {
   duree?: number;
   uniteDuree?: UniteDureePhase;
   obligatoire?: boolean;
+  responsable?: string | null;
 }
 
 export interface UpdatePhaseTypeMarcheData {
@@ -22,6 +23,7 @@ export interface UpdatePhaseTypeMarcheData {
   uniteDuree?: UniteDureePhase;
   obligatoire?: boolean;
   actif?: boolean;
+  responsable?: string | null;
 }
 
 // Phases-modèles d'un type de marché (§7) : nom, ordre, durée et caractère
@@ -56,6 +58,7 @@ export class PhasesTypeMarcheService {
         duree: data.duree ?? 1,
         uniteDuree: data.uniteDuree ?? 'jour',
         obligatoire: data.obligatoire ?? true,
+        responsable: data.responsable?.trim() || null,
       }),
     );
   }

@@ -114,15 +114,26 @@ export class StatistiquesService {
        ),
        av as (select a.projet_id, a.montant from avenants a where a.projet_id in (select id from pv)),
        de as (select d.projet_id, d.montant from decaissements d where d.projet_id in (select id from pv)),
-       li as (select l.projet_id, l.statut_valeur_id from livrables l where l.projet_id in (select id from pv))
+       li as (select l.projet_id, l.statut_valeur_id, l.date_prevue from livrables l where l.projet_id in (select id from pv)),
+       -- Évolution A : retard calculé (même règle que projetEnRetard côté
+       -- interface) — échéance dépassée sans clôture, ou statut « en-retard ».
+       pr as (
+         select pv.*, vl.code as statut_code,
+                (pv.cloture_statut is distinct from 'confirmee' and (
+                   vl.code = 'en-retard'
+                   or (pv.date_fin_prevue < current_date
+                       and coalesce(vl.code, '') not in ('termine', 'suspendu', 'annule'))
+                 )) as en_retard
+         from pv left join valeurs_listes vl on vl.id = pv.statut_valeur_id
+       )
        select jsonb_build_object(
-     'totaux', (select jsonb_build_object(
-         'total', count(*),
-         'enCours', count(*) filter (where vl.code = 'en-cours'),
-         'aVenir', count(*) filter (where vl.code = 'a-faire'),
-         'enRetard', count(*) filter (where vl.code = 'en-retard'),
-         'clotures', count(*) filter (where pv.cloture_statut = 'confirmee'))
-       from pv left join valeurs_listes vl on vl.id = pv.statut_valeur_id),
+         'totaux', (select jsonb_build_object(
+             'total', count(*),
+             'enCours', count(*) filter (where statut_code = 'en-cours' and not en_retard),
+             'aVenir', count(*) filter (where statut_code in ('a-faire', 'planifie') and not en_retard),
+             'enRetard', count(*) filter (where en_retard),
+             'clotures', count(*) filter (where cloture_statut = 'confirmee'))
+           from pr),
      'avancementMoyen', (select round(avg(avancement_pct)::numeric, 1) from pv),
      'parEtat', (select coalesce(jsonb_agg(jsonb_build_object('id', vl.id, 'libelle', vl.libelle, 'couleur', vl.couleur, 'total', t.total) order by t.total desc), '[]'::jsonb)
          from (select statut_valeur_id, count(*) as total from pv where statut_valeur_id is not null group by statut_valeur_id) t
@@ -146,6 +157,8 @@ export class StatistiquesService {
          'total', count(*),
          'realises', count(*) filter (where vl.code in ('realise', 'valide')),
          'enCoursOuNonRealises', count(*) filter (where vl.code is null or vl.code not in ('realise', 'valide')),
+         'enRetard', count(*) filter (where vl.code = 'en-retard'
+           or (li.date_prevue < current_date and coalesce(vl.code, '') not in ('realise', 'valide', 'annule'))),
          'tauxRealisation', case when count(*) > 0
            then round(count(*) filter (where vl.code in ('realise', 'valide'))::numeric / count(*) * 100, 1) else 0 end)
        from li left join valeurs_listes vl on vl.id = li.statut_valeur_id),
@@ -229,7 +242,7 @@ export class StatistiquesService {
      join projets p on p.id = l.projet_id
      left join valeurs_listes vl on vl.id = l.statut_valeur_id
      where p.id = any($1::uuid[]) and l.date_prevue is not null
-       and coalesce(vl.code, '') not in ('realise', 'valide')
+       and coalesce(vl.code, '') not in ('realise', 'valide', 'annule')
        and l.date_prevue <= current_date + make_interval(days => $4::int)
      union all
      select 'action_mission', mas.id, mas.description, m.reference, mas.date_echeance, m.id

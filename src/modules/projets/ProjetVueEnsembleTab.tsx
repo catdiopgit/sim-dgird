@@ -1,3 +1,4 @@
+import { livrableEnRetard } from './projetAffichage';
 import { Banknote, CircleCheck, CircleDashed, CircleX, FileSignature, Package, TriangleAlert, Wallet, type LucideIcon } from 'lucide-react';
 import { useMemo, type ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -111,8 +112,8 @@ export function ProjetVueEnsembleTab({ projet, referentiel, entiteParId, utilisa
     if ((livrables?.length ?? 0) > 0 && repartitionLivrables.poidsTotal !== 100) {
       liste.push(`La somme des quote-parts des livrables est de ${repartitionLivrables.poidsTotal}% (devrait être 100%).`);
     }
-    const enRetard = (livrables ?? []).filter(
-      (l) => (l.statut_valeur_id ? statutLivrableParId.get(l.statut_valeur_id)?.code : null) === 'en-retard',
+    const enRetard = (livrables ?? []).filter((l) =>
+      livrableEnRetard(l, l.statut_valeur_id ? statutLivrableParId.get(l.statut_valeur_id)?.code : null),
     ).length;
     if (enRetard > 0) liste.push(`${enRetard} livrable(s) en retard.`);
     const sansJustificatif = (livrables ?? []).filter((l) => {

@@ -106,7 +106,7 @@ export class GedDocumentsService {
     const projet = rows[0];
     if (!projet) return false;
     if (projet.responsable_id === user.id || projet.coordonnateur_id === user.id) return true;
-    if (await this.authorizationService.hasPermission(user.id, 'projets', 'consulter', projet.entite_id)) return true;
+    if (await this.authorizationService.hasPermissionEtendue(user.id, 'projets', 'consulter', projet.entite_id)) return true;
 
     const membre = await this.dataSource.query(
       'select 1 from projet_membres where projet_id = $1 and utilisateur_id = $2 and date_retrait is null limit 1',

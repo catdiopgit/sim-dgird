@@ -12,7 +12,7 @@ import { usePeutModifierProjet } from '../../hooks/projets/usePeutModifierProjet
 import { useProjet, useProjetMutations, useProjetsReferentiel } from '../../hooks/projets/useProjets';
 import { useProfile } from '../../hooks/useProfile';
 import { fr } from '../../utils/dateFr';
-import { BadgeCloture, BadgeValeur, BarreAvancement } from './projetAffichage';
+import { BadgeCloture, BadgeRetard, BadgeValeur, BarreAvancement, projetEnRetard } from './projetAffichage';
 import { ProjetAvenantsTab } from './ProjetAvenantsTab';
 import { ProjetClotureTab } from './ProjetClotureTab';
 import { ProjetDecaissementsTab } from './ProjetDecaissementsTab';
@@ -50,7 +50,7 @@ const ONGLETS: { cle: Onglet; libelle: string }[] = [
 export function ProjetDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { profile, can } = useProfile();
+  const { profile, canEtendu } = useProfile();
   const organisationId = profile?.organisation_id;
 
   // L'onglet actif vit dans l'URL (?onglet=livrables) : lien direct et
@@ -64,7 +64,7 @@ export function ProjetDetailPage() {
   const { data: entites } = useEntites(organisationId);
   const { data: utilisateurs } = useUtilisateursOptions(organisationId);
   const { remove: supprimerProjet } = useProjetMutations(organisationId);
-  const peutModifier = usePeutModifierProjet(projet, profile?.id, can);
+  const peutModifier = usePeutModifierProjet(projet, profile?.id, canEtendu);
 
   const [editionProjetOuverte, setEditionProjetOuverte] = useState(false);
   const [suppressionOuverte, setSuppressionOuverte] = useState(false);
@@ -95,7 +95,7 @@ export function ProjetDetailPage() {
     );
   }
 
-  const peutSupprimer = can('projets', 'supprimer', projet.entite_id);
+  const peutSupprimer = canEtendu('projets', 'supprimer', projet.entite_id);
   const peutDemanderCloture = projet.responsable_id === profile?.id;
   const cloture = projet.cloture_statut === 'confirmee';
 
@@ -125,6 +125,10 @@ export function ProjetDetailPage() {
           <>
             <span className="font-mono text-[12px]">{projet.code}</span>
             <BadgeValeur valeur={projet.statut_valeur_id ? statutParId.get(projet.statut_valeur_id) : null} />
+            <BadgeRetard
+              enRetard={projetEnRetard(projet, projet.statut_valeur_id ? statutParId.get(projet.statut_valeur_id)?.code : null)}
+              codeStatut={projet.statut_valeur_id ? statutParId.get(projet.statut_valeur_id)?.code : null}
+            />
             {projet.priorite_valeur_id && <BadgeValeur valeur={prioriteParId.get(projet.priorite_valeur_id)} />}
             <BadgeCloture statut={projet.cloture_statut} />
           </>

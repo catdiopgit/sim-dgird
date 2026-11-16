@@ -19,6 +19,7 @@ export class NotificationsService {
       message?: string | null;
       objetModule?: string | null;
       objetId?: string | null;
+      lienUrl?: string | null;
     },
   ): Promise<void> {
     const m = manager ?? this.dataSource.manager;
@@ -31,6 +32,7 @@ export class NotificationsService {
         message: data.message ?? null,
         objetModule: data.objetModule ?? null,
         objetId: data.objetId ?? null,
+        lienUrl: data.lienUrl ?? null,
       }),
     );
   }

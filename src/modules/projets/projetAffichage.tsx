@@ -41,3 +41,49 @@ export function BarreAvancement({ pct, className }: { pct: number; className?: s
     </div>
   );
 }
+
+// Évolution A (recette 2026-11) : le retard est calculé, plus seulement saisi.
+// - Projet : date de fin prévue dépassée, sans clôture confirmée, et statut ni
+//   terminé, ni suspendu, ni annulé.
+// - Livrable : date prévue dépassée et livrable ni réalisé, ni validé, ni annulé.
+// Un statut « en-retard » choisi à la main compte aussi. Même règle côté
+// serveur (StatistiquesService) pour les tableaux de bord.
+const STATUTS_PROJET_HORS_RETARD = new Set(['termine', 'suspendu', 'annule']);
+const STATUTS_LIVRABLE_HORS_RETARD = new Set(['realise', 'valide', 'annule']);
+
+function dateDepassee(date: string | null | undefined): boolean {
+  if (!date) return false;
+  const aujourdhui = new Date();
+  const jour = `${aujourdhui.getFullYear()}-${String(aujourdhui.getMonth() + 1).padStart(2, '0')}-${String(aujourdhui.getDate()).padStart(2, '0')}`;
+  return date.slice(0, 10) < jour;
+}
+
+export function projetEnRetard(
+  p: Pick<Projet, 'date_fin_prevue' | 'cloture_statut'>,
+  codeStatut: string | null | undefined,
+): boolean {
+  if (p.cloture_statut === 'confirmee') return false;
+  if (codeStatut === 'en-retard') return true;
+  if (codeStatut && STATUTS_PROJET_HORS_RETARD.has(codeStatut)) return false;
+  return dateDepassee(p.date_fin_prevue);
+}
+
+export function livrableEnRetard(
+  l: { date_prevue: string | null },
+  codeStatut: string | null | undefined,
+): boolean {
+  if (codeStatut === 'en-retard') return true;
+  if (codeStatut && STATUTS_LIVRABLE_HORS_RETARD.has(codeStatut)) return false;
+  return dateDepassee(l.date_prevue);
+}
+
+// Pastille « En retard » affichée à côté du statut quand le retard est calculé
+// (inutile si le statut saisi est déjà « en-retard »).
+export function BadgeRetard({ enRetard, codeStatut }: { enRetard: boolean; codeStatut: string | null | undefined }) {
+  if (!enRetard || codeStatut === 'en-retard') return null;
+  return (
+    <Badge variant="critical" shape="pill">
+      En retard
+    </Badge>
+  );
+}

@@ -3,6 +3,7 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { ProjetsService } from './projets.service';
+import { ProjetsNotificationsService } from './projets-notifications.service';
 import { Livrable } from './entities/livrable.entity';
 
 export interface CreerLivrableData {
@@ -43,6 +44,7 @@ export class LivrablesService {
     @InjectRepository(Livrable) private readonly livrables: Repository<Livrable>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly projetsService: ProjetsService,
+    private readonly notifications: ProjetsNotificationsService,
   ) {}
 
   async findOne(id: string, user: AuthenticatedUser): Promise<Livrable> {
@@ -62,7 +64,7 @@ export class LivrablesService {
     await this.projetsService.assertModifiable(projet, user);
     await this.validerResponsable(data.projetId, data.responsableUtilisateurId ?? null, data.responsableContactId ?? null);
 
-    return this.livrables.save(
+    const cree = await this.livrables.save(
       this.livrables.create({
         projetId: data.projetId,
         nom: data.nom,
@@ -74,6 +76,27 @@ export class LivrablesService {
         poidsPct: data.poidsPct ?? 0,
       }),
     );
+    await this.notifierResponsable(cree.responsableUtilisateurId, cree.nom, projet.id, projet.code, data.datePrevue ?? null, user.id);
+    return cree;
+  }
+
+  private async notifierResponsable(
+    responsableId: string | null,
+    nom: string,
+    projetId: string,
+    codeProjet: string,
+    datePrevue: string | null,
+    auteurId: string,
+  ): Promise<void> {
+    if (!responsableId) return;
+    const echeance = datePrevue ? ` — échéance le ${datePrevue.slice(8, 10)}/${datePrevue.slice(5, 7)}/${datePrevue.slice(0, 4)}` : '';
+    await this.notifications.notifier([responsableId], {
+      titre: `Livrable à votre charge : ${nom} (${codeProjet})`,
+      message: `Vous êtes responsable de ce livrable${echeance}.`,
+      projetId,
+      onglet: 'livrables',
+      auteurId,
+    });
   }
 
   // Le responsable du livrable garde la main dessus même sans droit d'écriture
@@ -93,6 +116,16 @@ export class LivrablesService {
     }
 
     await this.livrables.update(id, patch);
+    if (patch.responsableUtilisateurId && patch.responsableUtilisateurId !== livrable.responsableUtilisateurId) {
+      await this.notifierResponsable(
+        patch.responsableUtilisateurId,
+        patch.nom ?? livrable.nom,
+        projet.id,
+        projet.code,
+        patch.datePrevue !== undefined ? patch.datePrevue : livrable.datePrevue,
+        user.id,
+      );
+    }
     return this.findOne(id, user);
   }
 

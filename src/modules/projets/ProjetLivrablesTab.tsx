@@ -15,7 +15,7 @@ import type { ProjetsReferentiel } from '../../services/projets/referentiel';
 import { fr } from '../../utils/dateFr';
 import { LivrableClotureModal } from './LivrableClotureModal';
 import { LivrableFormModal } from './LivrableFormModal';
-import { BadgeValeur } from './projetAffichage';
+import { BadgeRetard, BadgeValeur, livrableEnRetard } from './projetAffichage';
 
 interface Props {
   projetId: string;
@@ -97,7 +97,7 @@ export function ProjetLivrablesTab({
             {(livrables ?? []).map((l) => {
               const statut = l.statut_valeur_id ? statutParId.get(l.statut_valeur_id) : null;
               const termine = Boolean(statut?.code && STATUTS_TERMINAUX.has(statut.code));
-              const enRetard = statut?.code === 'en-retard';
+              const enRetard = livrableEnRetard(l, statut?.code);
               const responsable = nomResponsable(l);
               return (
                 <li key={l.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
@@ -105,6 +105,7 @@ export function ProjetLivrablesTab({
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{l.nom}</span>
                       <BadgeValeur valeur={statut} />
+                      <BadgeRetard enRetard={enRetard} codeStatut={statut?.code} />
                       {termine && !livrablesAvecJustificatif.has(l.id) && statut?.code !== 'annule' && (
                         <span className="inline-flex items-center gap-1 text-[12px] text-warn-text">
                           <TriangleAlert className="size-3.5" />

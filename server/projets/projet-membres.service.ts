@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { ProjetsService } from './projets.service';
+import { ProjetsNotificationsService } from './projets-notifications.service';
 import { ProjetMembre } from './entities/projet-membre.entity';
 
 export interface AjouterMembreData {
@@ -21,6 +22,7 @@ export class ProjetMembresService {
   constructor(
     @InjectRepository(ProjetMembre) private readonly membres: Repository<ProjetMembre>,
     private readonly projetsService: ProjetsService,
+    private readonly notifications: ProjetsNotificationsService,
   ) {}
 
   async listActifs(projetId: string, user: AuthenticatedUser): Promise<ProjetMembre[]> {
@@ -34,7 +36,7 @@ export class ProjetMembresService {
   async ajouter(data: AjouterMembreData, user: AuthenticatedUser): Promise<ProjetMembre> {
     const projet = await this.projetsService.findOne(data.projetId, user);
     await this.projetsService.assertModifiable(projet, user);
-    return this.membres.save(
+    const membre = await this.membres.save(
       this.membres.create({
         projetId: data.projetId,
         utilisateurId: data.utilisateurId,
@@ -43,6 +45,14 @@ export class ProjetMembresService {
         peutModifier: data.peutModifier ?? true,
       }),
     );
+    await this.notifications.notifier([data.utilisateurId], {
+      titre: `Vous êtes membre du projet ${projet.code}`,
+      message: `${projet.nom} — ${membre.peutModifier ? 'contributeur (vous pouvez le modifier)' : 'lecteur'}.`,
+      projetId: projet.id,
+      onglet: 'membres',
+      auteurId: user.id,
+    });
+    return membre;
   }
 
   async retirer(id: string, user: AuthenticatedUser): Promise<void> {

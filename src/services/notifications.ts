@@ -33,5 +33,6 @@ export function lienNotification(n: NotificationUtilisateur): string | null {
   if (n.lienUrl) return n.lienUrl;
   if (!n.objetId) return null;
   if (n.objetModule === 'courrier') return `/courriers/${n.objetId}`;
+  if (n.objetModule === 'projets') return `/projets/${n.objetId}`;
   return null;
 }

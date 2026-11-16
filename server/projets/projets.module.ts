@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PermissionsModule } from '../administration/permissions/permissions.module';
 import { Entite } from '../administration/entites/entities/entite.entity';
 import { GedModule } from '../ged/ged.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { Document } from '../ged/entities/document.entity';
 import { Projet } from './entities/projet.entity';
 import { ProjetMembre } from './entities/projet-membre.entity';
@@ -14,6 +15,7 @@ import { Decaissement } from './entities/decaissement.entity';
 import { ProjetVisibiliteEntite } from './entities/projet-visibilite-entite.entity';
 import { ProjetVisibiliteUtilisateur } from './entities/projet-visibilite-utilisateur.entity';
 import { ProjetsService } from './projets.service';
+import { ProjetsNotificationsService } from './projets-notifications.service';
 import { ProjetsController } from './projets.controller';
 import { ProjetMembresService } from './projet-membres.service';
 import { ProjetMembresController } from './projet-membres.controller';
@@ -52,9 +54,11 @@ import { ProjetsDocumentsController } from './projets-documents.controller';
     ]),
     PermissionsModule,
     GedModule,
+    NotificationsModule,
   ],
   providers: [
     ProjetsService,
+    ProjetsNotificationsService,
     ProjetMembresService,
     LivrablesService,
     AvenantsService,

@@ -13,7 +13,7 @@ import { cn } from '../../lib/utils';
 import type { Projet } from '../../services/projets/projets';
 import { couleurReferentiel } from '../../utils/couleurReferentiel';
 import { fr } from '../../utils/dateFr';
-import { BadgeCloture, BadgeValeur, BarreAvancement } from './projetAffichage';
+import { BadgeCloture, BadgeRetard, BadgeValeur, BarreAvancement, projetEnRetard } from './projetAffichage';
 import { ProjetFormModal } from './ProjetFormModal';
 
 type Vue = 'grille' | 'liste';
@@ -24,13 +24,6 @@ const CLOTURES: { valeur: Projet['cloture_statut']; libelle: string }[] = [
   { valeur: 'confirmee', libelle: 'Clôturé' },
   { valeur: 'rejetee', libelle: 'Clôture rejetée' },
 ];
-
-// Échéance dépassée : date de fin prévue passée sur un projet non clôturé
-// (indication visuelle uniquement, le statut « en retard » reste celui du
-// référentiel).
-function echeanceDepassee(p: Projet): boolean {
-  return Boolean(p.date_fin_prevue && p.cloture_statut !== 'confirmee' && fr(p.date_fin_prevue).isBefore(fr(), 'day'));
-}
 
 export function ProjetsPage() {
   const navigate = useNavigate();
@@ -222,7 +215,7 @@ export function ProjetsPage() {
       ) : vue === 'grille' ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {lignes.map((p) => {
-            const depassee = echeanceDepassee(p);
+            const depassee = projetEnRetard(p, p.statut_valeur_id ? statutParId.get(p.statut_valeur_id)?.code : null);
             return (
               <button
                 key={p.id}
@@ -235,6 +228,7 @@ export function ProjetsPage() {
                   <div className="flex flex-wrap justify-end gap-1.5">
                     <BadgeCloture statut={p.cloture_statut} />
                     <BadgeValeur valeur={p.statut_valeur_id ? statutParId.get(p.statut_valeur_id) : null} />
+                    <BadgeRetard enRetard={depassee} codeStatut={p.statut_valeur_id ? statutParId.get(p.statut_valeur_id)?.code : null} />
                   </div>
                 </div>
                 <h2 className="mt-2 line-clamp-2 text-[15px] font-semibold leading-snug">{p.nom}</h2>
@@ -283,7 +277,13 @@ export function ProjetsPage() {
                   </td>
                   <td className="whitespace-nowrap py-3 pr-4">{entiteLibelle(p)}</td>
                   <td className="whitespace-nowrap py-3 pr-4">
-                    <BadgeValeur valeur={p.statut_valeur_id ? statutParId.get(p.statut_valeur_id) : null} />
+                    <span className="inline-flex flex-wrap gap-1.5">
+                      <BadgeValeur valeur={p.statut_valeur_id ? statutParId.get(p.statut_valeur_id) : null} />
+                      <BadgeRetard
+                        enRetard={projetEnRetard(p, p.statut_valeur_id ? statutParId.get(p.statut_valeur_id)?.code : null)}
+                        codeStatut={p.statut_valeur_id ? statutParId.get(p.statut_valeur_id)?.code : null}
+                      />
+                    </span>
                   </td>
                   <td className="whitespace-nowrap py-3 pr-4">
                     <BadgeValeur valeur={p.priorite_valeur_id ? prioriteParId.get(p.priorite_valeur_id) : null} />
@@ -294,7 +294,7 @@ export function ProjetsPage() {
                   <td
                     className={cn(
                       'whitespace-nowrap py-3 pr-4 text-right tabular-nums',
-                      echeanceDepassee(p) && 'font-medium text-crit-text',
+                      projetEnRetard(p, p.statut_valeur_id ? statutParId.get(p.statut_valeur_id)?.code : null) && 'font-medium text-crit-text',
                     )}
                   >
                     {p.date_fin_prevue ? fr(p.date_fin_prevue).format('DD/MM/YYYY') : '—'}

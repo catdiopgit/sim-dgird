@@ -16,6 +16,7 @@ export class AuthorizationService {
     module: string,
     action: string,
     entiteId: string | null,
+    inclurePersonnel = true,
   ): Promise<boolean> {
     const rows: Array<{ ok: boolean }> = await this.dataSource.query(
       `
@@ -30,7 +31,7 @@ export class AuthorizationService {
           and (ur.date_fin is null or ur.date_fin >= current_date)
           and (
             p.portee = 'organisation'
-            or p.portee = 'personnel'
+            or (p.portee = 'personnel' and $5::boolean)
             or (
               $4::uuid is not null
               and (
@@ -52,9 +53,23 @@ export class AuthorizationService {
           )
       ) as ok
       `,
-      [utilisateurId, module, action, entiteId],
+      [utilisateurId, module, action, entiteId, inclurePersonnel],
     );
     return rows[0]?.ok ?? false;
+  }
+
+  // Permission sur une portée réellement étendue (organisation, entité, entité
+  // et descendants), sans la portée « personnel ». À utiliser pour décider si
+  // l'utilisateur peut voir ou modifier un objet qui n'est pas le sien : la
+  // portée « personnel » ne couvre que ses propres objets (responsable,
+  // membre…), vérifiés à part par chaque module.
+  async hasPermissionEtendue(
+    utilisateurId: string,
+    module: string,
+    action: string,
+    entiteId: string | null = null,
+  ): Promise<boolean> {
+    return this.hasPermission(utilisateurId, module, action, entiteId, false);
   }
 
   async hasPermission(
@@ -62,8 +77,9 @@ export class AuthorizationService {
     module: string,
     action: string,
     entiteId: string | null = null,
+    inclurePersonnel = true,
   ): Promise<boolean> {
-    if (await this.aPermissionDirecte(utilisateurId, module, action, entiteId)) {
+    if (await this.aPermissionDirecte(utilisateurId, module, action, entiteId, inclurePersonnel)) {
       return true;
     }
 
@@ -84,7 +100,7 @@ export class AuthorizationService {
     );
 
     for (const { delegant_id } of delegations) {
-      if (await this.aPermissionDirecte(delegant_id, module, action, entiteId)) {
+      if (await this.aPermissionDirecte(delegant_id, module, action, entiteId, inclurePersonnel)) {
         return true;
       }
     }

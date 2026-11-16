@@ -37,6 +37,8 @@ export interface StatistiquesProjetsLivrables {
   total: number;
   realises: number;
   enCoursOuNonRealises: number;
+  // Évolution A : livrables dont la date prévue est dépassée sans réalisation.
+  enRetard: number;
   tauxRealisation: number;
 }
 

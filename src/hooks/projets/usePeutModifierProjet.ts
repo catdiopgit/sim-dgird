@@ -8,6 +8,8 @@ type ProjetPourDroits = Pick<Projet, 'id' | 'responsable_id' | 'entite_id' | 'cl
 // "contributeur" (peut_modifier) — et plus rien une fois la clôture confirmée.
 // Centralisé ici pour éviter que chaque page (Projet/Phase/Activité) réimplémente
 // sa propre version, comme c'était le cas avant V2.
+// Recette 2026-11 : `can` doit être canEtendu (sans la portée « personnel »),
+// comme côté serveur.
 export function usePeutModifierProjet(
   projet: ProjetPourDroits | undefined | null,
   profileId: string | undefined,

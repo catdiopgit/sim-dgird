@@ -6,6 +6,7 @@ import { AuthorizationService } from '../administration/permissions/authorizatio
 import { Entite } from '../administration/entites/entities/entite.entity';
 import { JournalAudit } from '../common/entities/journal-audit.entity';
 import { Projet, type OrganismeExecutionType, type PorteeVisibiliteProjet } from './entities/projet.entity';
+import { ProjetsNotificationsService } from './projets-notifications.service';
 
 export interface CreerProjetData {
   code: string;
@@ -70,15 +71,23 @@ export class ProjetsService {
     @InjectRepository(Entite) private readonly entites: Repository<Entite>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly authorizationService: AuthorizationService,
+    private readonly notifications: ProjetsNotificationsService,
   ) {}
 
   // --- Visibilité / écriture ---
 
+  // Recette 2026-11 : la portée « personnel » ne donne accès qu'aux projets de
+  // l'utilisateur (responsable, coordonnateur, membre, visibilité qui le
+  // vise) ; elle n'ouvre plus tous les projets de l'organisation.
   async canView(projet: Projet, user: AuthenticatedUser): Promise<boolean> {
     if (projet.organisationId !== user.organisationId) return false;
     if (projet.responsableId === user.id || projet.coordonnateurId === user.id) return true;
-    if (await this.authorizationService.hasPermission(user.id, 'projets', 'consulter', projet.entiteId)) return true;
+    if (await this.authorizationService.hasPermissionEtendue(user.id, 'projets', 'consulter', projet.entiteId)) return true;
     if (await this.estMembreActif(projet.id, user.id)) return true;
+    // Le responsable de l'entité porteuse (ou d'une entité parente) suit les
+    // projets de sa structure et valide leur clôture : il doit les voir, même
+    // sans permission étendue.
+    if (await this.estResponsableHierarchique(projet.entiteId, user.id)) return true;
 
     switch (projet.porteeVisibilite) {
       case 'tous':
@@ -110,7 +119,7 @@ export class ProjetsService {
     if (projet.organisationId !== user.organisationId) return false;
     if (projet.clotureStatut === 'confirmee') return false;
     if (projet.responsableId === user.id) return true;
-    if (await this.authorizationService.hasPermission(user.id, 'projets', 'modifier', projet.entiteId)) return true;
+    if (await this.authorizationService.hasPermissionEtendue(user.id, 'projets', 'modifier', projet.entiteId)) return true;
 
     return this.estMembreActif(projet.id, user.id, true);
   }
@@ -175,8 +184,9 @@ export class ProjetsService {
     if (!(await this.authorizationService.hasPermission(user.id, 'projets', 'creer', data.entiteId))) {
       throw new ForbiddenException("Vous n'êtes pas autorisé à créer un projet pour cette entité");
     }
+    let cree: Projet;
     try {
-      return await this.projets.save(
+      cree = await this.projets.save(
         this.projets.create({
           organisationId: user.organisationId,
           entiteId: data.entiteId,
@@ -205,6 +215,13 @@ export class ProjetsService {
     } catch (err) {
       throw this.traduireErreurCode(err, data.code);
     }
+    await this.notifications.notifier([cree.responsableId], {
+      titre: `Vous êtes responsable du projet ${cree.code}`,
+      message: cree.nom,
+      projetId: cree.id,
+      auteurId: user.id,
+    });
+    return cree;
   }
 
   async update(id: string, patch: UpdateProjetData, user: AuthenticatedUser): Promise<Projet> {
@@ -215,7 +232,16 @@ export class ProjetsService {
     } catch (err) {
       throw this.traduireErreurCode(err, patch.code ?? projet.code);
     }
-    return this.findOne(id, user);
+    const modifie = await this.findOne(id, user);
+    if (patch.responsableId && patch.responsableId !== projet.responsableId) {
+      await this.notifications.notifier([patch.responsableId], {
+        titre: `Vous êtes responsable du projet ${modifie.code}`,
+        message: modifie.nom,
+        projetId: id,
+        auteurId: user.id,
+      });
+    }
+    return modifie;
   }
 
   // Contrainte unique (organisation_id, code) — seul point d'écriture de ce
@@ -234,7 +260,7 @@ export class ProjetsService {
   // responsable/membre.
   async remove(id: string, user: AuthenticatedUser): Promise<void> {
     const projet = await this.findOne(id, user);
-    if (!(await this.authorizationService.hasPermission(user.id, 'projets', 'supprimer', projet.entiteId))) {
+    if (!(await this.authorizationService.hasPermissionEtendue(user.id, 'projets', 'supprimer', projet.entiteId))) {
       throw new ForbiddenException("Vous n'êtes pas autorisé à supprimer ce projet");
     }
     await this.projets.delete(id);
@@ -365,6 +391,15 @@ export class ProjetsService {
         [user.id, projet.organisationId, projetId, JSON.stringify({ cloture_statut: 'demandee' })],
       );
       return manager.findOneByOrFail(Projet, { id: projetId });
+    }).then(async (resultat) => {
+      await this.notifications.notifier([await this.notifications.validateurCloture(projet.entiteId)], {
+        titre: `Demande de clôture : ${projet.code}`,
+        message: `${projet.nom} — demandée par ${await this.notifications.nomUtilisateur(user.id)}. À confirmer ou rejeter.`,
+        projetId,
+        onglet: 'cloture',
+        auteurId: user.id,
+      });
+      return resultat;
     });
   }
 
@@ -377,7 +412,7 @@ export class ProjetsService {
     }
     const autorise =
       (await this.estResponsableHierarchique(projet.entiteId, user.id)) ||
-      (await this.authorizationService.hasPermission(user.id, 'projets', 'valider', projet.entiteId));
+      (await this.authorizationService.hasPermissionEtendue(user.id, 'projets', 'valider', projet.entiteId));
     if (!autorise) {
       throw new ForbiddenException(
         "Seul le responsable de l'entité porteuse (ou un supérieur hiérarchique) peut confirmer la clôture",
@@ -404,6 +439,15 @@ export class ProjetsService {
         [user.id, projet.organisationId, projetId, JSON.stringify({ commentaire: commentaire ?? null })],
       );
       return manager.findOneByOrFail(Projet, { id: projetId });
+    }).then(async (resultat) => {
+      await this.notifications.notifier([projet.responsableId, projet.clotureDemandeePar], {
+        titre: `Clôture confirmée : ${projet.code}`,
+        message: commentaire?.trim() ? `${projet.nom} — ${commentaire.trim()}` : projet.nom,
+        projetId,
+        onglet: 'cloture',
+        auteurId: user.id,
+      });
+      return resultat;
     });
   }
 
@@ -417,7 +461,7 @@ export class ProjetsService {
     }
     const autorise =
       (await this.estResponsableHierarchique(projet.entiteId, user.id)) ||
-      (await this.authorizationService.hasPermission(user.id, 'projets', 'valider', projet.entiteId));
+      (await this.authorizationService.hasPermissionEtendue(user.id, 'projets', 'valider', projet.entiteId));
     if (!autorise) {
       throw new ForbiddenException(
         "Seul le responsable de l'entité porteuse (ou un supérieur hiérarchique) peut rejeter la clôture",
@@ -437,6 +481,15 @@ export class ProjetsService {
         [user.id, projet.organisationId, projetId, JSON.stringify({ motif })],
       );
       return manager.findOneByOrFail(Projet, { id: projetId });
+    }).then(async (resultat) => {
+      await this.notifications.notifier([projet.responsableId, projet.clotureDemandeePar], {
+        titre: `Clôture rejetée : ${projet.code}`,
+        message: `Motif : ${motif}`,
+        projetId,
+        onglet: 'cloture',
+        auteurId: user.id,
+      });
+      return resultat;
     });
   }
 

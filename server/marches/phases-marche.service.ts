@@ -120,9 +120,26 @@ export class PhasesMarcheService {
       );
     }
 
-    let curseur = dayjs(marche.dateDebutPrevue);
+    await this.recalculerPlanning(marcheId, marche.dateDebutPrevue, marche.dateFinPrevue);
+    return this.findAll(marcheId, user);
+  }
+
+  // Planification en cascade (recette 2026-11, évolution B) : chaque phase
+  // commence le lendemain de la fin de la précédente — fin RÉELLE si elle est
+  // terminée, sinon fin prévue. Une phase terminée garde ses dates prévues
+  // (référence pour mesurer son retard) ; une phase non terminée est décalée
+  // et commence au plus tôt à sa date de début réelle si elle a démarré. Un
+  // glissement se reporte ainsi sur toutes les phases suivantes.
+  private async recalculerPlanning(marcheId: string, dateDebutMarche: string | null, dateFinMarche: string | null): Promise<void> {
+    if (!dateDebutMarche) return;
+    const phases = await this.phasesMarche.find({ where: { marcheId }, order: { ordre: 'ASC' } });
+    let curseur = dayjs(dateDebutMarche);
     for (const phase of phases) {
-      const debut = curseur;
+      if (phase.dateFinReelle) {
+        curseur = dayjs(phase.dateFinReelle).add(1, 'day');
+        continue;
+      }
+      const debut = phase.dateDebutReelle ? dayjs(phase.dateDebutReelle) : curseur;
       const fin = debut.add(phase.dureePrevue, UNITE_VERS_DAYJS[phase.uniteDuree]).subtract(1, 'day');
       await this.phasesMarche.update(phase.id, {
         dateDebutPrevue: debut.format('YYYY-MM-DD'),
@@ -130,16 +147,37 @@ export class PhasesMarcheService {
       });
       curseur = fin.add(1, 'day');
     }
-
     const derniereFin = curseur.subtract(1, 'day');
-    if (!marche.dateFinPrevue || dayjs(marche.dateFinPrevue).isBefore(derniereFin, 'day')) {
+    if (phases.length > 0 && (!dateFinMarche || dayjs(dateFinMarche).isBefore(derniereFin, 'day'))) {
       await this.dataSource.query('update marches set date_fin_prevue = $1 where id = $2', [
         derniereFin.format('YYYY-MM-DD'),
         marcheId,
       ]);
     }
+  }
 
-    return this.findAll(marcheId, user);
+  // Évolution B : une phase ne se termine qu'après les phases obligatoires qui
+  // la précèdent.
+  private async controlerOrdre(phase: PhaseMarche): Promise<void> {
+    const precedentes: Array<{ ordre: number; nom: string }> = await this.dataSource.query(
+      `select ordre, nom from phases_marche
+       where marche_id = $1 and ordre < $2 and obligatoire and date_fin_reelle is null
+       order by ordre limit 1`,
+      [phase.marcheId, phase.ordre],
+    );
+    if (precedentes[0]) {
+      throw new BadRequestException(
+        `Validez d'abord la phase ${precedentes[0].ordre} « ${precedentes[0].nom} » (obligatoire).`,
+      );
+    }
+  }
+
+  private async nbJustificatifs(phaseId: string): Promise<number> {
+    const rows: Array<{ count: string }> = await this.dataSource.query(
+      'select count(*) as count from documents where phase_marche_id = $1 and supprime_le is null',
+      [phaseId],
+    );
+    return Number(rows[0]?.count ?? 0);
   }
 
   async update(id: string, patch: UpdatePhaseMarcheData, user: AuthenticatedUser): Promise<PhaseMarcheAvecStatut> {
@@ -148,7 +186,28 @@ export class PhasesMarcheService {
     const marche = await this.marchesService.findOne(phase.marcheId, user);
     await this.marchesService.assertModifiable(marche, user);
 
+    // Risque 3 (recette 2026-11) : une date de fin réelle vaut validation de la
+    // phase — mêmes contrôles que « Valider » (justificatif, ordre des phases).
+    if (patch.dateFinReelle && !phase.dateFinReelle) {
+      if ((await this.nbJustificatifs(id)) === 0) {
+        throw new BadRequestException('Impossible de terminer la phase : aucun document justificatif associé');
+      }
+      await this.controlerOrdre(phase);
+    }
+    const debut = patch.dateDebutReelle !== undefined ? patch.dateDebutReelle : phase.dateDebutReelle;
+    const fin = patch.dateFinReelle !== undefined ? patch.dateFinReelle : phase.dateFinReelle;
+    if (debut && fin && fin < debut) {
+      throw new BadRequestException('La date de fin réelle ne peut pas précéder la date de début réelle');
+    }
+    const aujourdhui = dayjs().format('YYYY-MM-DD');
+    if ((patch.dateDebutReelle && patch.dateDebutReelle > aujourdhui) || (patch.dateFinReelle && patch.dateFinReelle > aujourdhui)) {
+      throw new BadRequestException('Une date réelle ne peut pas être dans le futur');
+    }
+
     await this.phasesMarche.update(id, patch);
+    if (patch.dateDebutReelle !== undefined || patch.dateFinReelle !== undefined) {
+      await this.recalculerPlanning(marche.id, marche.dateDebutPrevue, marche.dateFinPrevue);
+    }
     return this.findOne(id, user);
   }
 
@@ -165,12 +224,10 @@ export class PhasesMarcheService {
     if (phase.dateFinReelle) {
       throw new BadRequestException('Cette phase est déjà validée');
     }
-    const nbDocuments = await this.dataSource
-      .query('select count(*) as count from documents where phase_marche_id = $1 and supprime_le is null', [id])
-      .then((rows) => Number(rows[0]?.count ?? 0));
-    if (nbDocuments === 0) {
+    if ((await this.nbJustificatifs(id)) === 0) {
       throw new BadRequestException('Impossible de valider la phase : aucun document justificatif associé');
     }
+    await this.controlerOrdre(phase);
 
     // dateDebutReelle ne doit jamais retomber sur la date prévisionnelle : si la
     // phase n'a pas été explicitement démarrée avant validation, la date réelle
@@ -182,6 +239,7 @@ export class PhasesMarcheService {
       dateDebutReelle: phase.dateDebutReelle ?? aujourdhui,
       dateFinReelle: aujourdhui,
     });
+    await this.recalculerPlanning(marche.id, marche.dateDebutPrevue, marche.dateFinPrevue);
     return this.findOne(id, user);
   }
 
@@ -194,6 +252,7 @@ export class PhasesMarcheService {
       throw new BadRequestException('Cette phase a déjà démarré');
     }
     await this.phasesMarche.update(id, { dateDebutReelle: dayjs().format('YYYY-MM-DD') });
+    await this.recalculerPlanning(marche.id, marche.dateDebutPrevue, marche.dateFinPrevue);
     return this.findOne(id, user);
   }
 }

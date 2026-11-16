@@ -3,10 +3,11 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { FacetFilter } from '../../components/ui/facet-filter';
+import { Encart } from '../../components/ui/encart';
 import { EtatVide, PageHeader } from '../../components/ui/page-header';
 import { Skeleton } from '../../components/ui/skeleton';
 import { useEntites } from '../../hooks/administration/useEntites';
-import { useMarches } from '../../hooks/marches/useMarches';
+import { useAccesMarches, useMarches } from '../../hooks/marches/useMarches';
 import { useTypesMarche } from '../../hooks/marches/useTypesMarche';
 import { useProfile } from '../../hooks/useProfile';
 import { champBase } from '../../lib/styles';
@@ -23,7 +24,7 @@ const STATUTS: { valeur: Marche['statut_cloture']; libelle: string }[] = [
 
 export function MarchesPage() {
   const navigate = useNavigate();
-  const { profile, can } = useProfile();
+  const { profile } = useProfile();
   const organisationId = profile?.organisation_id;
 
   const [formOuvert, setFormOuvert] = useState(false);
@@ -57,7 +58,8 @@ export function MarchesPage() {
   const nbStatut = compter((m) => m.statut_cloture);
 
   const filtresActifs = recherche !== '' || typesFiltre.length + statuts.length > 0;
-  const peutCreer = can('marches', 'creer');
+  const { data: acces } = useAccesMarches();
+  const peutCreer = !!acces?.membre;
 
   if (!organisationId) {
     return (
@@ -88,6 +90,14 @@ export function MarchesPage() {
           </>
         }
       />
+
+      {acces && !acces.membre && (
+        <Encart titre="Consultation seule">
+          {acces.cellule
+            ? `Seuls les membres de la ${acces.cellule.libelle} créent les marchés et agissent dessus.`
+            : "Aucune cellule de passation des marchés n'est définie : demandez à l'administrateur de la désigner (paramètre « marches_cellule_entite_id »)."}
+        </Encart>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <label className="relative w-full sm:w-72">

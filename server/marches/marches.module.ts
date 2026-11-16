@@ -27,7 +27,9 @@ import { MarchesDocumentsService } from './marches-documents.service';
 import { MarchesDocumentsController } from './marches-documents.controller';
 import { MarchesStatistiquesService } from './marches-statistiques.service';
 import { MarchesStatistiquesController } from './marches-statistiques.controller';
-import { MarchesRetardsService } from './marches-retards.service';
+import { MarchesNotificationsService } from './marches-notifications.service';
+import { MarchesAccesModule } from './acces/marches-acces.module';
+import { MarchesAccesController } from './acces/marches-acces.controller';
 
 @Module({
   imports: [
@@ -44,6 +46,7 @@ import { MarchesRetardsService } from './marches-retards.service';
     PermissionsModule,
     GedModule,
     NotificationsModule,
+    MarchesAccesModule,
   ],
   providers: [
     TypesMarcheService,
@@ -54,9 +57,10 @@ import { MarchesRetardsService } from './marches-retards.service';
     MarcheAttributionsService,
     MarchesDocumentsService,
     MarchesStatistiquesService,
-    MarchesRetardsService,
+    MarchesNotificationsService,
   ],
   controllers: [
+    MarchesAccesController,
     TypesMarcheController,
     PhasesTypeMarcheController,
     MarchesController,

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { cn } from '../../lib/utils';
 import type { EcheanceProchaine } from '../../services/dashboard/echeances';
 import type { StatistiquesCourrier } from '../../services/courrier/statistiques';
+import type { StatistiquesMarches } from '../../services/marches/statistiques';
 import type { StatistiquesMissions } from '../../services/missions/statistiques';
 import type { StatistiquesProjets } from '../../services/projets/statistiques';
 
@@ -12,6 +13,8 @@ interface Props {
   courrier: StatistiquesCourrier | undefined;
   projets: StatistiquesProjets | undefined;
   missions: StatistiquesMissions | undefined;
+  // Évolution C (recette 2026-11) : marchés en retard (absent si module masqué).
+  marches?: StatistiquesMarches | undefined;
   echeances: EcheanceProchaine[] | undefined;
 }
 
@@ -31,7 +34,7 @@ const pluriel = (n: number, s = 's') => (n > 1 ? s : '');
 // une intervention (retards, échéances dépassées) ; le reste (à traiter, en
 // attente) reste en orange. Les échéances dépassées (ex-AlertsPanel) sont
 // regroupées ici avec leur première occurrence en détail.
-export function ActionRequiredPanel({ courrier, projets, missions, echeances }: Props) {
+export function ActionRequiredPanel({ courrier, projets, missions, marches, echeances }: Props) {
   const navigate = useNavigate();
 
   const elements = useMemo<ElementATraiter[]>(() => {
@@ -44,6 +47,10 @@ export function ActionRequiredPanel({ courrier, projets, missions, echeances }: 
     if (projets && projets.totaux.enRetard > 0) {
       const n = projets.totaux.enRetard;
       items.push({ cle: 'projets-retard', libelle: `${n} projet${pluriel(n)} avec échéance dépassée`, niveau: 'critique', onClick: () => navigate('/projets') });
+    }
+    if (marches && marches.totaux.enRetard > 0) {
+      const n = marches.totaux.enRetard;
+      items.push({ cle: 'marches-retard', libelle: `${n} marché${pluriel(n)} avec une phase en retard`, niveau: 'critique', onClick: () => navigate('/marches') });
     }
     if (missions && missions.totaux.enRetard > 0) {
       const n = missions.totaux.enRetard;
@@ -64,6 +71,8 @@ export function ActionRequiredPanel({ courrier, projets, missions, echeances }: 
               ? `/projets/${premiere.lienId}`
               : premiere.type === 'courrier'
                 ? `/courriers/${premiere.lienId}`
+                : premiere.type === 'phase_marche'
+                  ? `/marches/${premiere.lienId}?onglet=phases`
                 : `/missions/${premiere.lienId}`,
           ),
       });
@@ -75,7 +84,7 @@ export function ActionRequiredPanel({ courrier, projets, missions, echeances }: 
     }
 
     return items;
-  }, [courrier, projets, missions, echeances, navigate]);
+  }, [courrier, projets, missions, marches, echeances, navigate]);
 
   return (
     <Card>

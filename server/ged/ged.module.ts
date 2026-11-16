@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PermissionsModule } from '../administration/permissions/permissions.module';
 import { WorkflowModule } from '../workflow/workflow.module';
+import { MarchesAccesModule } from '../marches/acces/marches-acces.module';
 import { GedDossier } from './entities/ged-dossier.entity';
 import { Document } from './entities/document.entity';
 import { DocumentVersion } from './entities/document-version.entity';
@@ -38,6 +39,7 @@ import { GedStorageController } from './ged-storage.controller';
     ]),
     PermissionsModule,
     WorkflowModule,
+    MarchesAccesModule,
   ],
   providers: [
     GedDossiersService,

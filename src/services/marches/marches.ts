@@ -47,3 +47,14 @@ export async function cloturerMarche(id: string): Promise<Marche> {
   const data = await api.post<unknown>(`/marches/${id}/cloturer`);
   return toSnakeCase<Marche>(data);
 }
+
+// Recette 2026-11 : droits sur le module (cellule de passation des marchés).
+export interface AccesMarches {
+  cellule: { entiteId: string; libelle: string; responsableId: string | null } | null;
+  membre: boolean;
+  chef: boolean;
+}
+
+export async function fetchAccesMarches(): Promise<AccesMarches> {
+  return api.get<AccesMarches>('/marches-acces');
+}

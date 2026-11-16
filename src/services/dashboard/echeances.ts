@@ -1,6 +1,6 @@
 import { api } from '../../config/apiClient';
 
-export type TypeEcheance = 'livrable' | 'action_mission' | 'courrier';
+export type TypeEcheance = 'livrable' | 'action_mission' | 'courrier' | 'phase_marche';
 
 export interface EcheanceProchaine {
   type: TypeEcheance;

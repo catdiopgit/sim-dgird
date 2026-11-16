@@ -28,6 +28,18 @@ type FormValues = z.infer<typeof schema>;
 interface Props {
   marcheId: string;
   peutModifier: boolean;
+  // Évolution E : alerte (non bloquante) si l'attribution dépasse l'estimation.
+  montantEstimatif?: number | null;
+}
+
+function AlerteDepassement({ montant, estimatif }: { montant: number | null | undefined; estimatif: number | null | undefined }) {
+  if (montant == null || estimatif == null || !(montant > estimatif)) return null;
+  const ecart = montant - estimatif;
+  return (
+    <Encart variante="attention" titre="Montant attribué supérieur à l'estimation" className="mt-4 max-w-2xl">
+      {`Dépassement de ${formatMontant(ecart)} (${Math.round((ecart / estimatif) * 1000) / 10} %) par rapport au montant estimatif de ${formatMontant(estimatif)}.`}
+    </Encart>
+  );
 }
 
 const VIDE: FormValues = { candidatAttributaireId: '', montantAttribue: undefined, dateAttribution: '', observations: '' };
@@ -44,7 +56,7 @@ function Ligne({ label, children }: { label: string; children: ReactNode }) {
 // §16 Attribution du marché — l'attributaire est sélectionné parmi les
 // entreprises/consultants déjà enregistrés pour ce marché (server/marches/
 // marche-attributions.service.ts le vérifie explicitement).
-export function MarcheAttributionTab({ marcheId, peutModifier }: Props) {
+export function MarcheAttributionTab({ marcheId, peutModifier, montantEstimatif }: Props) {
   const { data: attribution, isLoading } = useMarcheAttribution(marcheId);
   const { data: candidats } = useMarcheCandidats(marcheId);
   const enregistrer = useMarcheAttributionMutation(marcheId);
@@ -53,6 +65,7 @@ export function MarcheAttributionTab({ marcheId, peutModifier }: Props) {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -102,6 +115,7 @@ export function MarcheAttributionTab({ marcheId, peutModifier }: Props) {
           ) : (
             <EtatVide icone={Award} titre="Aucune attribution enregistrée" />
           )}
+          <AlerteDepassement montant={attribution?.montant_attribue} estimatif={montantEstimatif} />
         </CardContent>
       </Card>
     );
@@ -158,6 +172,7 @@ export function MarcheAttributionTab({ marcheId, peutModifier }: Props) {
           <Champ label="Observations" htmlFor="attribution-observations">
             <Textarea id="attribution-observations" rows={2} {...register('observations')} />
           </Champ>
+          <AlerteDepassement montant={watch('montantAttribue')} estimatif={montantEstimatif} />
           <Button type="submit" disabled={enregistrer.isPending}>
             {enregistrer.isPending && <LoaderCircle className="animate-spin" />}
             Enregistrer l'attribution

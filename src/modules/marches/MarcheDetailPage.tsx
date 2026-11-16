@@ -9,7 +9,7 @@ import { EtatVide, PageHeader } from '../../components/ui/page-header';
 import { Skeleton } from '../../components/ui/skeleton';
 import { TabBar } from '../../components/ui/tab-bar';
 import { useEntites, useUtilisateursOptions } from '../../hooks/administration/useEntites';
-import { useMarche, useMarcheMutations, useVerifierClotureMarche } from '../../hooks/marches/useMarches';
+import { useAccesMarches, useMarche, useMarcheMutations, useVerifierClotureMarche } from '../../hooks/marches/useMarches';
 import { useMarcheCandidats } from '../../hooks/marches/useMarcheCandidats';
 import { usePeutModifierMarche } from '../../hooks/marches/usePeutModifierMarche';
 import { useTypesMarche } from '../../hooks/marches/useTypesMarche';
@@ -36,7 +36,7 @@ const ONGLETS: { cle: Onglet; libelle: string }[] = [
 export function MarcheDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { profile, can } = useProfile();
+  const { profile } = useProfile();
   const organisationId = profile?.organisation_id;
 
   // L'onglet actif vit dans l'URL (?onglet=phases) : lien direct et retour
@@ -52,7 +52,8 @@ export function MarcheDetailPage() {
   const { data: candidats } = useMarcheCandidats(id);
   const { data: controlesCloture } = useVerifierClotureMarche(id);
   const { remove: supprimerMarche, cloturer } = useMarcheMutations();
-  const peutModifier = usePeutModifierMarche(marche, profile?.id, can);
+  const { data: acces } = useAccesMarches();
+  const peutModifier = usePeutModifierMarche(marche, acces);
 
   const [editionOuverte, setEditionOuverte] = useState(false);
   const [impressionOuverte, setImpressionOuverte] = useState(false);
@@ -85,8 +86,9 @@ export function MarcheDetailPage() {
     );
   }
 
-  const peutSupprimer = can('marches', 'supprimer', marche.entite_id);
-  const peutCloturer = can('marches', 'valider', marche.entite_id) && marche.statut_cloture !== 'cloture';
+  // Recette 2026-11 : clôture et suppression réservées au chef de la cellule.
+  const peutSupprimer = !!acces?.chef;
+  const peutCloturer = !!acces?.chef && marche.statut_cloture !== 'cloture';
   const blocagesCloture = (controlesCloture ?? []).filter((c) => c.bloquant);
   const cloture = marche.statut_cloture === 'cloture';
 
@@ -179,7 +181,7 @@ export function MarcheDetailPage() {
         {onglet === 'phases' && <MarchePhasesTab marcheId={marche.id} peutModifier={peutModifier} cloture={cloture} />}
         {onglet === 'documents' && <MarcheDocumentsTab marcheId={marche.id} peutModifier={peutModifier} />}
         {onglet === 'candidats' && <MarcheCandidatsTab marcheId={marche.id} peutModifier={peutModifier} />}
-        {onglet === 'attribution' && <MarcheAttributionTab marcheId={marche.id} peutModifier={peutModifier} />}
+        {onglet === 'attribution' && <MarcheAttributionTab marcheId={marche.id} peutModifier={peutModifier} montantEstimatif={marche.montant_estimatif} />}
       </div>
 
       <ConfirmDialog

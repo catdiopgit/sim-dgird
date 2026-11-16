@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { env } from '../config/env';
 import { useEcheancesProchaines } from '../hooks/dashboard/useEcheancesProchaines';
 import { useStatistiquesCourrier } from '../hooks/courrier/useStatistiquesCourrier';
+import { useStatistiquesMarches } from '../hooks/marches/useStatistiquesMarches';
 import { useStatistiquesMissions } from '../hooks/missions/useStatistiquesMissions';
 import { useStatistiquesProjets } from '../hooks/projets/useStatistiquesProjets';
 import { useProfile } from '../hooks/useProfile';
@@ -44,6 +45,7 @@ export function DashboardPage() {
   const { data: missionsPrecedentes } = useStatistiquesMissions({ dateDebut: dateDebutPrecedente, dateFin: dateFinPrecedente });
 
   const { data: echeances, isLoading: chargementEcheances } = useEcheancesProchaines(30);
+  const { data: marches } = useStatistiquesMarches({});
 
   const peutVoirActivite = can('administration', 'consulter');
 
@@ -70,7 +72,7 @@ export function DashboardPage() {
       </div>
 
       <div className={`grid grid-cols-1 gap-4 ${peutVoirActivite ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
-        <ActionRequiredPanel courrier={courrier} projets={projets} missions={missions} echeances={echeances} />
+        <ActionRequiredPanel courrier={courrier} projets={projets} missions={missions} marches={env.marchesEnabled ? marches : undefined} echeances={echeances} />
         <UpcomingDeadlinesPanel echeances={echeances} chargement={chargementEcheances} />
         {peutVoirActivite && <RecentActivityPanel organisationId={organisationId} />}
       </div>

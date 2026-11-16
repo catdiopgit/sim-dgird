@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { MarchesService } from './marches.service';
+import { MarchesNotificationsService } from './marches-notifications.service';
 import { MarcheAttribution } from './entities/marche-attribution.entity';
 import { MarcheCandidat } from './entities/marche-candidat.entity';
 
@@ -23,6 +24,7 @@ export class MarcheAttributionsService {
     @InjectRepository(MarcheAttribution) private readonly attributions: Repository<MarcheAttribution>,
     @InjectRepository(MarcheCandidat) private readonly candidats: Repository<MarcheCandidat>,
     private readonly marchesService: MarchesService,
+    private readonly notifications: MarchesNotificationsService,
   ) {}
 
   async findOne(marcheId: string, user: AuthenticatedUser): Promise<MarcheAttribution | null> {
@@ -49,10 +51,11 @@ export class MarcheAttributionsService {
       });
       const rechargee = await this.attributions.findOneBy({ id: existante.id });
       if (!rechargee) throw new NotFoundException('Attribution introuvable');
+      await this.notifierAttribution(marche, candidat.nom, data.montantAttribue ?? null, user, true);
       return rechargee;
     }
 
-    return this.attributions.save(
+    const creee = await this.attributions.save(
       this.attributions.create({
         marcheId,
         candidatAttributaireId: data.candidatAttributaireId,
@@ -61,6 +64,35 @@ export class MarcheAttributionsService {
         observations: data.observations ?? null,
         createdBy: user.id,
       }),
+    );
+    await this.notifierAttribution(marche, candidat.nom, data.montantAttribue ?? null, user, false);
+    return creee;
+  }
+
+  // Évolutions A et E : attribution notifiée à la cellule et au responsable du
+  // marché, avec une alerte si le montant attribué dépasse l'estimation.
+  private async notifierAttribution(
+    marche: { id: string; reference: string; objet: string; responsableId: string | null; montantEstimatif: number | null; organisationId: string },
+    attributaire: string,
+    montant: number | null,
+    user: AuthenticatedUser,
+    modification: boolean,
+  ): Promise<void> {
+    const format = (v: number) => new Intl.NumberFormat('fr-FR').format(v);
+    const lignes = [`${marche.objet}`, `Attributaire : ${attributaire}`];
+    if (montant != null) lignes.push(`Montant attribué : ${format(montant)} FCFA`);
+    if (montant != null && marche.montantEstimatif != null && montant > marche.montantEstimatif) {
+      lignes.push(`Attention : dépasse le montant estimatif (${format(marche.montantEstimatif)} FCFA) de ${format(montant - marche.montantEstimatif)} FCFA.`);
+    }
+    await this.notifications.notifier(
+      [marche.responsableId, ...(await this.notifications.membresCellule(marche.organisationId))],
+      {
+        titre: `${modification ? 'Attribution modifiée' : 'Marché attribué'} : ${marche.reference}`,
+        message: lignes.join('\n'),
+        marcheId: marche.id,
+        onglet: 'attribution',
+        auteurId: user.id,
+      },
     );
   }
 }

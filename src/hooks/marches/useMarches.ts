@@ -4,6 +4,7 @@ import {
   cloturerMarche,
   createMarche,
   deleteMarche,
+  fetchAccesMarches,
   getMarche,
   listMarches,
   updateMarche,
@@ -77,4 +78,10 @@ export function useMarcheMutations() {
   });
 
   return { create, update, remove, cloturer };
+}
+
+// Recette 2026-11 : seuls les membres de la cellule de passation créent et
+// modifient ; seul le chef de cellule clôture ou supprime.
+export function useAccesMarches() {
+  return useQuery({ queryKey: ['marches-acces'], queryFn: () => fetchAccesMarches(), staleTime: 60_000 });
 }

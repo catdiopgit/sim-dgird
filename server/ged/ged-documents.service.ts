@@ -3,6 +3,7 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { AuthorizationService } from '../administration/permissions/authorization.service';
+import { MarchesAccesService } from '../marches/acces/marches-acces.service';
 import { Document } from './entities/document.entity';
 import { DocumentVersion } from './entities/document-version.entity';
 import { GedVersement } from './entities/ged-versement.entity';
@@ -40,6 +41,7 @@ export class GedDocumentsService {
     @InjectRepository(GedVersement) private readonly versements: Repository<GedVersement>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly authorizationService: AuthorizationService,
+    private readonly marchesAcces: MarchesAccesService,
   ) {}
 
   // --- Visibilité (portage de app.can_view_document, 0057) ---
@@ -68,6 +70,16 @@ export class GedDocumentsService {
     // même raison (voir la note sur la régression 0066/0077 quelques lignes plus haut).
     if (!estSecrete && document.missionId && (await this.peutVoirMission(document.missionId, user))) {
       return true;
+    }
+    // Recette 2026-11 : un document de marché (avis, offre, PV, justificatif
+    // de phase) s'ouvre pour qui voit le marché, comme pour les projets.
+    if (!estSecrete && document.marcheId) {
+      const marches: Array<{ organisation_id: string; responsable_id: string | null; entite_id: string }> =
+        await this.dataSource.query('select organisation_id, responsable_id, entite_id from marches where id = $1', [document.marcheId]);
+      const m = marches[0];
+      if (m && (await this.marchesAcces.peutVoir({ organisationId: m.organisation_id, responsableId: m.responsable_id, entiteId: m.entite_id }, user))) {
+        return true;
+      }
     }
     if (await this.aDroitConsulter('document_droits', 'document_id', document.id, user)) return true;
 
@@ -106,6 +118,7 @@ export class GedDocumentsService {
     const projet = rows[0];
     if (!projet) return false;
     if (projet.responsable_id === user.id || projet.coordonnateur_id === user.id) return true;
+    if (await this.marchesAcces.estResponsableHierarchique(projet.entite_id, user.id)) return true;
     if (await this.authorizationService.hasPermissionEtendue(user.id, 'projets', 'consulter', projet.entite_id)) return true;
 
     const membre = await this.dataSource.query(

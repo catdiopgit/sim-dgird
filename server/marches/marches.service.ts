@@ -2,8 +2,9 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
-import { AuthorizationService } from '../administration/permissions/authorization.service';
 import { Marche } from './entities/marche.entity';
+import { MarchesAccesService } from './acces/marches-acces.service';
+import { MarchesNotificationsService } from './marches-notifications.service';
 
 export interface CreerMarcheData {
   reference: string;
@@ -48,20 +49,34 @@ export class MarchesService {
   constructor(
     @InjectRepository(Marche) private readonly marches: Repository<Marche>,
     @InjectDataSource() private readonly dataSource: DataSource,
-    private readonly authorizationService: AuthorizationService,
+    private readonly acces: MarchesAccesService,
+    private readonly notifications: MarchesNotificationsService,
   ) {}
 
+  // Recette 2026-11 : voir MarchesAccesService.peutVoir (cellule, responsable
+  // du marché, responsable hiérarchique, portée étendue — plus « personnel »).
   async canView(marche: Marche, user: AuthenticatedUser): Promise<boolean> {
-    if (marche.organisationId !== user.organisationId) return false;
-    if (marche.responsableId === user.id) return true;
-    return this.authorizationService.hasPermission(user.id, 'marches', 'consulter', marche.entiteId);
+    return this.acces.peutVoir(marche, user);
   }
 
+  // Recette 2026-11 : seuls les membres de la cellule de passation des marchés
+  // agissent sur un marché (phases, candidats, attribution, documents).
   async canModifier(marche: Marche, user: AuthenticatedUser): Promise<boolean> {
     if (marche.organisationId !== user.organisationId) return false;
     if (marche.statutCloture === 'cloture') return false;
-    if (marche.responsableId === user.id) return true;
-    return this.authorizationService.hasPermission(user.id, 'marches', 'modifier', marche.entiteId);
+    return (await this.acces.acces(user)).membre;
+  }
+
+  private async assertMembreCellule(user: AuthenticatedUser, action: string): Promise<void> {
+    const a = await this.acces.acces(user);
+    if (!a.cellule) {
+      throw new ForbiddenException(
+        "Aucune cellule de passation des marchés n'est définie (paramètre « marches_cellule_entite_id »)",
+      );
+    }
+    if (!a.membre) {
+      throw new ForbiddenException(`Seuls les membres de la ${a.cellule.libelle} peuvent ${action}`);
+    }
   }
 
   async assertModifiable(marche: Marche, user: AuthenticatedUser): Promise<void> {
@@ -91,11 +106,10 @@ export class MarchesService {
   }
 
   async create(data: CreerMarcheData, user: AuthenticatedUser): Promise<Marche> {
-    if (!(await this.authorizationService.hasPermission(user.id, 'marches', 'creer', data.entiteId))) {
-      throw new ForbiddenException("Vous n'êtes pas autorisé à créer un marché pour cette entité");
-    }
+    await this.assertMembreCellule(user, 'créer un marché');
+    let cree: Marche;
     try {
-      return await this.marches.save(
+      cree = await this.marches.save(
         this.marches.create({
           organisationId: user.organisationId,
           entiteId: data.entiteId,
@@ -115,6 +129,13 @@ export class MarchesService {
     } catch (err) {
       throw this.traduireErreurReference(err, data.reference);
     }
+    await this.notifications.notifier([cree.responsableId], {
+      titre: `Vous êtes responsable du marché ${cree.reference}`,
+      message: cree.objet,
+      marcheId: cree.id,
+      auteurId: user.id,
+    });
+    return cree;
   }
 
   // Le recalcul des dates prévisionnelles des phases (§10, "si la date de
@@ -129,13 +150,22 @@ export class MarchesService {
     } catch (err) {
       throw this.traduireErreurReference(err, patch.reference ?? marche.reference);
     }
-    return this.findOne(id, user);
+    const modifie = await this.findOne(id, user);
+    if (patch.responsableId && patch.responsableId !== marche.responsableId) {
+      await this.notifications.notifier([patch.responsableId], {
+        titre: `Vous êtes responsable du marché ${modifie.reference}`,
+        message: modifie.objet,
+        marcheId: id,
+        auteurId: user.id,
+      });
+    }
+    return modifie;
   }
 
   async remove(id: string, user: AuthenticatedUser): Promise<void> {
-    const marche = await this.findOne(id, user);
-    if (!(await this.authorizationService.hasPermission(user.id, 'marches', 'supprimer', marche.entiteId))) {
-      throw new ForbiddenException("Vous n'êtes pas autorisé à supprimer ce marché");
+    await this.findOne(id, user); // 404 si non visible
+    if (!(await this.acces.acces(user)).chef) {
+      throw new ForbiddenException('Seul le chef de la cellule de passation des marchés peut supprimer un marché');
     }
     await this.marches.delete(id);
   }
@@ -199,8 +229,9 @@ export class MarchesService {
     if (marche.statutCloture === 'cloture') {
       throw new BadRequestException('Ce marché est déjà clôturé');
     }
-    if (!(await this.authorizationService.hasPermission(user.id, 'marches', 'valider', marche.entiteId))) {
-      throw new ForbiddenException("Vous n'êtes pas autorisé à clôturer ce marché");
+    // Recette 2026-11 : clôture réservée au chef de la cellule de passation.
+    if (!(await this.acces.acces(user)).chef) {
+      throw new ForbiddenException('Seul le chef de la cellule de passation des marchés peut clôturer un marché');
     }
     const controles = await this.verifierCloture(marcheId, user);
     const blocages = controles.filter((c) => c.bloquant).map((c) => c.message);
@@ -212,6 +243,13 @@ export class MarchesService {
       statutCloture: 'cloture',
       cloturePar: user.id,
       clotureLe: new Date(),
+    });
+    const directeur = await this.dataSource.query('select responsable_utilisateur_id as id from entites where id = $1', [marche.entiteId]);
+    await this.notifications.notifier([marche.responsableId, directeur[0]?.id], {
+      titre: `Marché clôturé : ${marche.reference}`,
+      message: marche.objet,
+      marcheId,
+      auteurId: user.id,
     });
     return this.findOne(marcheId, user);
   }

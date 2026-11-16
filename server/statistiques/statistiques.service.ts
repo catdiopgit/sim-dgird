@@ -3,6 +3,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { CourriersService } from '../courrier/courriers.service';
+import { MarchesService } from '../marches/marches.service';
 import { MissionsService } from '../missions/missions.service';
 import { ProjetsService } from '../projets/projets.service';
 
@@ -25,7 +26,7 @@ export interface FiltresMissions extends FiltresPeriode {
   etapeCode?: string;
 }
 export interface Echeance {
-  type: 'livrable' | 'action_mission' | 'courrier';
+  type: 'livrable' | 'action_mission' | 'courrier' | 'phase_marche';
   id: string;
   libelle: string;
   reference: string;
@@ -52,6 +53,7 @@ export class StatistiquesService {
     private readonly courriersService: CourriersService,
     private readonly projetsService: ProjetsService,
     private readonly missionsService: MissionsService,
+    private readonly marchesService: MarchesService,
   ) {}
 
   async courrier(filtres: FiltresPeriode, user: AuthenticatedUser): Promise<unknown> {
@@ -231,10 +233,11 @@ export class StatistiquesService {
     }
   async echeances(horizonJours: number, user: AuthenticatedUser): Promise<Echeance[]> {
     const horizon = Number.isFinite(horizonJours) && horizonJours > 0 ? Math.min(horizonJours, 365) : 30;
-    const [projets, missions, courriers] = await Promise.all([
+    const [projets, missions, courriers, marches] = await Promise.all([
         this.projetsService.findAll(user),
         this.missionsService.findAll(user),
         this.courriersService.findAll(user),
+        this.marchesService.findAll(user),
     ]);
     const rows: LigneEcheance[] = await this.dataSource.query(`select * from (
      select 'livrable' as type, l.id, l.nom as libelle, p.nom as reference, l.date_prevue as date_echeance, p.id as lien_id
@@ -260,7 +263,14 @@ export class StatistiquesService {
      where c.id = any($3::uuid[]) and c.annule_le is null
        and cd.echeance <= current_date + make_interval(days => $4::int)
      group by c.id, c.objet, c.numero
-       ) e order by date_echeance`, [projets.map((p) => p.id), missions.map((m) => m.id), courriers.map((c) => c.id), horizon]);
+     union all
+     -- Évolution C (recette 2026-11) : phases de marché non terminées.
+     select 'phase_marche', p.id, p.nom, m.reference, p.date_fin_prevue, m.id
+     from phases_marche p
+     join marches m on m.id = p.marche_id and m.statut_cloture = 'en_cours'
+     where m.id = any($5::uuid[]) and p.date_fin_reelle is null and p.date_fin_prevue is not null
+       and p.date_fin_prevue <= current_date + make_interval(days => $4::int)
+   ) e order by date_echeance`, [projets.map((p) => p.id), missions.map((m) => m.id), courriers.map((c) => c.id), horizon, marches.map((m) => m.id)]);
     const aujourdhui = new Date().toISOString().slice(0, 10);
     return rows.map((r) => {
         const date = r.date_echeance instanceof Date ? r.date_echeance.toISOString().slice(0, 10) : String(r.date_echeance).slice(0, 10);

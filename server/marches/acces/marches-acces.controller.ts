@@ -10,7 +10,8 @@ export class MarchesAccesController {
   constructor(private readonly acces: MarchesAccesService) {}
 
   @Get()
-  moi(@CurrentUser() user: AuthenticatedUser) {
-    return this.acces.acces(user);
+  async moi(@CurrentUser() user: AuthenticatedUser) {
+    const a = await this.acces.acces(user);
+    return { ...a, parametrage: await this.acces.peutParametrer(user) };
   }
 }

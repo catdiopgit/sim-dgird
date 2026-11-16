@@ -10,6 +10,7 @@ import { PlanClassementManager } from './PlanClassementManager';
 import { ReglesNumerotationManager } from './ReglesNumerotationManager';
 import { SmtpParametresManager } from './SmtpParametresManager';
 import { TypesMarcheManager } from '../../marches/administration/TypesMarcheManager';
+import { useAccesMarches } from '../../../hooks/marches/useMarches';
 
 type SousSection = 'listes' | 'numerotation' | 'parametres' | 'courrier' | 'entete' | 'smtp' | 'plan-classement' | 'marches';
 
@@ -21,7 +22,10 @@ export function ParametrageTab() {
   // administration : réservé à l'administrateur et à l'archiviste, invisible
   // pour les autres rôles (même en lecture seule).
   const peutGererPlanClassement = can('ged', 'modifier');
-  const peutGererMarches = can('marches', 'modifier');
+  // Recette 2026-11 : types de marché et phases → cellule de passation et
+  // administrateurs (MarchesAccesService.peutParametrer).
+  const { data: accesMarches } = useAccesMarches();
+  const peutGererMarches = !!accesMarches?.parametrage;
   const [actif, setActif] = useState<SousSection>('listes');
 
   if (!organisationId) return <Skeleton className="h-64 w-full" />;

@@ -18,6 +18,8 @@ export interface AccesMarches {
   // Chef de cellule (responsable de l'entité) : seul à pouvoir clôturer ou
   // supprimer un marché.
   chef: boolean;
+  // Peut paramétrer les types de marché et leurs phases.
+  parametrage: boolean;
 }
 
 // Recette 2026-11 : seuls les membres de la cellule de passation des marchés
@@ -55,7 +57,7 @@ export class MarchesAccesService {
   // de la cellule même s'il est rattaché ailleurs.
   async acces(user: AuthenticatedUser): Promise<AccesMarches> {
     const cellule = await this.cellule(user.organisationId);
-    if (!cellule) return { cellule: null, membre: false, chef: false };
+    if (!cellule) return { cellule: null, membre: false, chef: false, parametrage: false };
     const chef = cellule.responsableId === user.id;
     let membre = chef;
     if (!membre && user.entiteId) {
@@ -69,7 +71,7 @@ export class MarchesAccesService {
       );
       membre = rows.length > 0;
     }
-    return { cellule, membre, chef };
+    return { cellule, membre, chef, parametrage: false };
   }
 
   // Responsable de l'entité porteuse ou d'une entité parente.
@@ -84,6 +86,15 @@ export class MarchesAccesService {
       [entiteId, utilisateurId],
     );
     return rows.length > 0;
+  }
+
+  // Paramétrage des types de marché et de leurs phases (recette 2026-11) :
+  // membres de la cellule de passation, et administrateurs (administration /
+  // modifier, ou marchés / modifier sur une portée étendue).
+  async peutParametrer(user: AuthenticatedUser): Promise<boolean> {
+    if ((await this.acces(user)).membre) return true;
+    if (await this.authorizationService.hasPermissionEtendue(user.id, 'administration', 'modifier')) return true;
+    return this.authorizationService.hasPermissionEtendue(user.id, 'marches', 'modifier');
   }
 
   // Qui voit un marché : la cellule, le responsable du marché, le responsable

@@ -53,6 +53,8 @@ export interface AccesMarches {
   cellule: { entiteId: string; libelle: string; responsableId: string | null } | null;
   membre: boolean;
   chef: boolean;
+  // Peut paramétrer les types de marché et leurs phases.
+  parametrage: boolean;
 }
 
 export async function fetchAccesMarches(): Promise<AccesMarches> {

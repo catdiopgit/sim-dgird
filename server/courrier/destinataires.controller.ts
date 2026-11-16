@@ -12,6 +12,7 @@ class AjouterDestinataireDto implements AjouterDestinataireData {
   @IsOptional() @IsIn(['principal', 'copie']) typeDiffusion?: 'principal' | 'copie';
   @IsOptional() @IsString() instruction?: string | null;
   @IsOptional() @IsString() echeance?: string | null;
+  @IsOptional() @IsIn(['responsable', 'entite', 'entite_et_descendants']) porteeDiffusion?: 'responsable' | 'entite' | 'entite_et_descendants' | null;
 }
 
 @Controller('courrier')

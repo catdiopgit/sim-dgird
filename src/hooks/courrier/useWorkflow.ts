@@ -61,6 +61,7 @@ export function useExecuterTransitionCourrier(courrierId: string | undefined) {
       void queryClient.invalidateQueries({ queryKey: ['workflow-instance', courrierId] });
       void queryClient.invalidateQueries({ queryKey: ['workflow-historique', courrierId] });
       void queryClient.invalidateQueries({ queryKey: ['transitions-disponibles', courrierId] });
+      void queryClient.invalidateQueries({ queryKey: ['destinataires', courrierId] });
     },
     onError: (error: Error) => message.error(error.message),
   });

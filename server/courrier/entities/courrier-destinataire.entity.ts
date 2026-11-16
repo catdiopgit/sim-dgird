@@ -52,4 +52,13 @@ export class CourrierDestinataire {
   // a déclenchée (CourrierWorkflowService.imputerCourrier).
   @Column({ type: 'uuid', name: 'workflow_historique_id', nullable: true })
   workflowHistoriqueId: string | null;
+
+  // Note de service : 'responsable' (défaut), 'entite' (tout le personnel) ou
+  // 'entite_et_descendants'. Les lignes nominatives générées à la diffusion
+  // pointent vers la ligne d'entité via destinataire_parent_id (SQL v8.1).
+  @Column({ type: 'text', name: 'portee_diffusion', nullable: true })
+  porteeDiffusion: 'responsable' | 'entite' | 'entite_et_descendants' | null;
+
+  @Column({ type: 'uuid', name: 'destinataire_parent_id', nullable: true })
+  destinataireParentId: string | null;
 }

@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { WorkflowHistorique } from '../workflow/entities/workflow-historique.entity';
 import { Courrier } from './entities/courrier.entity';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
@@ -16,6 +17,7 @@ export interface AjouterDestinataireData {
   typeDiffusion?: 'principal' | 'copie';
   instruction?: string | null;
   echeance?: string | null;
+  porteeDiffusion?: 'responsable' | 'entite' | 'entite_et_descendants' | null;
 }
 
 // Portage des écritures directes sur courrier_destinataires/
@@ -85,6 +87,9 @@ export class DestinatairesService {
   private async estConcerne(d: CourrierDestinataire, user: AuthenticatedUser): Promise<boolean> {
     if (d.utilisateurId) return d.utilisateurId === user.id;
     if (!d.entiteId) return false;
+    // Ligne d'entité diffusée au personnel : chaque agent a sa propre ligne
+    // nominative ; la ligne d'entité elle-même ne se « lit » pas.
+    if (d.porteeDiffusion && d.porteeDiffusion !== 'responsable') return false;
     const rows: unknown[] = await this.dataSource.query(
       'select 1 from entites where id = $1 and (responsable_utilisateur_id = $2 or personne_receptrice_id = $2) limit 1',
       [d.entiteId, user.id],
@@ -105,38 +110,86 @@ export class DestinatairesService {
       );
       const i = infos[0];
       if (!i || i.sens !== 'interne' || i.code !== 'diffuse') return;
+      // Diffusion au personnel : pas de clôture à la dernière lecture, la note
+      // est clôturée à l'expiration du délai (cloturerNotesEchues).
+      const masse: Array<{ n: number }> = await manager.query(
+        `select count(*)::int as n from courrier_destinataires
+         where courrier_id = $1 and portee_diffusion in ('entite', 'entite_et_descendants')`,
+        [courrierId],
+      );
+      if ((masse[0]?.n ?? 0) > 0) return;
       const restants: Array<{ n: number }> = await manager.query(
         `select count(*)::int as n from courrier_destinataires
          where courrier_id = $1 and contact_id is null and date_prise_connaissance is null`,
         [courrierId],
       );
       if ((restants[0]?.n ?? 0) > 0) return;
-      const finales: Array<{ id: string; code: string; libelle: string }> = await manager.query(
-        `select e.id, e.code, e.libelle from workflow_etapes e
-         join workflow_instances wi on wi.workflow_definition_id = e.workflow_definition_id
-         where wi.id = $1 and e.type_etape = 'finale' order by e.ordre limit 1`,
-        [i.wi],
-      );
-      const finale = finales[0];
-      if (!finale) return;
-      await manager.query(
-        `update workflow_instances set etape_courante_id = $2, etape_courante_depuis = now(),
-                statut_instance = 'terminee', termine_le = now() where id = $1`,
-        [i.wi, finale.id],
-      );
-      await manager.update(Courrier, courrierId, { etapeCode: finale.code, etapeLibelle: finale.libelle });
-      await manager.save(
-        WorkflowHistorique,
-        manager.create(WorkflowHistorique, {
-          workflowInstanceId: i.wi,
-          transitionId: null,
-          etapePrecedenteId: i.etape,
-          etapeSuivanteId: finale.id,
-          utilisateurId: user.id,
-          commentaire: 'Tous les destinataires ont pris connaissance — note clôturée',
-        }),
-      );
+      await this.cloturerNote(manager, courrierId, i.wi, i.etape, user.id, 'Tous les destinataires ont pris connaissance — note clôturée');
     });
+  }
+
+  private async cloturerNote(
+    manager: EntityManager,
+    courrierId: string,
+    instanceId: string,
+    etapeId: string,
+    utilisateurId: string,
+    commentaire: string,
+  ): Promise<void> {
+    const finales: Array<{ id: string; code: string; libelle: string }> = await manager.query(
+      `select e.id, e.code, e.libelle from workflow_etapes e
+       join workflow_instances wi on wi.workflow_definition_id = e.workflow_definition_id
+       where wi.id = $1 and e.type_etape = 'finale' order by e.ordre limit 1`,
+      [instanceId],
+    );
+    const finale = finales[0];
+    if (!finale) return;
+    await manager.query(
+      `update workflow_instances set etape_courante_id = $2, etape_courante_depuis = now(),
+              statut_instance = 'terminee', termine_le = now() where id = $1`,
+      [instanceId, finale.id],
+    );
+    await manager.update(Courrier, courrierId, { etapeCode: finale.code, etapeLibelle: finale.libelle });
+    await manager.save(
+      WorkflowHistorique,
+      manager.create(WorkflowHistorique, {
+        workflowInstanceId: instanceId,
+        transitionId: null,
+        etapePrecedenteId: etapeId,
+        etapeSuivanteId: finale.id,
+        utilisateurId,
+        commentaire,
+      }),
+    );
+  }
+
+  // Notes de service diffusées au personnel : clôture automatique après le
+  // délai paramétré (parametres_organisation.notes_delai_cloture_jours, 15 j).
+  @Cron(CronExpression.EVERY_HOUR)
+  async cloturerNotesEchues(): Promise<void> {
+    const notes: Array<{ id: string; wi: string; etape: string; diffuseur: string; jours: number }> = await this.dataSource.query(
+      `select c.id, wi.id as wi, wi.etape_courante_id as etape,
+              (select h.utilisateur_id from workflow_historique h where h.workflow_instance_id = wi.id
+                and h.etape_suivante_id = wi.etape_courante_id order by h.created_at desc limit 1) as diffuseur,
+              coalesce((select (p.valeur->>'jours')::int from parametres_organisation p
+                        where p.organisation_id = c.organisation_id and p.cle = 'notes_delai_cloture_jours'), 15) as jours
+       from courriers c
+       join workflow_instances wi on wi.id = c.workflow_instance_id and wi.statut_instance = 'en_cours'
+       join workflow_etapes we on we.id = wi.etape_courante_id and we.code = 'diffuse'
+       where c.sens = 'interne' and c.annule_le is null
+         and exists (select 1 from courrier_destinataires cd where cd.courrier_id = c.id
+                     and cd.portee_diffusion in ('entite', 'entite_et_descendants'))`,
+    );
+    for (const n of notes) {
+      const echue: Array<{ ok: boolean }> = await this.dataSource.query(
+        `select (select etape_courante_depuis from workflow_instances where id = $1) < now() - make_interval(days => $2::int) as ok`,
+        [n.wi, n.jours],
+      );
+      if (!echue[0]?.ok) continue;
+      await this.dataSource.transaction((manager) =>
+        this.cloturerNote(manager, n.id, n.wi, n.etape, n.diffuseur, `Délai de diffusion de ${n.jours} jours écoulé — note clôturée automatiquement`),
+      );
+    }
   }
 
   async listActionsDemandees(destinataireId: string, user: AuthenticatedUser): Promise<string[]> {

@@ -1,6 +1,7 @@
-// Catégorie 9 (reporting/statistiques) : jamais portée côté NestJS — voir
-// services/projets/statistiques.ts pour l'explication complète.
-const NON_IMPLEMENTE = 'Les statistiques Missions ne sont pas encore portées côté serveur (voir MIGRATION.md).';
+import { api } from '../../config/apiClient';
+
+// Statistiques Missions : GET /statistiques/missions (module NestJS
+// statistiques, v8.3), calculées sur les missions visibles par l'utilisateur.
 
 export interface StatistiquesMissionsTotaux {
   total: number;
@@ -53,6 +54,6 @@ export interface FiltresStatistiquesMissions {
   etapeCode?: string;
 }
 
-export async function fetchStatistiquesMissions(_filtres: FiltresStatistiquesMissions): Promise<StatistiquesMissions> {
-  throw new Error(NON_IMPLEMENTE);
+export async function fetchStatistiquesMissions(filtres: FiltresStatistiquesMissions): Promise<StatistiquesMissions> {
+  return api.get<StatistiquesMissions>('/statistiques/missions', { ...filtres });
 }

@@ -28,7 +28,7 @@ import { FicheExploitationModal } from './FicheExploitationModal';
 export function CourrierDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { profile, can } = useProfile();
+  const { profile, can, canEtendu } = useProfile();
   const organisationId = profile?.organisation_id;
 
   const { data: courrier, isLoading, isError } = useCourrier(id);
@@ -79,8 +79,17 @@ export function CourrierDetailPage() {
 
   const estVerrouille = courrier.verrouille_le !== null;
   const estAnnule = courrier.annule_le !== null && courrier.annule_le !== undefined;
+  // Note de service clôturée : plus aucune modification.
+  const estNoteCloturee = courrier.sens === 'interne' && courrier.etape_code === 'cloture';
+  // Portée « personnel » exclue : un agent ne modifie que ce qu'il a créé ou ce
+  // qui lui est affecté (même règle que le serveur, v8.1).
   const peutModifier =
-    !estAnnule && !estVerrouille && (courrier.created_by === profile?.id || can('courrier', 'modifier', courrier.entite_id));
+    !estAnnule &&
+    !estVerrouille &&
+    !estNoteCloturee &&
+    (courrier.created_by === profile?.id ||
+      courrier.agent_destinataire_id === profile?.id ||
+      canEtendu('courrier', 'modifier', courrier.entite_id));
   // Recette 2026-11 : on annule (numéro conservé au registre), on ne supprime plus.
   const peutAnnuler = !estAnnule && can('courrier', 'annuler', courrier.entite_id);
   const peutDeverrouiller = can('courrier', 'deverrouiller', courrier.entite_id);

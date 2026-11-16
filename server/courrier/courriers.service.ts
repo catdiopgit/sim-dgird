@@ -15,7 +15,7 @@ import { Courrier, type SensCourrier } from './entities/courrier.entity';
 import { CourrierDestinataire } from './entities/courrier-destinataire.entity';
 import { courrierVersContexte, resoudreDestinataireCourantCourrier } from './courrier-contexte.util';
 
-export type Bannette = 'a_traiter' | 'a_suivre' | 'en_retard' | 'archives' | 'sortants' | 'en_copie' | 'clotures';
+export type Bannette = 'a_traiter' | 'a_suivre' | 'pour_information' | 'en_retard' | 'archives' | 'sortants' | 'en_copie' | 'clotures';
 
 export interface CreerCourrierData {
   sens: SensCourrier;
@@ -192,12 +192,19 @@ export class CourriersService {
   }
 
   private async aConsultationEtendue(utilisateurId: string, entiteId: string | null): Promise<boolean> {
+    return this.aPermissionEtendue(utilisateurId, 'consulter', entiteId);
+  }
+
+  // Permission sur une portée réellement étendue (organisation, entité,
+  // entité et descendants) : la portée « personnel » ne compte pas, sinon un
+  // agent ayant « courrier / modifier » pourrait agir sur tous les courriers.
+  async aPermissionEtendue(utilisateurId: string, action: string, entiteId: string | null): Promise<boolean> {
     const rows: unknown[] = await this.dataSource.query(
       `select 1
        from utilisateur_roles ur
        join permissions p on p.role_id = ur.role_id
        join modules m on m.id = p.module_id and m.code = 'courrier'
-       join actions a on a.id = p.action_id and a.code = 'consulter'
+       join actions a on a.id = p.action_id and a.code = $3
        left join entites ue on ue.id = ur.entite_id
        where ur.utilisateur_id = $1
          and (ur.date_fin is null or ur.date_fin >= current_date)
@@ -209,7 +216,7 @@ export class CourriersService {
                            and ue.chemin OPERATOR(extensions.@>) cible.chemin))
          )
        limit 1`,
-      [utilisateurId, entiteId],
+      [utilisateurId, entiteId, action],
     );
     return rows.length > 0;
   }
@@ -226,8 +233,12 @@ export class CourriersService {
     }
     const autorise =
       courrier.createdBy === user.id ||
-      (await this.authorizationService.hasPermission(user.id, 'courrier', 'modifier', courrier.entiteId));
+      courrier.agentDestinataireId === user.id ||
+      (await this.aPermissionEtendue(user.id, 'modifier', courrier.entiteId));
     if (!autorise) throw new ForbiddenException("Vous n'êtes pas autorisé à modifier ce courrier");
+    if (courrier.sens === 'interne' && courrier.etapeCode === 'cloture') {
+      throw new ConflictException('Note clôturée — aucune modification possible');
+    }
   }
 
   async findOne(id: string, user: AuthenticatedUser): Promise<Courrier> {
@@ -533,7 +544,32 @@ export class CourriersService {
         return this.bannetteATraiter(user);
       case 'a_suivre':
         return this.bannetteASuivre(user);
+      case 'pour_information':
+        return this.bannettePourInformation(user);
     }
+  }
+
+  // « Pour information » : notes internes diffusées dont je suis destinataire
+  // (nominatif, ou responsable / personne réceptrice d'une entité destinataire).
+  private async bannettePourInformation(user: AuthenticatedUser): Promise<Courrier[]> {
+    const rows: Array<{ id: string }> = await this.dataSource.query(
+      `select c.id from courriers c
+       join workflow_instances wi on wi.id = c.workflow_instance_id
+       join workflow_etapes we on we.id = wi.etape_courante_id
+       where c.organisation_id = $1 and c.supprime_le is null and c.annule_le is null
+         and c.sens = 'interne' and we.type_etape <> 'initiale'
+         and exists (
+           select 1 from courrier_destinataires cd
+           left join entites e on e.id = cd.entite_id
+           where cd.courrier_id = c.id
+             and (cd.utilisateur_id = $2
+                  or (coalesce(cd.portee_diffusion, 'responsable') = 'responsable'
+                      and (e.responsable_utilisateur_id = $2 or e.personne_receptrice_id = $2)))
+         )
+       order by c.created_at desc`,
+      [user.organisationId, user.id],
+    );
+    return this.chargerEtFiltrer(rows.map((r) => r.id), user);
   }
 
   // « À suivre » (recette 2026-11) : courriers en cours des entités dont je suis

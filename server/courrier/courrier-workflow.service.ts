@@ -131,22 +131,38 @@ export class CourrierWorkflowService {
           await manager.query('delete from notifications where objet_id = $1 and created_at >= now()', [courrierId]);
         }
         if (t[0]?.code === 'diffuser') {
-          const dest: Array<{ id: string }> = await manager.query(
-            `select distinct u.id from courrier_destinataires cd
-             left join entites e on e.id = cd.entite_id
+          // Diffusion au personnel : une ligne nominative par agent actif
+          // ayant un compte SIM (entité seule, ou entité et sous-entités).
+          await manager.query(
+            `insert into courrier_destinataires (courrier_id, utilisateur_id, type_diffusion, destinataire_parent_id)
+             select distinct on (u.id) $1::uuid, u.id, cd.type_diffusion, cd.id
+             from courrier_destinataires cd
+             join lateral (
+               with recursive arbre as (
+                 select e.id from entites e where e.id = cd.entite_id
+                 union all
+                 select f.id from entites f join arbre a on f.parent_entite_id = a.id
+                 where cd.portee_diffusion = 'entite_et_descendants'
+               ) select id from arbre
+             ) ar on true
+             join utilisateurs u on u.entite_id = ar.id and u.statut = 'actif' and u.password_hash is not null
+             where cd.courrier_id = $1 and cd.portee_diffusion in ('entite', 'entite_et_descendants')
+               and u.id <> $2
+               and not exists (select 1 from courrier_destinataires x where x.courrier_id = $1 and x.utilisateur_id = u.id)
+             order by u.id, cd.type_diffusion`,
+            [courrierId, user.id],
+          );
+          await manager.query(
+            `insert into notifications (destinataire_id, module_id, titre, message, objet_module, objet_id)
+             select distinct u.id, (select id from modules where code = 'courrier'), $3::text, $4::text, 'courrier', $1::uuid
+             from courrier_destinataires cd
+             left join entites e on e.id = cd.entite_id and coalesce(cd.portee_diffusion, 'responsable') = 'responsable'
              join utilisateurs u on u.id = cd.utilisateur_id
                                  or u.id = e.responsable_utilisateur_id
                                  or u.id = e.personne_receptrice_id
              where cd.courrier_id = $1 and u.id <> $2`,
-            [courrierId, user.id],
+            [courrierId, user.id, `Note interne : ${courrier.numero ?? ''}`.trim(), courrier.objet],
           );
-          for (const d of dest) {
-            await manager.query(
-              `insert into notifications (destinataire_id, module_id, titre, message, objet_module, objet_id)
-               values ($1::uuid, (select id from modules where code = 'courrier'), $2::text, $3::text, 'courrier', $4::uuid)`,
-              [d.id, `Note interne : ${courrier.numero ?? ''}`.trim(), courrier.objet, courrierId],
-            );
-          }
         }
       }
       // Circuit départ : « Expédier » renseigne la date d'envoi si elle manque.

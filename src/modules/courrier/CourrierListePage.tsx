@@ -46,6 +46,7 @@ const BANNETTES: { cle: Vue; libelle: string }[] = [
   { cle: 'tous', libelle: 'Tous les courriers' },
   { cle: 'a_traiter', libelle: 'À traiter' },
   { cle: 'a_suivre', libelle: 'À suivre' },
+  { cle: 'pour_information', libelle: 'Pour information' },
   { cle: 'en_retard', libelle: 'En retard' },
   { cle: 'sortants', libelle: 'Courriers de départ' },
   { cle: 'en_copie', libelle: 'En copie' },
@@ -241,8 +242,8 @@ export function CourrierListePage() {
                 <DropdownMenuItem className="h-auto items-start py-2.5" onSelect={() => setWizardInterneOuvert(true)}>
                   <ArrowLeftRight className="mt-0.5 text-gold" />
                   <span>
-                    <span className="block font-medium">Courrier interne</span>
-                    <span className="block text-[12px] text-muted-foreground">Formulaire simple</span>
+                    <span className="block font-medium">Note interne / note de service</span>
+                    <span className="block text-[12px] text-muted-foreground">Note de diffusion à plusieurs destinataires</span>
                   </span>
                 </DropdownMenuItem>
               </DropdownMenuContent>

@@ -88,7 +88,7 @@ export function CourrierTransitionModal({
       largeur="lg"
     >
       <Champ
-        label={correction ? 'Motif de la correction' : 'Compte rendu'}
+        label={correction ? 'Motif de la correction' : courrier.sens === 'interne' ? 'Message aux destinataires' : 'Compte rendu'}
         htmlFor="transition-commentaire"
         requis={commentaireRequis}
         aide={correction ? "Transmis à l'agent et visible dans l'historique du circuit." : 'Facultatif — visible dans l’historique du circuit.'}
@@ -99,7 +99,13 @@ export function CourrierTransitionModal({
           autoFocus
           value={commentaire}
           onChange={(e) => setCommentaire(e.target.value)}
-          placeholder={correction ? 'Ce qui doit être corrigé ou complété' : 'Travail réalisé, réponse proposée, points d’attention…'}
+          placeholder={
+            correction
+              ? 'Ce qui doit être corrigé ou complété'
+              : courrier.sens === 'interne'
+                ? 'Message facultatif joint à la diffusion'
+                : 'Travail réalisé, réponse proposée, points d’attention…'
+          }
         />
       </Champ>
 

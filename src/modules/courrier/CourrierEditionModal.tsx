@@ -139,7 +139,7 @@ export function CourrierEditionModal({ courrier, organisationId, open, onClose }
             {options(referentiel?.types)}
           </NativeSelect>
         </Champ>
-        <Champ label="Date du courrier" htmlFor="edition-date" requis erreur={errors.dateCourrier?.message}>
+        <Champ label={courrier.sens === 'interne' ? 'Date de la note' : 'Date du courrier'} htmlFor="edition-date" requis erreur={errors.dateCourrier?.message}>
           <Input type="date" max={maxJour()} {...ariaErreur('edition-date', errors.dateCourrier)} {...register('dateCourrier')} />
         </Champ>
         <Champ label="Priorité" htmlFor="edition-priorite">

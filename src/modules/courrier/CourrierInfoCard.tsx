@@ -38,8 +38,8 @@ export function CourrierInfoCard({ courrier, organisationId, entiteLibelle }: Pr
       </CardHeader>
       <CardContent>
         <dl className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
-          <Ligne label="Entité en charge">{entiteLibelle}</Ligne>
-          <Ligne label="Date du courrier">{fr(courrier.date_courrier).format('D MMMM YYYY')}</Ligne>
+          <Ligne label={courrier.sens === 'interne' ? 'Entité émettrice' : 'Entité en charge'}>{entiteLibelle}</Ligne>
+          <Ligne label={courrier.sens === 'interne' ? 'Date de la note' : 'Date du courrier'}>{fr(courrier.date_courrier).format('D MMMM YYYY')}</Ligne>
           <Ligne label="Type">{libelle(referentiel?.types, courrier.type_valeur_id)}</Ligne>
           <Ligne label="Confidentialité">{libelle(referentiel?.confidentialites, courrier.confidentialite_valeur_id)}</Ligne>
 

@@ -1,8 +1,7 @@
-// Catégorie 9 (reporting/statistiques) : jamais portée côté NestJS — voir
-// services/projets/statistiques.ts pour l'explication complète (dépendance à
-// app.current_organisation_id(), fonction de session RLS Supabase absente en
-// NestJS). Stub explicite plutôt qu'un appel cassé.
-const NON_IMPLEMENTE = 'Les statistiques Courrier ne sont pas encore portées côté serveur (voir MIGRATION.md).';
+import { api } from '../../config/apiClient';
+
+// Statistiques Courrier : GET /statistiques/courrier (module NestJS
+// statistiques, v8.3), calculées sur les courriers visibles par l'utilisateur.
 
 export interface StatistiquesCourrierTotaux {
   total: number;
@@ -38,9 +37,6 @@ export interface StatistiquesCourrier {
   evolution: StatistiquesCourrierEvolutionPoint[];
 }
 
-export async function fetchStatistiquesCourrier(
-  _dateDebut?: string,
-  _dateFin?: string,
-): Promise<StatistiquesCourrier> {
-  throw new Error(NON_IMPLEMENTE);
+export async function fetchStatistiquesCourrier(dateDebut?: string, dateFin?: string): Promise<StatistiquesCourrier> {
+  return api.get<StatistiquesCourrier>('/statistiques/courrier', { dateDebut, dateFin });
 }

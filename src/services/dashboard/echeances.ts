@@ -1,4 +1,6 @@
-export type TypeEcheance = 'livrable' | 'action_mission';
+import { api } from '../../config/apiClient';
+
+export type TypeEcheance = 'livrable' | 'action_mission' | 'courrier';
 
 export interface EcheanceProchaine {
   type: TypeEcheance;
@@ -10,11 +12,8 @@ export interface EcheanceProchaine {
   lienId: string;
 }
 
-// Catégorie 9 (reporting) : jamais portée côté NestJS — cette fonction lit
-// app.current_organisation_id()/app.can_view_projet()/app.can_view_mission(),
-// des fonctions de session RLS Supabase absentes une fois RLS désactivée
-// (décision b, MIGRATION.md). Voir services/projets/statistiques.ts pour
-// l'explication complète.
-export async function fetchEcheancesProchaines(_horizonJours = 30): Promise<EcheanceProchaine[]> {
-  throw new Error('Les échéances à venir ne sont pas encore portées côté serveur (voir MIGRATION.md).');
+// Échéances à venir (livrables, actions de mission, courriers en cours) :
+// GET /statistiques/echeances, portée NestJS.
+export async function fetchEcheancesProchaines(horizonJours = 30): Promise<EcheanceProchaine[]> {
+  return api.get<EcheanceProchaine[]>('/statistiques/echeances', { horizon: horizonJours });
 }

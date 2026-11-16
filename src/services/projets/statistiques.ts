@@ -1,15 +1,8 @@
+import { api } from '../../config/apiClient';
 import type { Database } from '../../types/database';
 
-// Catégorie 9 (reporting/statistiques) : jamais portée côté NestJS — ces
-// fonctions PL/pgSQL lisent app.current_organisation_id()/app.can_view_projet(),
-// des fonctions de session dépendant du contexte RLS Supabase (auth.uid() via
-// GUC de requête), qui n'existe plus une fois RLS désactivée (décision b,
-// MIGRATION.md). Les rendre appelables demanderait de réimplémenter toute
-// l'agrégation en TypeScript comme les autres catégories (3 à 8), pas
-// seulement de changer le client HTTP — hors périmètre de la Phase 8
-// (remplacement du client), à traiter dans une phase dédiée. Voir aussi
-// services/ged/archivage.ts pour le même traitement (stub explicite).
-const NON_IMPLEMENTE = 'Les statistiques Projets ne sont pas encore portées côté serveur (voir MIGRATION.md).';
+// Statistiques Projets : GET /statistiques/projets (module NestJS
+// statistiques, v8.3), calculées sur les projets visibles par l'utilisateur.
 
 export interface StatistiquesProjetsTotaux {
   total: number;
@@ -71,6 +64,6 @@ export interface FiltresStatistiquesProjets {
   organismeExecutionType?: Database['public']['Enums']['organisme_execution_type'];
 }
 
-export async function fetchStatistiquesProjets(_filtres: FiltresStatistiquesProjets): Promise<StatistiquesProjets> {
-  throw new Error(NON_IMPLEMENTE);
+export async function fetchStatistiquesProjets(filtres: FiltresStatistiquesProjets): Promise<StatistiquesProjets> {
+  return api.get<StatistiquesProjets>('/statistiques/projets', { ...filtres });
 }

@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import dayjs from 'dayjs';
 import { Building2, CircleCheck, Contact, LoaderCircle, Plus, Printer, User, X } from 'lucide-react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Champ } from '../../../components/form/champ';
@@ -13,6 +13,7 @@ import { NativeSelect } from '../../../components/ui/native-select';
 import { useEntites, useUtilisateursOptions } from '../../../hooks/administration/useEntites';
 import { useContacts } from '../../../hooks/courrier/useContacts';
 import { useCourrierReferentiel, useCreerCourrier } from '../../../hooks/courrier/useCourriers';
+import { useProfile } from '../../../hooks/useProfile';
 import { ariaErreur } from '../../../lib/form';
 import { cn, genererId } from '../../../lib/utils';
 import type { Courrier } from '../../../services/courrier/courriers';
@@ -20,6 +21,7 @@ import { ajouterDestinataire } from '../../../services/courrier/destinataires';
 import { uploadPieceJointe } from '../../../services/courrier/piecesJointes';
 import { fr } from '../../../utils/dateFr';
 import { FicheExploitationModal } from '../FicheExploitationModal';
+import { agentsDuPerimetre, type PorteeDiffusion } from '../perimetreDiffusion';
 import { ContactRapide } from './ContactRapide';
 import { DocumentsArriveStaging } from './DocumentsArriveStaging';
 import type { PieceJointeStagee } from './PiecesJointesStagingList';
@@ -58,7 +60,21 @@ interface Ampliataire {
   cibleId: string;
   cibleLabel: string;
   interne: boolean;
+  // Note de service (v8.1) : pour une entité, la note va à son responsable ou
+  // à tout son personnel (entité seule, ou entité et sous-entités).
+  portee?: PorteeDiffusion;
 }
+
+const LIBELLE_PORTEE: Record<PorteeDiffusion, string> = {
+  responsable: 'Responsable de l’entité',
+  entite: 'Tout le personnel de l’entité',
+  entite_et_descendants: 'Personnel de l’entité et des sous-entités',
+};
+const LIBELLE_PORTEE_COURT: Record<PorteeDiffusion, string> = {
+  responsable: 'responsable',
+  entite: 'tout le personnel',
+  entite_et_descendants: 'personnel et sous-entités',
+};
 
 const ETAPES = ['Informations', 'Documents', 'Destinataires', 'Récapitulatif', 'Confirmation'];
 const TYPES_AMPLIATAIRE: { valeur: AmpliataireType; libelle: string; Icone: typeof Building2 }[] = [
@@ -83,6 +99,7 @@ interface Props {
 // volée) → récapitulatif → confirmation avec numéro généré.
 export function CourrierDepartWizard({ sens = 'sortant', open, organisationId, onClose, onTermine }: Props) {
   const interne = sens === 'interne';
+  const { profile } = useProfile();
   const { data: referentiel } = useCourrierReferentiel(organisationId);
   const { data: entites } = useEntites(organisationId);
   const { data: utilisateurs } = useUtilisateursOptions(organisationId);
@@ -97,6 +114,7 @@ export function CourrierDepartWizard({ sens = 'sortant', open, organisationId, o
   const [ampliataires, setAmpliataires] = useState<Ampliataire[]>([]);
   const [ampliCibleType, setAmpliCibleType] = useState<AmpliataireType>('entite');
   const [ampliCibleId, setAmpliCibleId] = useState('');
+  const [portee, setPortee] = useState<PorteeDiffusion>('entite_et_descendants');
   const [enCours, setEnCours] = useState(false);
   const [courrierCree, setCourrierCree] = useState<Courrier | null>(null);
   const [ficheOuverte, setFicheOuverte] = useState(false);
@@ -121,6 +139,7 @@ export function CourrierDepartWizard({ sens = 'sortant', open, organisationId, o
     setContactPrincipalId('');
     setAmpliataires([]);
     setAmpliCibleId('');
+    setPortee('entite_et_descendants');
     setCourrierCree(null);
     setFicheOuverte(false);
     reset(defauts());
@@ -153,19 +172,52 @@ export function CourrierDepartWizard({ sens = 'sortant', open, organisationId, o
 
   const ajouterAmpliataire = (type: AmpliataireType, cibleId: string, libelleForce?: string) => {
     if (!cibleId) return;
+    // Note de service : l'entité est désignée par son sigle (étiquettes courtes).
+    const sigle = type === 'entite' && interne ? entites?.find((e) => e.id === cibleId)?.sigle : undefined;
     const label =
       libelleForce ??
       (type === 'entite'
-        ? libelleEntite(cibleId)
+        ? sigle || libelleEntite(cibleId)
         : type === 'utilisateur'
           ? (() => {
               const u = utilisateurs?.find((u) => u.id === cibleId);
               return u ? `${u.prenom} ${u.nom}` : '—';
             })()
           : libelleContact(cibleId));
-    setAmpliataires((a) => [...a, { id: genererId(), type, cibleId, cibleLabel: label, interne: type !== 'contact' }]);
+    const porteeLigne = interne && type === 'entite' ? portee : undefined;
+    // Une même cible n'apparaît qu'une fois : l'ajouter de nouveau remplace sa portée.
+    setAmpliataires((a) => [
+      ...a.filter((x) => x.type !== type || x.cibleId !== cibleId),
+      { id: genererId(), type, cibleId, cibleLabel: label, interne: type !== 'contact', portee: porteeLigne },
+    ]);
     setAmpliCibleId('');
   };
+
+  // Aperçu des personnes qui recevront la note (calculé sur l'organigramme ;
+  // la liste définitive est établie par le serveur à la diffusion).
+  const agentsDe = (a: Ampliataire) =>
+    a.type === 'entite' && a.portee ? agentsDuPerimetre(a.cibleId, a.portee, entites, utilisateurs) : [];
+  const etiquette = (a: Ampliataire) =>
+    a.portee
+      ? a.portee === 'responsable'
+        ? `${a.cibleLabel} — responsable`
+        : `${a.cibleLabel} — ${LIBELLE_PORTEE_COURT[a.portee]} (${agentsDe(a).length} agents)`
+      : a.cibleLabel;
+  const personnesInformees = useMemo(() => {
+    if (!interne) return [];
+    const parId = new Map<string, string>();
+    for (const a of ampliataires) {
+      if (a.type === 'utilisateur') parId.set(a.cibleId, a.cibleLabel);
+      for (const u of agentsDe(a)) {
+        if (u.id !== profile?.id) parId.set(u.id, `${u.prenom} ${u.nom}`);
+      }
+    }
+    return [...parId.values()].sort((x, y) => x.localeCompare(y));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [interne, ampliataires, entites, utilisateurs, profile?.id]);
+  const [listeOuverte, setListeOuverte] = useState(false);
+  // Organisation entière (entité racine) : raccourci « Tout le personnel ».
+  const entiteRacine = (entites ?? []).find((e) => !e.parent_entite_id);
 
   const valider = handleSubmit(async (values) => {
     if (!fichiers.some((f) => f.estScan)) {
@@ -211,7 +263,8 @@ export function CourrierDepartWizard({ sens = 'sortant', open, organisationId, o
           entite_id: a.type === 'entite' ? a.cibleId : null,
           utilisateur_id: a.type === 'utilisateur' ? a.cibleId : null,
           contact_id: a.type === 'contact' ? a.cibleId : null,
-          type_diffusion: 'copie',
+          type_diffusion: interne ? 'principal' : 'copie',
+          portee_diffusion: a.portee ?? null,
         });
       }
 
@@ -367,7 +420,7 @@ export function CourrierDepartWizard({ sens = 'sortant', open, organisationId, o
             <h3 className="text-[14px] font-semibold">{interne ? 'Destinataires' : 'Ampliataires'}</h3>
             <p className="mb-3 text-[13px] text-muted-foreground">
               {interne
-                ? "Entités et personnes informées par la note. Pour une entité, son responsable et sa personne réceptrice sont notifiés."
+                ? 'Entités et personnes informées par la note. Pour une entité, choisissez si la note va à son responsable ou à tout son personnel (chaque agent avec un compte SIM est notifié et confirme sa lecture).'
                 : 'Destinataires en copie, internes ou externes.'}
             </p>
             <div role="radiogroup" aria-label="Type d'ampliataire" className="mb-3 flex flex-wrap gap-1.5">
@@ -419,14 +472,53 @@ export function CourrierDepartWizard({ sens = 'sortant', open, organisationId, o
                 />
               )}
             </div>
+            {interne && ampliCibleType === 'entite' && (
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <NativeSelect
+                  aria-label="Portée de la diffusion"
+                  className="min-w-0 flex-1"
+                  value={portee}
+                  onChange={(e) => setPortee(e.target.value as PorteeDiffusion)}
+                >
+                  {(Object.keys(LIBELLE_PORTEE) as PorteeDiffusion[]).map((p) => (
+                    <option key={p} value={p}>
+                      {LIBELLE_PORTEE[p]}
+                    </option>
+                  ))}
+                </NativeSelect>
+                {entiteRacine && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setPortee('entite_et_descendants');
+                      setAmpliataires((list) => [
+                        ...list.filter((x) => x.type !== 'entite' || x.cibleId !== entiteRacine.id),
+                        {
+                          id: genererId(),
+                          type: 'entite',
+                          cibleId: entiteRacine.id,
+                          cibleLabel: entiteRacine.sigle || entiteRacine.libelle,
+                          interne: true,
+                          portee: 'entite_et_descendants',
+                        },
+                      ]);
+                    }}
+                  >
+                    <Building2 />
+                    Tout le personnel {entiteRacine.sigle ? `de la ${entiteRacine.sigle}` : 'de l’organisation'}
+                  </Button>
+                )}
+              </div>
+            )}
             {erreurDestinataires && <p className="mt-2 text-[13px] text-crit-text">{erreurDestinataires}</p>}
             {ampliataires.length > 0 && (
               <ul className="mt-3 flex flex-wrap gap-2">
                 {ampliataires.map((a) => (
                   <li key={a.id}>
                     <Badge variant={a.interne ? 'muted' : 'outline'} shape="pill" className="py-1 pl-2.5 pr-1">
-                      {a.cibleLabel}
-                      <span className="text-muted-foreground">{a.interne ? 'interne' : 'externe'}</span>
+                      {etiquette(a)}
+                      {!interne && <span className="text-muted-foreground">{a.interne ? 'interne' : 'externe'}</span>}
                       <button
                         type="button"
                         onClick={() => setAmpliataires((list) => list.filter((x) => x.id !== a.id))}
@@ -440,6 +532,34 @@ export function CourrierDepartWizard({ sens = 'sortant', open, organisationId, o
                 ))}
               </ul>
             )}
+            {interne && personnesInformees.length > 0 && (
+              <div className="mt-3 rounded-md border border-border">
+                <button
+                  type="button"
+                  className="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-left text-[13px] hover:bg-muted/50"
+                  onClick={() => setListeOuverte((o) => !o)}
+                  aria-expanded={listeOuverte}
+                >
+                  <span className="font-medium">
+                    {personnesInformees.length} personne{personnesInformees.length > 1 ? 's' : ''} recevront la note
+                  </span>
+                  <span className="text-[12px] text-muted-foreground">{listeOuverte ? 'Masquer' : 'Voir la liste'}</span>
+                </button>
+                {listeOuverte && (
+                  <ul className="max-h-48 divide-y divide-border overflow-y-auto border-t border-border text-[13px]">
+                    {personnesInformees.map((nom) => (
+                      <li key={nom} className="px-3 py-1.5">
+                        {nom}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="border-t border-border px-3 py-1.5 text-[12px] text-muted-foreground">
+                  Les responsables d'entité « responsable » sont notifiés en plus. Liste définitive établie à la diffusion
+                  (agents actifs avec un compte SIM).
+                </p>
+              </div>
+            )}
           </section>
         </div>
       )}
@@ -450,7 +570,7 @@ export function CourrierDepartWizard({ sens = 'sortant', open, organisationId, o
             <LigneRecap label="Objet">{valeurs.objet}</LigneRecap>
             <LigneRecap label={interne ? 'Entité émettrice' : 'Entité en charge'}>{libelleEntite(valeurs.entiteId)}</LigneRecap>
             <LigneRecap label="Type">{libelleValeur(referentiel?.types, valeurs.typeValeurId)}</LigneRecap>
-            <LigneRecap label="Date du courrier">{valeurs.dateCourrier ? fr(valeurs.dateCourrier).format('D MMMM YYYY') : null}</LigneRecap>
+            <LigneRecap label={interne ? 'Date de la note' : 'Date du courrier'}>{valeurs.dateCourrier ? fr(valeurs.dateCourrier).format('D MMMM YYYY') : null}</LigneRecap>
             {interne ? (
               <>
                 <LigneRecap label="Priorité">{libelleValeur(referentiel?.priorites, valeurs.prioriteValeurId)}</LigneRecap>
@@ -468,7 +588,7 @@ export function CourrierDepartWizard({ sens = 'sortant', open, organisationId, o
                 <span className="flex flex-wrap gap-1.5">
                   {ampliataires.map((a) => (
                     <Badge key={a.id} variant="muted">
-                      {a.cibleLabel}
+                      {etiquette(a)}
                     </Badge>
                   ))}
                 </span>

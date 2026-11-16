@@ -58,7 +58,14 @@ export function ActionRequiredPanel({ courrier, projets, missions, echeances }: 
         libelle: `${depassees.length} échéance${pluriel(depassees.length)} dépassée${pluriel(depassees.length)}`,
         detail: `${premiere.libelle} — ${premiere.reference}`,
         niveau: 'critique',
-        onClick: () => navigate(premiere.type === 'livrable' ? `/projets/${premiere.lienId}` : `/missions/${premiere.lienId}`),
+        onClick: () =>
+          navigate(
+            premiere.type === 'livrable'
+              ? `/projets/${premiere.lienId}`
+              : premiere.type === 'courrier'
+                ? `/courriers/${premiere.lienId}`
+                : `/missions/${premiere.lienId}`,
+          ),
       });
     }
 

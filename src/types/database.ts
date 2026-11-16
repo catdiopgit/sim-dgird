@@ -90,6 +90,8 @@ export type Database = {
           echeance: string | null;
           type_action: Database['public']['Enums']['type_action_courrier'] | null;
           workflow_historique_id: string | null;
+          portee_diffusion: 'responsable' | 'entite' | 'entite_et_descendants' | null;
+          destinataire_parent_id: string | null;
         };
         Insert: {
           id?: string;
@@ -103,6 +105,8 @@ export type Database = {
           echeance?: string | null;
           type_action?: Database['public']['Enums']['type_action_courrier'] | null;
           workflow_historique_id?: string | null;
+          portee_diffusion?: 'responsable' | 'entite' | 'entite_et_descendants' | null;
+          destinataire_parent_id?: string | null;
         };
         Update: {
           id?: string;
@@ -116,6 +120,8 @@ export type Database = {
           echeance?: string | null;
           type_action?: Database['public']['Enums']['type_action_courrier'] | null;
           workflow_historique_id?: string | null;
+          portee_diffusion?: 'responsable' | 'entite' | 'entite_et_descendants' | null;
+          destinataire_parent_id?: string | null;
         };
         Relationships: [];
       };

@@ -15,6 +15,10 @@ interface ProfileContextValue {
   // la barrière de sécurité. RLS (voir 0004_fonctions_permissions.sql /
   // app.has_permission) reste la seule source de vérité côté serveur.
   can: (moduleCode: string, actionCode: string, entiteId?: string | null) => boolean;
+  // Comme can(), mais sans la portée « personnel » : vrai seulement pour une
+  // permission sur l'organisation, une entité ou une branche. Sert à décider
+  // si l'utilisateur peut agir sur un objet qui n'est pas le sien.
+  canEtendu: (moduleCode: string, actionCode: string, entiteId?: string | null) => boolean;
 }
 
 export const ProfileContext = createContext<ProfileContextValue | undefined>(undefined);
@@ -72,11 +76,26 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       );
     };
 
+    const canEtendu = (moduleCode: string, actionCode: string, entiteId: string | null = null) => {
+      if (!data) return false;
+      return data.rolesActifs.some((ur) =>
+        data.permissions.some(
+          (p) =>
+            p.roleId === ur.roleId &&
+            p.moduleCode === moduleCode &&
+            p.actionCode === actionCode &&
+            p.portee !== 'personnel' &&
+            evaluerPortee(p.portee, ur.entiteId, entiteId, parentParId),
+        ),
+      );
+    };
+
     return {
       profile: data?.profile ?? null,
       rolesActifs: data?.rolesActifs ?? [],
       loading: isLoading,
       can,
+      canEtendu,
     };
   }, [data, isLoading]);
 

@@ -19,6 +19,7 @@ import { GedModule } from './ged/ged.module';
 import { ProjetsModule } from './projets/projets.module';
 import { MissionsModule } from './missions/missions.module';
 import { MarchesModule } from './marches/marches.module';
+import { StatistiquesModule } from './statistiques/statistiques.module';
 import { AuditModule } from './audit/audit.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
@@ -42,6 +43,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     ProjetsModule,
     MissionsModule,
     MarchesModule,
+    StatistiquesModule,
     AuditModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],

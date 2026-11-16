@@ -63,11 +63,14 @@ export function usePriseConnaissanceCourrier(courrierId: string | undefined) {
     mutationFn: () => priseConnaissanceCourrier(courrierId!),
     onSuccess: () => {
       message.success('Prise de connaissance enregistrée.');
-      for (const cle of ['destinataires', 'courrier', 'workflow-instance', 'workflow-historique', 'transitions-disponibles']) {
-        void queryClient.invalidateQueries({ queryKey: [cle, courrierId] });
-      }
-      void queryClient.invalidateQueries({ queryKey: ['courriers'] });
-      void queryClient.invalidateQueries({ queryKey: ['courriers-bannette'] });
+      // Toutes les requêtes liées à ce courrier, plus les listes, bannettes et
+      // notifications (le compteur « Pour information » change).
+      void queryClient.invalidateQueries({
+        predicate: (q) =>
+          q.queryKey.includes(courrierId) ||
+          ['courriers', 'courriers-bannette', 'mes-notifications'].includes(String(q.queryKey[0])),
+        refetchType: 'all',
+      });
     },
     onError: (error: Error) => message.error(error.message),
   });

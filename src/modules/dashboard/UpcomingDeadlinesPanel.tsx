@@ -35,7 +35,15 @@ export function UpcomingDeadlinesPanel({ echeances, chargement }: Props) {
               <li key={`${e.type}-${e.id}`}>
                 <button
                   type="button"
-                  onClick={() => navigate(e.type === 'livrable' ? `/projets/${e.lienId}` : `/missions/${e.lienId}`)}
+                  onClick={() =>
+                    navigate(
+                      e.type === 'livrable'
+                        ? `/projets/${e.lienId}`
+                        : e.type === 'courrier'
+                          ? `/courriers/${e.lienId}`
+                          : `/missions/${e.lienId}`,
+                    )
+                  }
                   className="flex w-full cursor-pointer items-start gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-muted"
                 >
                   <span

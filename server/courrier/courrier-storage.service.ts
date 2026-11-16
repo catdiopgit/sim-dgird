@@ -116,7 +116,7 @@ export class CourrierStorageService {
 
       const autorise =
         courrier.createdBy === user.id ||
-        (await this.authorizationService.hasPermission(user.id, 'courrier', 'modifier', courrier.entiteId));
+        (await this.courriersService.aPermissionEtendue(user.id, 'modifier', courrier.entiteId));
       if (!autorise) throw new ForbiddenException("Vous n'êtes pas autorisé à ajouter une décharge à ce courrier");
 
       // Circuit départ : la décharge suppose le courrier expédié.

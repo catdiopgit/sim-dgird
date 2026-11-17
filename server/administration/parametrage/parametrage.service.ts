@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { ListeValeur } from './entities/liste-valeur.entity';
@@ -85,6 +85,38 @@ export class ParametrageService {
   // Prend un EntityManager explicite pour composer dans la transaction de
   // l'appelant (CourriersService.creerCourrier) — le verrou FOR UPDATE sur la règle
   // et l'incrément de séquence doivent faire partie de cette même transaction.
+  // Recette 2026-11 : numéro automatique et unique pour un module dont la
+  // référence est libre (projets, marchés). Crée la règle par défaut du module
+  // si l'organisation n'en a pas encore (modifiable ensuite dans Paramétrage →
+  // Numérotation), puis saute les numéros déjà pris par une saisie manuelle
+  // ancienne.
+  async genererNumeroUnique(
+    manager: EntityManager,
+    organisationId: string,
+    moduleCode: string,
+    formatParDefaut: string,
+    table: 'projets' | 'marches',
+    colonne: 'code' | 'reference',
+    entiteId: string | null = null,
+  ): Promise<string> {
+    await manager.query(
+      `insert into regles_numerotation (organisation_id, module_id, format, reinitialisation)
+       select $1, m.id, $3, 'annuelle' from modules m
+       where m.code = $2
+         and not exists (select 1 from regles_numerotation r where r.organisation_id = $1 and r.module_id = m.id)`,
+      [organisationId, moduleCode, formatParDefaut],
+    );
+    for (let essai = 0; essai < 100; essai++) {
+      const numero = await this.genererNumero(manager, organisationId, moduleCode, entiteId, null);
+      const pris: unknown[] = await manager.query(
+        `select 1 from ${table} where organisation_id = $1 and ${colonne} = $2 limit 1`,
+        [organisationId, numero],
+      );
+      if (pris.length === 0) return numero;
+    }
+    throw new ConflictException('Impossible de trouver un numéro libre : vérifiez la règle de numérotation');
+  }
+
   async genererNumero(
     manager: EntityManager,
     organisationId: string,

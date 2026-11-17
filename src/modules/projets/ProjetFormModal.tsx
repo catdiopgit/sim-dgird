@@ -13,7 +13,8 @@ import { ariaErreur, nombreOuVide, versChampDate } from '../../lib/form';
 import type { Projet } from '../../services/projets/projets';
 
 const schema = z.object({
-  code: z.string().min(1, 'Requis'),
+  // Attribué automatiquement à la création (règle de numérotation).
+  code: z.string().optional(),
   nom: z.string().min(1, 'Requis'),
   description: z.string().optional(),
   entiteId: z.string().min(1, 'Requis'),
@@ -121,7 +122,6 @@ export function ProjetFormModal({ open, organisationId, projet, onClose, onCree 
 
   const onSubmit = (values: FormValues) => {
     const patch = {
-      code: values.code,
       nom: values.nom,
       description: values.description || null,
       entite_id: values.entiteId,
@@ -172,11 +172,11 @@ export function ProjetFormModal({ open, organisationId, projet, onClose, onCree 
     >
       <SectionFormulaire titre="Identification">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-[180px_1fr]">
-          <Champ label="Code" htmlFor="projet-code" requis aide="Unique dans l'organisation" erreur={errors.code?.message}>
-            <Input autoFocus placeholder="PRJ-2026-…" {...ariaErreur('projet-code', errors.code)} {...register('code')} />
+          <Champ label="Code" htmlFor="projet-code" aide={projet ? undefined : 'Attribué automatiquement'}>
+            <Input id="projet-code" readOnly disabled placeholder="Automatique" {...register('code')} />
           </Champ>
           <Champ label="Nom" htmlFor="projet-nom" requis erreur={errors.nom?.message}>
-            <Input {...ariaErreur('projet-nom', errors.nom)} {...register('nom')} />
+            <Input autoFocus {...ariaErreur('projet-nom', errors.nom)} {...register('nom')} />
           </Champ>
         </div>
         <Champ label="Description" htmlFor="projet-description">

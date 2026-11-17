@@ -14,7 +14,8 @@ import { ariaErreur, nombreOuVide, versChampDate } from '../../lib/form';
 import type { Marche } from '../../services/marches/marches';
 
 const schema = z.object({
-  reference: z.string().min(1, 'Requis'),
+  // Attribuée automatiquement à la création (règle de numérotation).
+  reference: z.string().optional(),
   objet: z.string().min(1, 'Requis'),
   description: z.string().optional(),
   entiteId: z.string().min(1, 'Requis'),
@@ -92,7 +93,6 @@ export function MarcheFormModal({ open, organisationId, marche, onClose, onCree 
 
   const onSubmit = (values: FormValues) => {
     const patch = {
-      reference: values.reference,
       objet: values.objet,
       description: values.description || null,
       entite_id: values.entiteId,
@@ -131,11 +131,11 @@ export function MarcheFormModal({ open, organisationId, marche, onClose, onCree 
     >
       <SectionFormulaire titre="Identification">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-[200px_1fr]">
-          <Champ label="Référence" htmlFor="marche-reference" requis erreur={errors.reference?.message}>
-            <Input autoFocus {...ariaErreur('marche-reference', errors.reference)} {...register('reference')} />
+          <Champ label="Référence" htmlFor="marche-reference" aide={marche ? undefined : 'Attribuée automatiquement'}>
+            <Input id="marche-reference" readOnly disabled placeholder="Automatique" {...register('reference')} />
           </Champ>
           <Champ label="Objet" htmlFor="marche-objet" requis erreur={errors.objet?.message}>
-            <Input {...ariaErreur('marche-objet', errors.objet)} {...register('objet')} />
+            <Input autoFocus {...ariaErreur('marche-objet', errors.objet)} {...register('objet')} />
           </Champ>
         </div>
         <Champ label="Description" htmlFor="marche-description">

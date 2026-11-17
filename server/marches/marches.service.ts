@@ -5,9 +5,10 @@ import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { Marche } from './entities/marche.entity';
 import { MarchesAccesService } from './acces/marches-acces.service';
 import { MarchesNotificationsService } from './marches-notifications.service';
+import { ParametrageService } from '../administration/parametrage/parametrage.service';
 
 export interface CreerMarcheData {
-  reference: string;
+  reference?: string;
   objet: string;
   description?: string | null;
   entiteId: string;
@@ -51,6 +52,7 @@ export class MarchesService {
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly acces: MarchesAccesService,
     private readonly notifications: MarchesNotificationsService,
+    private readonly parametrageService: ParametrageService,
   ) {}
 
   // Recette 2026-11 : voir MarchesAccesService.peutVoir (cellule, responsable
@@ -107,13 +109,18 @@ export class MarchesService {
 
   async create(data: CreerMarcheData, user: AuthenticatedUser): Promise<Marche> {
     await this.assertMembreCellule(user, 'créer un marché');
+    // Recette 2026-11 : référence attribuée automatiquement (règle de
+    // numérotation du module, par défaut MP-{ANNEE}-{SEQ:3}).
+    const reference = await this.dataSource.transaction((manager) =>
+      this.parametrageService.genererNumeroUnique(manager, user.organisationId, 'marches', 'MP-{ANNEE}-{SEQ:3}', 'marches', 'reference', data.entiteId),
+    );
     let cree: Marche;
     try {
       cree = await this.marches.save(
         this.marches.create({
           organisationId: user.organisationId,
           entiteId: data.entiteId,
-          reference: data.reference,
+          reference,
           objet: data.objet,
           description: data.description ?? null,
           typeMarcheId: data.typeMarcheId,
@@ -127,7 +134,7 @@ export class MarchesService {
         }),
       );
     } catch (err) {
-      throw this.traduireErreurReference(err, data.reference);
+      throw this.traduireErreurReference(err, reference);
     }
     await this.notifications.notifier([cree.responsableId], {
       titre: `Vous êtes responsable du marché ${cree.reference}`,

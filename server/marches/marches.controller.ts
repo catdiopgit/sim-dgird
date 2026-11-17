@@ -6,7 +6,8 @@ import { MarchesService, type CreerMarcheData, type UpdateMarcheData } from './m
 import { PhasesMarcheService } from './phases-marche.service';
 
 class CreerMarcheDto implements CreerMarcheData {
-  @IsString() reference: string;
+  // Ignorée à la création : référence attribuée automatiquement (recette 2026-11).
+  @IsOptional() @IsString() reference?: string;
   @IsString() objet: string;
   @IsOptional() @IsString() description?: string | null;
   @IsUUID() entiteId: string;

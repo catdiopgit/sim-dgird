@@ -1860,7 +1860,7 @@ export type Database = {
           id?: string;
           organisation_id: string;
           entite_id: string;
-          code: string;
+          code?: string;
           nom: string;
           description?: string | null;
           responsable_id?: string | null;
@@ -2704,7 +2704,7 @@ export type Database = {
           id?: string;
           organisation_id?: string;
           entite_id: string;
-          reference: string;
+          reference?: string;
           objet: string;
           description?: string | null;
           type_marche_id: string;

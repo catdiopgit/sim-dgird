@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ParametrageModule } from '../administration/parametrage/parametrage.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PermissionsModule } from '../administration/permissions/permissions.module';
 import { Entite } from '../administration/entites/entities/entite.entity';
@@ -34,6 +35,7 @@ import { MarchesAccesController } from './acces/marches-acces.controller';
 
 @Module({
   imports: [
+    ParametrageModule,
     TypeOrmModule.forFeature([
       TypeMarche,
       PhaseTypeMarche,

@@ -7,9 +7,10 @@ import { Entite } from '../administration/entites/entities/entite.entity';
 import { JournalAudit } from '../common/entities/journal-audit.entity';
 import { Projet, type OrganismeExecutionType, type PorteeVisibiliteProjet } from './entities/projet.entity';
 import { ProjetsNotificationsService } from './projets-notifications.service';
+import { ParametrageService } from '../administration/parametrage/parametrage.service';
 
 export interface CreerProjetData {
-  code: string;
+  code?: string;
   nom: string;
   description?: string | null;
   entiteId: string;
@@ -72,6 +73,7 @@ export class ProjetsService {
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly authorizationService: AuthorizationService,
     private readonly notifications: ProjetsNotificationsService,
+    private readonly parametrageService: ParametrageService,
   ) {}
 
   // --- Visibilité / écriture ---
@@ -184,13 +186,18 @@ export class ProjetsService {
     if (!(await this.authorizationService.hasPermission(user.id, 'projets', 'creer', data.entiteId))) {
       throw new ForbiddenException("Vous n'êtes pas autorisé à créer un projet pour cette entité");
     }
+    // Recette 2026-11 : code attribué automatiquement (règle de numérotation
+    // du module, par défaut PRJ-{ANNEE}-{SEQ:3}) — la saisie n'est plus libre.
+    const code = await this.dataSource.transaction((manager) =>
+      this.parametrageService.genererNumeroUnique(manager, user.organisationId, 'projets', 'PRJ-{ANNEE}-{SEQ:3}', 'projets', 'code', data.entiteId),
+    );
     let cree: Projet;
     try {
       cree = await this.projets.save(
         this.projets.create({
           organisationId: user.organisationId,
           entiteId: data.entiteId,
-          code: data.code,
+          code,
           nom: data.nom,
           description: data.description ?? null,
           responsableId: data.responsableId ?? null,
@@ -213,7 +220,7 @@ export class ProjetsService {
         }),
       );
     } catch (err) {
-      throw this.traduireErreurCode(err, data.code);
+      throw this.traduireErreurCode(err, code);
     }
     await this.notifications.notifier([cree.responsableId], {
       titre: `Vous êtes responsable du projet ${cree.code}`,

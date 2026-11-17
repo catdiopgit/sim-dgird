@@ -13,7 +13,8 @@ const ORGANISMES: OrganismeExecutionType[] = ['organisation', 'consultant', 'ent
 const PORTEES: PorteeVisibiliteProjet[] = ['membres', 'entites', 'agents', 'tous'];
 
 class CreerProjetDto implements CreerProjetData {
-  @IsString() code: string;
+  // Ignoré à la création : code attribué automatiquement (recette 2026-11).
+  @IsOptional() @IsString() code?: string;
   @IsString() nom: string;
   @IsOptional() @IsString() description?: string | null;
   @IsUUID() entiteId: string;

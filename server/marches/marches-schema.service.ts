@@ -16,6 +16,15 @@ export class MarchesSchemaService implements OnModuleInit {
     try {
       await this.dataSource.query('alter table phases_type_marche add column if not exists responsable text');
       await this.dataSource.query('alter table phases_marche add column if not exists responsable text');
+      // v8.5.4 : la base de production a été initialisée sans les modules
+      // « marches » (et selon les cas « projets ») dans la table modules —
+      // d'où « Module 'marches' introuvable » à la numérotation, et aucune
+      // permission « Marchés » attribuable aux rôles. Ajout idempotent.
+      await this.dataSource.query(
+        `insert into modules (code, libelle)
+         select v.code, v.libelle from (values ('projets', 'Projets'), ('marches', 'Marchés')) v(code, libelle)
+         where not exists (select 1 from modules m where m.code = v.code)`,
+      );
     } catch (err) {
       this.logger.error(`Colonne « responsable » des phases non ajoutée : ${(err as Error).message}`);
     }

@@ -5,6 +5,7 @@ import {
   createMarche,
   deleteMarche,
   fetchAccesMarches,
+  envoyerRecapitulatifMarches,
   getMarche,
   listMarches,
   updateMarche,
@@ -84,4 +85,13 @@ export function useMarcheMutations() {
 // modifient ; seul le chef de cellule clôture ou supprime.
 export function useAccesMarches() {
   return useQuery({ queryKey: ['marches-acces'], queryFn: () => fetchAccesMarches(), staleTime: 60_000 });
+}
+
+export function useEnvoyerRecapitulatifMarches() {
+  return useMutation({
+    mutationFn: () => envoyerRecapitulatifMarches(),
+    onSuccess: (r) =>
+      message.success(`Récapitulatif envoyé à ${r.destinataires} membre(s) de la cellule — e-mail dans les 5 minutes si le SMTP est actif.`),
+    onError: (e: Error) => message.error(e.message),
+  });
 }

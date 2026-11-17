@@ -1,4 +1,4 @@
-import { BarChart3, ChevronRight, Gavel, Plus, Search, X } from 'lucide-react';
+import { BarChart3, ChevronRight, Gavel, Plus, Search, X, Mail } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
@@ -7,7 +7,7 @@ import { Encart } from '../../components/ui/encart';
 import { EtatVide, PageHeader } from '../../components/ui/page-header';
 import { Skeleton } from '../../components/ui/skeleton';
 import { useEntites } from '../../hooks/administration/useEntites';
-import { useAccesMarches, useMarches } from '../../hooks/marches/useMarches';
+import { useAccesMarches, useEnvoyerRecapitulatifMarches, useMarches } from '../../hooks/marches/useMarches';
 import { useTypesMarche } from '../../hooks/marches/useTypesMarche';
 import { useProfile } from '../../hooks/useProfile';
 import { champBase } from '../../lib/styles';
@@ -60,6 +60,7 @@ export function MarchesPage() {
   const filtresActifs = recherche !== '' || typesFiltre.length + statuts.length > 0;
   const { data: acces } = useAccesMarches();
   const peutCreer = !!acces?.membre;
+  const recapitulatif = useEnvoyerRecapitulatifMarches();
 
   if (!organisationId) {
     return (
@@ -81,6 +82,12 @@ export function MarchesPage() {
               <BarChart3 className="text-muted-foreground" />
               Statistiques
             </Button>
+            {peutCreer && (
+              <Button variant="outline" onClick={() => recapitulatif.mutate()} disabled={recapitulatif.isPending}>
+                <Mail className="text-muted-foreground" />
+                Envoyer le récapitulatif
+              </Button>
+            )}
             {peutCreer && (
               <Button onClick={() => setFormOuvert(true)}>
                 <Plus />

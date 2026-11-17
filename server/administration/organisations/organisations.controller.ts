@@ -16,13 +16,17 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import type { Response } from 'express';
-import { IsBoolean, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../auth/strategies/jwt.strategy';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequirePermission } from '../permissions/require-permission.decorator';
 import { OrganisationsService } from './organisations.service';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
+import { EmailNotificationsService } from '../../notifications/email-notifications.service';
 
 const TAILLE_MAX_LOGO_OCTETS = 5 * 1024 * 1024; // 5 Mo
 
@@ -47,9 +51,15 @@ class DefinirParametreDto {
   @IsOptional() @IsString() description?: string;
 }
 
+class TesterSmtpDto {
+  @IsOptional() @IsString() urlApplication?: string;
+}
+
 class DefinirParametresSmtpDto {
   @IsString() hote: string;
-  port: number;
+  // v8.5.5 : sans décorateur, le port était retiré par la validation (liste
+  // blanche) et restait toujours à 587, quel que soit le port saisi.
+  @Type(() => Number) @IsInt() @Min(1) @Max(65535) port: number;
   @IsString() securite: string;
   @IsString() utilisateur: string;
   @IsOptional() @IsString() motDePasse?: string;
@@ -61,7 +71,11 @@ class DefinirParametresSmtpDto {
 @Controller('administration/organisations')
 @UseGuards(PermissionsGuard)
 export class OrganisationsController {
-  constructor(private readonly organisationsService: OrganisationsService) {}
+  constructor(
+    private readonly organisationsService: OrganisationsService,
+    private readonly emails: EmailNotificationsService,
+    @InjectDataSource() private readonly dataSource: DataSource,
+  ) {}
 
   @Get()
   @RequirePermission('administration', 'consulter')
@@ -171,5 +185,19 @@ export class OrganisationsController {
   @RequirePermission('administration', 'modifier')
   definirParametresSmtp(@Param('id') id: string, @Body() dto: DefinirParametresSmtpDto) {
     return this.organisationsService.definirParametresSmtp(id, dto);
+  }
+
+  // v8.5.5 : e-mail de test à l'utilisateur connecté (diagnostic SMTP), et
+  // mémorisation de l'adresse de l'application pour les liens des e-mails.
+  @Post(':id/smtp/test')
+  @RequirePermission('administration', 'modifier')
+  async testerSmtp(@Param('id') id: string, @Body() dto: TesterSmtpDto, @CurrentUser() user: AuthenticatedUser) {
+    const rows: Array<{ email: string | null; nom: string }> = await this.dataSource.query(
+      `select email, trim(coalesce(prenom, '') || ' ' || nom) as nom from utilisateurs where id = $1`,
+      [user.id],
+    );
+    const moi = rows[0];
+    if (!moi?.email) return { ok: false, message: "Votre compte n'a pas d'adresse e-mail." };
+    return this.emails.envoyerTest(id, { email: moi.email, nom: moi.nom }, dto.urlApplication ?? null);
   }
 }

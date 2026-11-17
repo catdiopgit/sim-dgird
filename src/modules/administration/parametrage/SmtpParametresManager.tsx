@@ -11,7 +11,7 @@ import { NativeSelect } from '../../../components/ui/native-select';
 import { EnTeteSection } from '../../../components/ui/page-header';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { Switch } from '../../../components/ui/switch';
-import { useDefinirParametresSmtp, useParametresSmtp } from '../../../hooks/administration/useSmtp';
+import { useDefinirParametresSmtp, useParametresSmtp, useTesterSmtp } from '../../../hooks/administration/useSmtp';
 import { ariaErreur } from '../../../lib/form';
 
 interface Props {
@@ -52,6 +52,7 @@ const DEFAUTS: FormInput = {
 export function SmtpParametresManager({ organisationId, peutModifier }: Props) {
   const { data: parametres, isLoading } = useParametresSmtp(organisationId);
   const definir = useDefinirParametresSmtp(organisationId);
+  const tester = useTesterSmtp(organisationId);
 
   const {
     control,
@@ -101,7 +102,8 @@ export function SmtpParametresManager({ organisationId, peutModifier }: Props) {
       <EnTeteSection titre="Notifications par email (SMTP)" />
       <Encart titre="Compte utilisé pour l'envoi des notifications" className="mb-5">
         Chaque notification générée par l'application (traitement, imputation, décharge, retard…) est aussi envoyée par
-        email via ce compte. L'envoi se fait par lots périodiques, pas instantanément.
+        email via ce compte, toutes les 5 minutes. Seules les notifications des 48 dernières heures partent : activer le
+        compte n'envoie pas l'historique.
       </Encart>
 
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">
@@ -173,9 +175,20 @@ export function SmtpParametresManager({ organisationId, peutModifier }: Props) {
               Enregistrer
             </Button>
             {isDirty && <span className="text-[13px] text-muted-foreground">Modifications non enregistrées</span>}
+            {!isDirty && parametres && (
+              <Button type="button" variant="outline" onClick={() => tester.mutate()} disabled={tester.isPending}>
+                {tester.isPending && <LoaderCircle className="animate-spin" />}
+                Envoyer un e-mail de test
+              </Button>
+            )}
           </div>
         )}
       </form>
+      {tester.data && (
+        <Encart variante={tester.data.ok ? 'succes' : 'attention'} titre={tester.data.ok ? 'Test réussi' : 'Test échoué'} className="mt-4">
+          {tester.data.message}
+        </Encart>
+      )}
     </div>
   );
 }

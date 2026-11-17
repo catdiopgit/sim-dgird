@@ -3,6 +3,7 @@ import { message } from '../../lib/notifications';
 import {
   definirParametresSmtp,
   fetchParametresSmtp,
+  testerSmtp,
   type DefinirParametresSmtpPayload,
 } from '../../services/administration/smtp';
 
@@ -24,4 +25,8 @@ export function useDefinirParametresSmtp(organisationId: string | undefined) {
     },
     onError: (error: Error) => message.error(error.message),
   });
+}
+
+export function useTesterSmtp(organisationId: string | undefined) {
+  return useMutation({ mutationFn: () => testerSmtp(organisationId!) });
 }

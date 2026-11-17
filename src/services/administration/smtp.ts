@@ -39,3 +39,11 @@ export async function definirParametresSmtp(
     actif: payload.p_actif,
   });
 }
+
+// v8.5.5 : e-mail de test à l'utilisateur connecté ; mémorise l'adresse de
+// l'application pour les liens « Ouvrir dans le SIM » des e-mails.
+export async function testerSmtp(organisationId: string): Promise<{ ok: boolean; message: string }> {
+  return api.post<{ ok: boolean; message: string }>(`/administration/organisations/${organisationId}/smtp/test`, {
+    urlApplication: window.location.origin,
+  });
+}

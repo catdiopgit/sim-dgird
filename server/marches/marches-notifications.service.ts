@@ -154,6 +154,26 @@ export class MarchesNotificationsService {
     return n;
   }
 
+  // Envoi immédiat du récapitulatif à la cellule (bouton « Envoyer le
+  // récapitulatif maintenant », utile pour tester l'e-mail).
+  async envoyerRecapitulatifMaintenant(organisationId: string): Promise<number> {
+    const membres = await this.membresCellule(organisationId);
+    const message = await this.composerRecapitulatif(organisationId);
+    const moduleId = await this.moduleId();
+    const heure = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    for (const destinataireId of membres) {
+      await this.notifications.notifier(null, {
+        destinataireId,
+        moduleId,
+        titre: `Marchés — situation du ${new Date().toLocaleDateString('fr-FR')} (${heure})`,
+        message,
+        objetModule: 'marches',
+        lienUrl: '/marches',
+      });
+    }
+    return membres.length;
+  }
+
   async composerRecapitulatif(organisationId: string): Promise<string> {
     const enCours: Array<{ n: number }> = await this.dataSource.query(
       "select count(*)::int as n from marches where organisation_id = $1 and statut_cloture = 'en_cours'",

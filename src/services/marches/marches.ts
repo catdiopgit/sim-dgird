@@ -60,3 +60,8 @@ export interface AccesMarches {
 export async function fetchAccesMarches(): Promise<AccesMarches> {
   return api.get<AccesMarches>('/marches-acces');
 }
+
+// Envoi immédiat du récapitulatif à la cellule (en plus de l'envoi quotidien).
+export async function envoyerRecapitulatifMarches(): Promise<{ destinataires: number }> {
+  return api.post<{ destinataires: number }>('/marches-acces/recapitulatif', {});
+}

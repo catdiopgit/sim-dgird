@@ -12,6 +12,6 @@ import { WorkflowModule } from '../workflow/workflow.module';
   imports: [TypeOrmModule.forFeature([Notification, ParametreSmtp]), WorkflowModule],
   controllers: [NotificationsController],
   providers: [NotificationsService, RetardsService, EmailNotificationsService],
-  exports: [NotificationsService],
+  exports: [NotificationsService, EmailNotificationsService],
 })
 export class NotificationsModule {}

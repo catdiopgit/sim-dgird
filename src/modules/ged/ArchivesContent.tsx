@@ -7,6 +7,7 @@ import { telechargerVersion, useInfosFichierDocuments } from '../../hooks/ged/us
 import { CLE_NON_CLASSES, useCompteurDocumentsParDossier, useDossiers } from '../../hooks/ged/useDossiers';
 import { useRechercheDocuments } from '../../hooks/ged/useRechercheGed';
 import type { Document } from '../../services/ged/documents';
+import { comparerDossiers } from '../../services/ged/dossiers';
 import type { RechercheDocumentsPayload } from '../../services/ged/recherche';
 import { fr } from '../../utils/dateFr';
 import { formatTailleFichier, getInfosTypeFichier } from '../../utils/ged/typeFichier';
@@ -51,7 +52,7 @@ export function ArchivesContent({
     const parentId = estRacine ? null : dossierSelectionneId;
     return (dossiers ?? [])
       .filter((d) => d.parent_dossier_id === parentId)
-      .sort((a, b) => a.libelle.localeCompare(b.libelle));
+      .sort(comparerDossiers);
   }, [dossiers, enRecherche, estNonClasses, estRacine, dossierSelectionneId]);
 
   const cleVue = enRecherche

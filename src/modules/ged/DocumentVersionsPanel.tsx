@@ -11,9 +11,11 @@ import { formatTailleFichier, getInfosTypeFichier } from '../../utils/ged/typeFi
 interface Props {
   documentId: string;
   versionCouranteId?: string | null;
+  // v8.6 : pas de nouvelle version pour un document archivé ou en cours d'examen.
+  peutVerser?: boolean;
 }
 
-export function DocumentVersionsPanel({ documentId, versionCouranteId }: Props) {
+export function DocumentVersionsPanel({ documentId, versionCouranteId, peutVerser = true }: Props) {
   const { data: versions, isLoading } = useVersionsDocument(documentId);
   const verser = useVerserVersion(documentId);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -36,10 +38,12 @@ export function DocumentVersionsPanel({ documentId, versionCouranteId }: Props) 
             e.target.value = '';
           }}
         />
-        <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()} disabled={verser.isPending}>
-          <Upload />
-          {verser.isPending ? 'Envoi…' : 'Verser une nouvelle version'}
-        </Button>
+        {peutVerser && (
+          <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()} disabled={verser.isPending}>
+            <Upload />
+            {verser.isPending ? 'Envoi…' : 'Verser une nouvelle version'}
+          </Button>
+        )}
       </CardHeader>
       <CardContent>
         {isLoading ? (

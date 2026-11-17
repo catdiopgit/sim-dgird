@@ -32,7 +32,7 @@ function Ligne({ label, children, pleine }: { label: string; children: ReactNode
 export function DocumentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { profile, can } = useProfile();
+  const { profile, canEtendu } = useProfile();
   const organisationId = profile?.organisation_id;
 
   const { data: document, isLoading, isError } = useDocument(id);
@@ -43,7 +43,7 @@ export function DocumentDetailPage() {
   useTracerConsultation(document?.id);
 
   const entiteParId = useMemo(() => new Map((entites ?? []).map((e) => [e.id, e.libelle])), [entites]);
-  const dossierParId = useMemo(() => new Map((dossiers ?? []).map((d) => [d.id, d.libelle])), [dossiers]);
+  const dossierParId = useMemo(() => new Map((dossiers ?? []).map((d) => [d.id, `${d.code} — ${d.libelle}`])), [dossiers]);
   const confidentialiteParId = useMemo(
     () => new Map((confidentialites ?? []).map((c) => [c.id, c])),
     [confidentialites],
@@ -66,7 +66,13 @@ export function DocumentDetailPage() {
     );
   }
 
-  const peutGererDroits = can('ged', 'modifier', document.entite_id);
+  // v8.6 : document archivé = figé (droits gérés par l'archiviste) ; pendant
+  // l'examen, seul l'archiviste agit ; en brouillon, le déposant.
+  const estArchiviste = canEtendu('ged', 'archiver');
+  const archive = Boolean(document.date_archivage) || versement?.etape_code === 'archivage';
+  const enBrouillon = !document.versement_id || Boolean(versement?.brouillon);
+  const peutGererDroits = estArchiviste || (!archive && canEtendu('ged', 'modifier', document.entite_id));
+  const peutVerser = !archive && (estArchiviste || (enBrouillon && (document.created_by === profile?.id || versement?.redacteur_id === profile?.id)));
   const confidentialite = document.confidentialite_valeur_id
     ? confidentialiteParId.get(document.confidentialite_valeur_id)
     : null;
@@ -139,7 +145,7 @@ export function DocumentDetailPage() {
           </CardContent>
         </Card>
 
-        <DocumentVersionsPanel documentId={document.id} versionCouranteId={document.version_courante_id} />
+        <DocumentVersionsPanel documentId={document.id} versionCouranteId={document.version_courante_id} peutVerser={peutVerser} />
 
         {peutGererDroits && (
           <div className="xl:col-span-2">

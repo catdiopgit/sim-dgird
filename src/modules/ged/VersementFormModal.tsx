@@ -76,9 +76,9 @@ export function VersementFormModal({ open, organisationId, onClose, onCree }: Pr
       <Champ label="Objet du versement" htmlFor="versement-objet" requis erreur={errors.objet?.message}>
         <Input autoFocus placeholder="Ex. Rapports de recettes — 3e trimestre 2026" {...ariaErreur('versement-objet', errors.objet)} {...register('objet')} />
       </Champ>
-      <Champ label="Entité" htmlFor="versement-entite">
+      <Champ label="Entité" htmlFor="versement-entite" aide="Par défaut, votre entité.">
         <NativeSelect id="versement-entite" {...register('entiteId')}>
-          <option value="">—</option>
+          <option value="">Mon entité</option>
           {(entites ?? []).map((e) => (
             <option key={e.id} value={e.id}>
               {e.sigle ? `${e.sigle} — ${e.libelle}` : e.libelle}

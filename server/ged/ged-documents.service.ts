@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
@@ -7,6 +7,8 @@ import { MarchesAccesService } from '../marches/acces/marches-acces.service';
 import { Document } from './entities/document.entity';
 import { DocumentVersion } from './entities/document-version.entity';
 import { GedVersement } from './entities/ged-versement.entity';
+import { GedAccesService } from './ged-acces.service';
+import { GedVersementsService } from './ged-versements.service';
 
 export interface AjouterDocumentData {
   titre: string;
@@ -42,38 +44,54 @@ export class GedDocumentsService {
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly authorizationService: AuthorizationService,
     private readonly marchesAcces: MarchesAccesService,
+    private readonly acces: GedAccesService,
+    private readonly versementsService: GedVersementsService,
   ) {}
+
+  // v8.6 : un document est archivé quand son versement a atteint l'étape
+  // finale « archivage » (date_archivage posée à ce moment-là).
+  async estArchive(document: Document): Promise<boolean> {
+    if (document.dateArchivage) return true;
+    if (!document.versementId) return false;
+    const v = await this.versements.findOneBy({ id: document.versementId });
+    return v?.etapeCode === 'archivage';
+  }
 
   // --- Visibilité (portage de app.can_view_document, 0057) ---
 
+  // v8.6 — règles de consultation :
+  //  - l'archiviste, l'auteur et les personnes autorisées une à une (droits
+  //    du document) voient toujours ;
+  //  - document ARCHIVÉ : publique/interne (ou sans niveau) → toute
+  //    l'organisation ; confidentielle → l'entité du document (et ses
+  //    responsables) + droits du dossier ; secrète → personne d'autre ;
+  //  - document NON archivé : mêmes personnes que le versement (déposant,
+  //    responsable, « GED / consulter » étendu), ou le projet / la mission /
+  //    le marché porteur ; jamais au-delà pour un document secret.
   async canView(document: Document, user: AuthenticatedUser): Promise<boolean> {
     if (document.organisationId !== user.organisationId) return false;
     if (document.createdBy === user.id) return true;
+    if (await this.acces.estArchiviste(user.id)) return true;
+    if (await this.aDroitConsulter('document_droits', 'document_id', document.id, user)) return true;
 
     const confidentialiteCode = await this.resoudreCodeConfidentialite(document.confidentialiteValeurId);
-    const estSecrete = confidentialiteCode === 'secrete';
+    if (confidentialiteCode === 'secrete') return false;
+    const estConfidentielle = confidentialiteCode === 'confidentielle';
 
-    if (!estSecrete && (await this.authorizationService.hasPermission(user.id, 'ged', 'consulter', document.entiteId))) {
-      return true;
+    if (await this.estArchive(document)) {
+      if (!estConfidentielle) return true;
+      if (await this.acces.appartientA(document.entiteId, user)) return true;
+      if (await this.acces.estResponsableHierarchique(document.entiteId, user.id)) return true;
+      return document.dossierId ? this.aDroitConsulter('dossier_droits', 'dossier_id', document.dossierId, user) : false;
     }
-    // §6 (0066) : un document rattaché à un projet hérite de sa visibilité, en
-    // plus des voies d'accès GED classiques. Gaté par !estSecrete comme la
-    // permission ged/consulter ci-dessus — voir la note sur la régression
-    // 0066/0077 dans MIGRATION.md (Phase 5) : le SQL de production a
-    // silencieusement perdu la coupure `secrete` en ajoutant cette branche,
-    // reproduite ici volontairement corrigée plutôt qu'à l'identique.
-    if (!estSecrete && document.projetId && (await this.peutVoirProjet(document.projetId, user))) {
-      return true;
+
+    if (document.versementId) {
+      const versement = await this.versements.findOneBy({ id: document.versementId });
+      if (versement && !versement.supprimeLe && (await this.versementsService.canView(versement, user))) return true;
     }
-    // §Phase 6 : même branche que projetId juste au-dessus, portage de la partie
-    // mission_id de app.can_view_document (0077) — gatée par !estSecrete pour la
-    // même raison (voir la note sur la régression 0066/0077 quelques lignes plus haut).
-    if (!estSecrete && document.missionId && (await this.peutVoirMission(document.missionId, user))) {
-      return true;
-    }
-    // Recette 2026-11 : un document de marché (avis, offre, PV, justificatif
-    // de phase) s'ouvre pour qui voit le marché, comme pour les projets.
-    if (!estSecrete && document.marcheId) {
+    if (document.projetId && (await this.peutVoirProjet(document.projetId, user))) return true;
+    if (document.missionId && (await this.peutVoirMission(document.missionId, user))) return true;
+    if (document.marcheId) {
       const marches: Array<{ organisation_id: string; responsable_id: string | null; entite_id: string }> =
         await this.dataSource.query('select organisation_id, responsable_id, entite_id from marches where id = $1', [document.marcheId]);
       const m = marches[0];
@@ -81,19 +99,28 @@ export class GedDocumentsService {
         return true;
       }
     }
-    if (await this.aDroitConsulter('document_droits', 'document_id', document.id, user)) return true;
-
-    // Une fois qu'un document est marqué 'secrete', aucun repli via le dossier
-    // parent — asymétrie volontaire (voir §5 du rapport de recherche Phase 4).
-    if (estSecrete) return false;
-
-    if (document.dossierId) {
-      return this.aDroitConsulter('dossier_droits', 'dossier_id', document.dossierId, user);
-    }
-    return false;
+    if (await this.authorizationService.hasPermissionEtendue(user.id, 'ged', 'consulter', document.entiteId)) return true;
+    return document.dossierId ? this.aDroitConsulter('dossier_droits', 'dossier_id', document.dossierId, user) : false;
   }
 
+  // v8.6 : un document archivé n'est modifiable que par l'archiviste ; un
+  // document de versement en cours d'examen aussi. En brouillon : son auteur,
+  // le déposant ou « GED / modifier » étendu. Documents de projet / marché
+  // (sans versement) : règle d'origine (auteur ou « GED / modifier »).
   async assertModifiable(document: Document, user: AuthenticatedUser): Promise<void> {
+    if (await this.acces.estArchiviste(user.id)) return;
+    if (await this.estArchive(document)) {
+      throw new ForbiddenException("Ce document est archivé : seul l'archiviste peut le modifier");
+    }
+    if (document.versementId) {
+      const versement = await this.versements.findOneBy({ id: document.versementId });
+      if (versement && !versement.brouillon) {
+        throw new ForbiddenException("Ce document est en cours d'examen : seul l'archiviste peut le modifier");
+      }
+      if (versement && (document.createdBy === user.id || versement.redacteurId === user.id)) return;
+      if (await this.authorizationService.hasPermissionEtendue(user.id, 'ged', 'modifier', document.entiteId)) return;
+      throw new ForbiddenException("Vous n'êtes pas autorisé à modifier ce document");
+    }
     const autorise =
       document.createdBy === user.id ||
       (await this.authorizationService.hasPermission(user.id, 'ged', 'modifier', document.entiteId));
@@ -214,7 +241,7 @@ export class GedDocumentsService {
 
   async findOne(id: string, user: AuthenticatedUser): Promise<Document> {
     const document = await this.documents.findOneBy({ id });
-    if (!document || !(await this.canView(document, user))) {
+    if (!document || document.supprimeLe || !(await this.canView(document, user))) {
       throw new NotFoundException('Document introuvable');
     }
     return document;
@@ -246,10 +273,10 @@ export class GedDocumentsService {
       throw new NotFoundException('Versement introuvable');
     }
     if (!versement.brouillon) throw new ForbiddenException("Ce versement n'est plus modifiable (déjà soumis)");
-    const autorise =
-      versement.redacteurId === user.id ||
-      (await this.authorizationService.hasPermission(user.id, 'ged', 'modifier', versement.entiteId));
-    if (!autorise) throw new ForbiddenException("Vous n'êtes pas autorisé à ajouter un document à ce versement");
+    if (versement.supprimeLe) throw new NotFoundException('Versement introuvable');
+    if (!(await this.versementsService.peutModifier(versement, user))) {
+      throw new ForbiddenException("Vous n'êtes pas autorisé à ajouter un document à ce versement");
+    }
 
     return this.documents.save(
       this.documents.create({
@@ -273,24 +300,37 @@ export class GedDocumentsService {
     return this.findOne(id, user);
   }
 
+  // v8.6 : classement réservé à l'archiviste, à l'étape « classement » du
+  // versement (ou pour reclasser un document déjà archivé), dans un dossier
+  // actif du plan de classement.
   async classerDocument(id: string, data: ClasserDocumentData, user: AuthenticatedUser): Promise<Document> {
     const document = await this.findOne(id, user);
-    // Pas de dérogation créateur ici, contrairement aux autres écritures — fidèle
-    // à fn_classer_document qui exige la permission 'modifier' dans tous les cas.
-    if (!(await this.authorizationService.hasPermission(user.id, 'ged', 'modifier', document.entiteId))) {
-      throw new ForbiddenException("Vous n'êtes pas autorisé à classer ce document");
+    if (!(await this.acces.estArchiviste(user.id))) {
+      throw new ForbiddenException("Seul l'archiviste peut classer un document");
+    }
+    if (document.versementId && !(await this.estArchive(document))) {
+      const versement = await this.versements.findOneBy({ id: document.versementId });
+      if (versement?.etapeCode !== 'classement') {
+        throw new BadRequestException("Le classement se fait à l'étape « En classement » du versement");
+      }
     }
 
-    // COALESCE-style repli fidèle à la source : un dossierId explicite (non
-    // null) gagne, sinon le dossier cible du versement, sinon inchangé — un
-    // appelant ne peut pas "désclasser" un document via null (limite héritée
-    // du SQL d'origine, pas une régression de ce port).
     let dossierId = data.dossierId ?? null;
     if (!dossierId && document.versementId) {
       const versement = await this.versements.findOneBy({ id: document.versementId });
       dossierId = versement?.dossierCibleId ?? null;
     }
     if (!dossierId) dossierId = document.dossierId;
+    if (dossierId && dossierId !== document.dossierId) {
+      const rows: Array<{ actif: boolean; organisation_id: string; supprime_le: Date | null }> = await this.dataSource.query(
+        'select actif, organisation_id, supprime_le from ged_dossiers where id = $1',
+        [dossierId],
+      );
+      if (!rows[0] || rows[0].organisation_id !== user.organisationId || rows[0].supprime_le) {
+        throw new NotFoundException('Dossier introuvable');
+      }
+      if (!rows[0].actif) throw new BadRequestException('Ce dossier du plan de classement est désactivé');
+    }
 
     await this.documents.update(id, {
       titre: data.titre ?? document.titre,
@@ -298,5 +338,54 @@ export class GedDocumentsService {
       motsCles: data.motsCles ?? document.motsCles,
     });
     return this.findOne(id, user);
+  }
+
+  // v8.6 — contrôle des doublons : autres documents (non supprimés) dont la
+  // version courante a la même empreinte SHA-256. Le titre n'est donné que
+  // si l'utilisateur peut voir le document.
+  async doublons(
+    hash: string,
+    user: AuthenticatedUser,
+    exclureDocumentId: string | null = null,
+  ): Promise<Array<{ documentId: string; titre: string | null; versementId: string | null; versementObjet: string | null; archive: boolean }>> {
+    const rows: Array<{ id: string }> = await this.dataSource.query(
+      `select distinct d.id
+       from document_versions v
+       join documents d on d.id = v.document_id and d.version_courante_id = v.id
+       left join ged_versements gv on gv.id = d.versement_id
+       where v.hash_sha256 = $1 and d.organisation_id = $2 and d.supprime_le is null
+         and (gv.id is null or gv.supprime_le is null)
+         and ($3::uuid is null or d.id <> $3::uuid)`,
+      [hash, user.organisationId, exclureDocumentId],
+    );
+    const resultats = [];
+    for (const { id } of rows) {
+      const d = await this.documents.findOneBy({ id });
+      if (!d) continue;
+      const visible = await this.canView(d, user);
+      const v = d.versementId ? await this.versements.findOneBy({ id: d.versementId }) : null;
+      resultats.push({
+        documentId: d.id,
+        titre: visible ? d.titre : null,
+        versementId: visible ? d.versementId : null,
+        versementObjet: visible ? (v?.objet ?? null) : null,
+        archive: await this.estArchive(d),
+      });
+    }
+    return resultats;
+  }
+
+  // Doublons de chaque document d'un versement (vue de l'archiviste au contrôle).
+  async doublonsVersement(versementId: string, user: AuthenticatedUser) {
+    const documents = await this.findByVersement(versementId, user);
+    const resultat: Record<string, Awaited<ReturnType<GedDocumentsService['doublons']>>> = {};
+    for (const d of documents) {
+      if (!d.versionCouranteId) continue;
+      const version = await this.versions.findOneBy({ id: d.versionCouranteId });
+      if (!version?.hashSha256) continue;
+      const autres = await this.doublons(version.hashSha256, user, d.id);
+      if (autres.length > 0) resultat[d.id] = autres;
+    }
+    return resultat;
   }
 }

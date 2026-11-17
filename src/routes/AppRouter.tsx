@@ -17,6 +17,7 @@ import { ArchivesPage } from '../modules/ged/ArchivesPage';
 import { ArchivagePage } from '../modules/ged/archivage/ArchivagePage';
 import { DocumentDetailPage } from '../modules/ged/DocumentDetailPage';
 import { GedPage } from '../modules/ged/GedPage';
+import { PlanClassementPage } from '../modules/ged/PlanClassementPage';
 import { VersementDetailPage } from '../modules/ged/VersementDetailPage';
 import { MissionDetailPage } from '../modules/missions/MissionDetailPage';
 import { MissionStatistiquesPage } from '../modules/missions/MissionStatistiquesPage';
@@ -59,6 +60,7 @@ export const router = createBrowserRouter([
               { index: true, element: <GedPage /> },
               { path: 'archives', element: <ArchivesPage /> },
               { path: 'archivage', element: <ArchivagePage /> },
+              { path: 'plan-classement', element: <PlanClassementPage /> },
               { path: 'versements/:id', element: <VersementDetailPage /> },
               { path: 'documents/:id', element: <DocumentDetailPage /> },
             ],

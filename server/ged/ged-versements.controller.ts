@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, Delete } from '@nestjs/common';
 import { IsOptional, IsString, IsUUID } from 'class-validator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
@@ -54,5 +54,19 @@ export class GedVersementsController {
   @Post(':id/soumettre')
   soumettre(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.versementsService.soumettre(id, user);
+  }
+
+  @Post(':id/annuler')
+  annuler(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.versementsService.annuler(id, user);
+  }
+
+  @Delete(':id/documents/:documentId')
+  retirerDocument(
+    @Param('id') id: string,
+    @Param('documentId') documentId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.versementsService.retirerDocument(id, documentId, user);
   }
 }

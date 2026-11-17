@@ -55,3 +55,25 @@ export async function modifierVersement(id: string, payload: ModifierVersementPa
   const data = await api.patch<unknown>(`/ged/versements/${id}`, toCamelCase(payload));
   return toSnakeCase<GedVersement>(data);
 }
+
+// v8.6 : brouillons — retirer un document, annuler le versement.
+export async function retirerDocumentVersement(versementId: string, documentId: string): Promise<void> {
+  await api.delete(`/ged/versements/${versementId}/documents/${documentId}`);
+}
+
+export async function annulerVersement(versementId: string): Promise<void> {
+  await api.post(`/ged/versements/${versementId}/annuler`, {});
+}
+
+export interface DoublonDocument {
+  documentId: string;
+  titre: string | null;
+  versementId: string | null;
+  versementObjet: string | null;
+  archive: boolean;
+}
+
+// Doublons (même fichier, empreinte SHA-256) de chaque document du versement.
+export async function listDoublonsVersement(versementId: string): Promise<Record<string, DoublonDocument[]>> {
+  return api.get<Record<string, DoublonDocument[]>>(`/ged/versements/${versementId}/doublons`);
+}

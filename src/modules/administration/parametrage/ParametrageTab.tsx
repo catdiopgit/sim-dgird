@@ -15,13 +15,13 @@ import { useAccesMarches } from '../../../hooks/marches/useMarches';
 type SousSection = 'listes' | 'numerotation' | 'parametres' | 'courrier' | 'entete' | 'smtp' | 'plan-classement' | 'marches';
 
 export function ParametrageTab() {
-  const { profile, can } = useProfile();
+  const { profile, can, canEtendu } = useProfile();
   const organisationId = profile?.organisation_id;
   const peutModifier = can('administration', 'modifier');
   // Le plan de classement (catégories GED) suit les droits GED, pas
   // administration : réservé à l'administrateur et à l'archiviste, invisible
   // pour les autres rôles (même en lecture seule).
-  const peutGererPlanClassement = can('ged', 'modifier');
+  const peutGererPlanClassement = canEtendu('ged', 'archiver') || canEtendu('administration', 'modifier');
   // Recette 2026-11 : types de marché et phases → cellule de passation et
   // administrateurs (MarchesAccesService.peutParametrer).
   const { data: accesMarches } = useAccesMarches();

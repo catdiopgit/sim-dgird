@@ -1,4 +1,4 @@
-import { Archive, ChevronLeft, ChevronRight, FolderOpen, Inbox, Plus, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FolderOpen, FolderTree, Inbox, Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
@@ -28,7 +28,7 @@ const TAILLE_PAGE = 20;
 // de le dupliquer sur la liste des versements.
 export function GedPage() {
   const navigate = useNavigate();
-  const { profile, can } = useProfile();
+  const { profile, can, canEtendu } = useProfile();
   const organisationId = profile?.organisation_id;
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -61,6 +61,8 @@ export function GedPage() {
   const lignesPage = lignes.slice((pageCourante - 1) * TAILLE_PAGE, pageCourante * TAILLE_PAGE);
 
   const peutCreer = can('ged', 'creer');
+  // v8.6 : l'archiviste (ou un administrateur) gère le plan de classement.
+  const peutGererPlan = canEtendu('ged', 'archiver') || canEtendu('administration', 'modifier');
 
   if (!organisationId) {
     return (
@@ -92,10 +94,10 @@ export function GedPage() {
               <FolderOpen className="text-muted-foreground" />
               Archives
             </Button>
-            {can('ged', 'consulter') && (
-              <Button variant="outline" onClick={() => navigate('/ged/archivage')}>
-                <Archive className="text-muted-foreground" />
-                Archivage
+            {peutGererPlan && (
+              <Button variant="outline" onClick={() => navigate('/ged/plan-classement')}>
+                <FolderTree className="text-muted-foreground" />
+                Plan de classement
               </Button>
             )}
             {peutCreer && (

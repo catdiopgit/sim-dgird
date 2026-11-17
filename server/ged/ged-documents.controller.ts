@@ -30,6 +30,11 @@ export class GedDocumentsController {
     return this.documentsService.findByVersement(versementId, user);
   }
 
+  @Get('versements/:id/doublons')
+  doublons(@Param('id') versementId: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.documentsService.doublonsVersement(versementId, user);
+  }
+
   @Get('documents/:id')
   findOne(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.documentsService.findOne(id, user);

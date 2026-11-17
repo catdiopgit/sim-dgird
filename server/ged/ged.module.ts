@@ -3,6 +3,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PermissionsModule } from '../administration/permissions/permissions.module';
 import { WorkflowModule } from '../workflow/workflow.module';
 import { MarchesAccesModule } from '../marches/acces/marches-acces.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { GedSchemaService } from './ged-schema.service';
+import { GedAccesService } from './ged-acces.service';
+import { GedNotificationsService } from './ged-notifications.service';
 import { GedDossier } from './entities/ged-dossier.entity';
 import { Document } from './entities/document.entity';
 import { DocumentVersion } from './entities/document-version.entity';
@@ -40,8 +44,12 @@ import { GedStorageController } from './ged-storage.controller';
     PermissionsModule,
     WorkflowModule,
     MarchesAccesModule,
+    NotificationsModule,
   ],
   providers: [
+    GedSchemaService,
+    GedAccesService,
+    GedNotificationsService,
     GedDossiersService,
     GedDocumentsService,
     GedDroitsService,

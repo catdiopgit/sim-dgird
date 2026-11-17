@@ -1,4 +1,4 @@
-import { ChevronRight, FilePlus, FileSearch, FileText, Info, Send } from 'lucide-react';
+import { ChevronRight, Copy, FilePlus, FileSearch, FileText, Info, Send, Trash2, XCircle } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Confirmation } from '../../components/form/confirm-dialog';
@@ -10,7 +10,15 @@ import { EtatVide, PageHeader } from '../../components/ui/page-header';
 import { Skeleton } from '../../components/ui/skeleton';
 import { useDocumentsVersement } from '../../hooks/ged/useDocuments';
 import { useDossiers, useOptionsDossiersGed } from '../../hooks/ged/useDossiers';
-import { useModifierVersement, useSoumettreVersement, useVersement } from '../../hooks/ged/useVersements';
+import {
+  useAnnulerVersement,
+  useDoublonsVersement,
+  useModifierVersement,
+  useRetirerDocumentVersement,
+  useSoumettreVersement,
+  useVersement,
+} from '../../hooks/ged/useVersements';
+import { libelleDossier } from '../../services/ged/dossiers';
 import { useProfile } from '../../hooks/useProfile';
 import { fr } from '../../utils/dateFr';
 import { ClassementPanel } from './ClassementPanel';
@@ -21,18 +29,23 @@ import { GedWorkflowPanel } from './GedWorkflowPanel';
 export function VersementDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { profile, can } = useProfile();
+  const { profile, canEtendu } = useProfile();
   const organisationId = profile?.organisation_id;
+  // v8.6 : l'archiviste réceptionne, contrôle, classe et archive.
+  const estArchiviste = canEtendu('ged', 'archiver');
 
   const { data: versement, isLoading, isError } = useVersement(id);
   const { data: documents, isLoading: chargementDocuments } = useDocumentsVersement(id);
   const { data: dossiers } = useDossiers(organisationId);
-  const optionsDossiers = useOptionsDossiersGed(organisationId);
+  const optionsDossiers = useOptionsDossiersGed(organisationId, versement?.dossier_cible_id ?? null);
   const soumettre = useSoumettreVersement(id);
   const modifier = useModifierVersement(id);
+  const retirer = useRetirerDocumentVersement(id);
+  const annuler = useAnnulerVersement(id);
+  const { data: doublons } = useDoublonsVersement(id, Boolean(versement) && (!versement?.brouillon || estArchiviste));
   const [ajouterOuvert, setAjouterOuvert] = useState(false);
 
-  const dossierParId = useMemo(() => new Map((dossiers ?? []).map((d) => [d.id, d.libelle])), [dossiers]);
+  const dossierParId = useMemo(() => new Map((dossiers ?? []).map((d) => [d.id, libelleDossier(d)])), [dossiers]);
 
   if (isLoading || !organisationId) {
     return (
@@ -54,8 +67,11 @@ export function VersementDetailPage() {
     );
   }
 
-  const peutModifier = versement.redacteur_id === profile?.id || can('ged', 'modifier', versement.entite_id);
-  const peutClasser = can('ged', 'modifier', versement.entite_id) && versement.etape_code === 'classement';
+  // Brouillon : le déposant (ou « GED / modifier » étendu). Ensuite : l'archiviste.
+  const peutModifier =
+    versement.brouillon &&
+    (versement.redacteur_id === profile?.id || canEtendu('ged', 'modifier', versement.entite_id) || estArchiviste);
+  const peutClasser = estArchiviste && versement.etape_code === 'classement';
   const dossierCibleLibelle = versement.dossier_cible_id ? (dossierParId.get(versement.dossier_cible_id) ?? null) : null;
   const peutChoisirDossier = (versement.brouillon && peutModifier) || peutClasser;
   const nbDocuments = (documents ?? []).length;
@@ -80,6 +96,30 @@ export function VersementDetailPage() {
                 <FilePlus className="text-muted-foreground" />
                 Ajouter un document
               </Button>
+            )}
+            {versement.brouillon && peutModifier && (
+              <Confirmation
+                titre="Annuler ce brouillon ?"
+                libelleConfirmer="Annuler le brouillon"
+                destructif
+                enCours={annuler.isPending}
+                onConfirmer={(fermer) =>
+                  annuler.mutate(undefined, {
+                    onSuccess: () => {
+                      fermer();
+                      navigate('/ged');
+                    },
+                  })
+                }
+                declencheur={(ouvrir) => (
+                  <Button variant="outline" onClick={ouvrir}>
+                    <XCircle className="text-muted-foreground" />
+                    Annuler le brouillon
+                  </Button>
+                )}
+              >
+                <p>Le versement et ses documents seront retirés de la GED. Cette action est définitive.</p>
+              </Confirmation>
             )}
             {peutSoumettre && (
               <Confirmation
@@ -179,12 +219,14 @@ export function VersementDetailPage() {
                 </div>
               ) : (
                 <ul className="divide-y divide-border rounded-lg border border-border">
-                  {(documents ?? []).map((d) => (
-                    <li key={d.id}>
+                  {(documents ?? []).map((d) => {
+                    const autres = doublons?.[d.id] ?? [];
+                    return (
+                    <li key={d.id} className="flex items-center">
                       <button
                         type="button"
                         onClick={() => navigate(`/ged/documents/${d.id}`)}
-                        className="flex w-full cursor-pointer items-center gap-3 px-3 py-3 text-left hover:bg-muted/60"
+                        className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 px-3 py-3 text-left hover:bg-muted/60"
                       >
                         <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
                           <FileText className="size-4" />
@@ -195,6 +237,19 @@ export function VersementDetailPage() {
                             {d.dossier_id ? (dossierParId.get(d.dossier_id) ?? '—') : 'Non classé'}
                           </span>
                         </span>
+                        {autres.length > 0 && (
+                          <Badge
+                            variant="warning"
+                            shape="pill"
+                            className="shrink-0"
+                            title={`Même fichier que : ${autres
+                              .map((a) => (a.titre ? `« ${a.titre} »${a.archive ? ' (archivé)' : ''}` : 'un document non visible'))
+                              .join(', ')}`}
+                          >
+                            <Copy className="mr-1 size-3" aria-hidden />
+                            Doublon possible
+                          </Badge>
+                        )}
                         {(d.mots_cles ?? []).length > 0 && (
                           <span className="hidden max-w-[40%] flex-wrap justify-end gap-1 sm:flex">
                             {(d.mots_cles ?? []).slice(0, 3).map((m) => (
@@ -206,8 +261,32 @@ export function VersementDetailPage() {
                         )}
                         <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
                       </button>
+                      {versement.brouillon && peutModifier && (
+                        <Confirmation
+                          titre="Retirer ce document du versement ?"
+                          libelleConfirmer="Retirer"
+                          destructif
+                          enCours={retirer.isPending}
+                          onConfirmer={(fermer) => retirer.mutate(d.id, { onSuccess: fermer })}
+                          declencheur={(ouvrir) => (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="mr-2 size-8 shrink-0 text-muted-foreground"
+                              onClick={ouvrir}
+                              aria-label={`Retirer « ${d.titre} »`}
+                              title="Retirer du versement"
+                            >
+                              <Trash2 />
+                            </Button>
+                          )}
+                        >
+                          <p>« {d.titre} » et son fichier seront supprimés de ce brouillon.</p>
+                        </Confirmation>
+                      )}
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               )}
             </CardContent>

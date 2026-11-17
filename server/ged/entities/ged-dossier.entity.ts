@@ -37,6 +37,13 @@ export class GedDossier {
   @Column({ type: 'int', default: 0 })
   niveau: number;
 
+  // v8.6 : ordre d'affichage (ordre officiel du plan) et activation.
+  @Column({ type: 'int', default: 0 })
+  ordre: number;
+
+  @Column({ type: 'boolean', default: true })
+  actif: boolean;
+
   @Column({ type: 'text', nullable: true })
   icone: string | null;
 

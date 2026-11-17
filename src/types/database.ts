@@ -777,6 +777,8 @@ export type Database = {
           categorie_id: string | null;
           chemin: unknown | null;
           niveau: number;
+          ordre: number;
+          actif: boolean;
           icone: string | null;
           couleur: string | null;
           created_by: string | null;

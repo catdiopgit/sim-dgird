@@ -61,9 +61,20 @@ export function useAjouterDocumentVersement(versementId: string | undefined) {
   return useMutation({
     mutationFn: ({ payload, fichier }: { payload: AjouterDocumentVersementPayload; fichier: File }) =>
       ajouterDocumentAvecFichier(payload, fichier),
-    onSuccess: () => {
-      message.success('Document ajouté au versement.');
+    onSuccess: (document) => {
+      // v8.6 : le même fichier existe déjà ailleurs → avertissement (l'archiviste tranchera).
+      const doublons = (document as { doublons?: Array<{ titre: string | null; versement_objet: string | null; archive: boolean }> }).doublons ?? [];
+      if (doublons.length > 0) {
+        const d = doublons[0];
+        const ou = d.titre
+          ? `« ${d.titre} »${d.versement_objet ? ` (versement « ${d.versement_objet} »)` : ''}${d.archive ? ', déjà archivé' : ''}`
+          : 'un document auquel vous n\'avez pas accès';
+        message.warning(`Document ajouté, mais ce fichier existe déjà : ${ou}. L'archiviste en sera informé au contrôle.`);
+      } else {
+        message.success('Document ajouté au versement.');
+      }
       void queryClient.invalidateQueries({ queryKey: ['ged-documents-versement', versementId] });
+      void queryClient.invalidateQueries({ queryKey: ['ged-doublons', versementId] });
     },
     onError: (error: Error) => message.error(error.message),
   });

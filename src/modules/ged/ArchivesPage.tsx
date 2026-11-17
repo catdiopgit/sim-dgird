@@ -1,6 +1,5 @@
-import { Archive, FolderTree } from 'lucide-react';
+import { FolderTree } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
 import { PageHeader } from '../../components/ui/page-header';
 import { Skeleton } from '../../components/ui/skeleton';
@@ -18,8 +17,7 @@ import { DocumentPreviewModal } from './DocumentPreviewModal';
 // dossier sélectionné à droite (sous-dossiers puis documents en cartes),
 // recherche globale, prévisualisation et téléchargement tracés.
 export function ArchivesPage() {
-  const navigate = useNavigate();
-  const { profile, can } = useProfile();
+  const { profile } = useProfile();
   const organisationId = profile?.organisation_id;
 
   const { data: dossiers } = useDossiers(organisationId);
@@ -67,12 +65,7 @@ export function ArchivesPage() {
               <FolderTree className="text-muted-foreground" />
               Dossiers
             </Button>
-            {can('ged', 'consulter') && (
-              <Button variant="outline" onClick={() => navigate('/ged/archivage')}>
-                <Archive className="text-muted-foreground" />
-                Archivage
-              </Button>
-            )}
+            {/* Archivage annuel : livré en v8.7. */}
           </>
         }
       />

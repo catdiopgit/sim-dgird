@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Skeleton } from '../../components/ui/skeleton';
 import { CLE_NON_CLASSES, useCompteurDocumentsParDossier, useDossiers } from '../../hooks/ged/useDossiers';
 import { cn } from '../../lib/utils';
-import type { GedDossier } from '../../services/ged/dossiers';
+import { comparerDossiers, type GedDossier } from '../../services/ged/dossiers';
 
 interface Props {
   organisationId: string;
@@ -82,7 +82,7 @@ export function ArchivesTreePanel({ organisationId, dossierSelectionneId, onSele
       liste.push(d);
       enfants.set(d.parent_dossier_id, liste);
     }
-    for (const liste of enfants.values()) liste.sort((a, b) => a.libelle.localeCompare(b.libelle));
+    for (const liste of enfants.values()) liste.sort(comparerDossiers);
 
     const parentParId = new Map((dossiers ?? []).map((d) => [d.id, d.parent_dossier_id]));
     const chemin: string[] = [];
@@ -124,7 +124,7 @@ export function ArchivesTreePanel({ organisationId, dossierSelectionneId, onSele
             niveau={niveau}
             actif={actif}
             icone={<Icone className="size-4 shrink-0 fill-gold/25 text-gold" />}
-            libelle={d.libelle}
+            libelle={`${d.code} — ${d.libelle}`}
             nombre={compteurs.get(d.id)}
             ouvert={ouvert}
             onBasculer={aEnfants ? () => basculer(d.id) : undefined}

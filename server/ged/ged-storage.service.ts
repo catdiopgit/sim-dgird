@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
@@ -48,15 +48,33 @@ export class GedStorageService {
     data: AjouterDocumentData,
     fichier: FichierEntrant,
     user: AuthenticatedUser,
-  ): Promise<{ document: Document; version: DocumentVersion }> {
+  ) {
+    // v8.6 — doublons : un même fichier ne peut pas figurer deux fois dans un
+    // versement ; ailleurs, le déposant est averti et l'archiviste tranche.
+    const hash = this.empreinte(fichier.buffer);
+    const memeVersement: Array<{ titre: string }> = await this.dataSource.query(
+      `select d.titre from document_versions v
+       join documents d on d.id = v.document_id and d.version_courante_id = v.id
+       where v.hash_sha256 = $1 and d.versement_id = $2 and d.supprime_le is null limit 1`,
+      [hash, versementId],
+    );
+    if (memeVersement.length > 0) {
+      throw new BadRequestException(`Ce fichier est déjà dans ce versement (« ${memeVersement[0].titre} »)`);
+    }
+
     const document = await this.documentsService.ajouterDocument(versementId, data, user);
     try {
       const version = await this.verserVersion(document.id, fichier, null, user);
-      return { document: await this.documentsService.findOne(document.id, user), version };
+      const doublons = await this.documentsService.doublons(hash, user, document.id);
+      return { ...(await this.documentsService.findOne(document.id, user)), version, doublons };
     } catch (err) {
       await this.dataSource.manager.delete(Document, document.id);
       throw err;
     }
+  }
+
+  private empreinte(buffer: Buffer): string {
+    return createHash('sha256').update(buffer).digest('hex');
   }
 
   // Pas de verrou FOR UPDATE côté SQL d'origine sur le calcul de
@@ -71,6 +89,9 @@ export class GedStorageService {
     user: AuthenticatedUser,
   ): Promise<DocumentVersion> {
     const document = await this.documentsService.findOne(documentId, user);
+    if (await this.documentsService.estArchive(document)) {
+      throw new BadRequestException("Un document archivé ne reçoit plus de nouvelle version");
+    }
     await this.documentsService.assertModifiable(document, user);
 
     // MAX(int) revient en number côté driver pg (contrairement à un bigint,
@@ -94,6 +115,7 @@ export class GedStorageService {
           nomFichier: this.nomSanitise(fichier.originalname),
           tailleOctets: fichier.size,
           typeMime: fichier.mimetype || null,
+          hashSha256: this.empreinte(fichier.buffer),
           commentaire,
           createdBy: user.id,
         }),

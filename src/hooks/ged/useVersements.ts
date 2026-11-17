@@ -7,6 +7,9 @@ import {
   listVersements,
   modifierVersement,
   soumettreVersement,
+  annulerVersement,
+  listDoublonsVersement,
+  retirerDocumentVersement,
   type CreerVersementPayload,
   type ModifierVersementPayload,
 } from '../../services/ged/versements';
@@ -73,5 +76,40 @@ export function useSoumettreVersement(versementId: string | undefined) {
       void queryClient.invalidateQueries({ queryKey: ['ged-bannette'] });
     },
     onError: (error: Error) => message.error(error.message),
+  });
+}
+
+// v8.6 : brouillons et doublons.
+export function useRetirerDocumentVersement(versementId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (documentId: string) => retirerDocumentVersement(versementId!, documentId),
+    onSuccess: () => {
+      message.success('Document retiré du versement.');
+      void queryClient.invalidateQueries({ queryKey: ['ged-documents-versement', versementId] });
+      void queryClient.invalidateQueries({ queryKey: ['ged-doublons', versementId] });
+    },
+    onError: (error: Error) => message.error(error.message),
+  });
+}
+
+export function useAnnulerVersement(versementId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => annulerVersement(versementId!),
+    onSuccess: () => {
+      message.success('Brouillon annulé.');
+      void queryClient.invalidateQueries({ queryKey: ['ged-versements'] });
+      void queryClient.invalidateQueries({ queryKey: ['ged-brouillons'] });
+    },
+    onError: (error: Error) => message.error(error.message),
+  });
+}
+
+export function useDoublonsVersement(versementId: string | undefined, actif = true) {
+  return useQuery({
+    queryKey: ['ged-doublons', versementId],
+    queryFn: () => listDoublonsVersement(versementId!),
+    enabled: Boolean(versementId) && actif,
   });
 }

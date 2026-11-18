@@ -35,6 +35,7 @@ import { useBannetteCourriers } from '../hooks/courrier/useCourriers';
 import { useEcheancesProchaines } from '../hooks/dashboard/useEcheancesProchaines';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
+import { useAccesAdministration } from '../hooks/administration/useAccesAdministration';
 import { cn } from '../lib/utils';
 import { PeriodSelector } from '../modules/dashboard/PeriodSelector';
 import { NotificationsMenu } from './NotificationsMenu';
@@ -71,6 +72,7 @@ export function AppShell() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { profile, can } = useProfile();
+  const accesAdministration = useAccesAdministration();
   const { sidebarCollapsed, toggleSidebar, themeMode, toggleThemeMode } = useUiPreferences();
   const { periode, setPeriode } = usePeriodeStore();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -142,7 +144,14 @@ export function AppShell() {
           </div>
 
           <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-4" aria-label="Navigation principale">
-            {navSections.map((section) => (
+            {navSections
+              .map((section) => ({
+                ...section,
+                // v8.6.4 : Administration seulement pour qui y a une rubrique ouverte.
+                items: section.items.filter((i) => i.key !== '/administration' || accesAdministration.visible),
+              }))
+              .filter((section) => section.items.length > 0)
+              .map((section) => (
               <div key={section.titre}>
                 {!replie && (
                   <div className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">

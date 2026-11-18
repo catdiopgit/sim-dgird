@@ -549,6 +549,13 @@ export type Database = {
           redacteur_id: string | null;
           created_at: string;
           updated_at: string;
+          date_debut_extreme: string | null;
+          date_fin_extreme: string | null;
+          code_archivage: string | null;
+          dossier_versement_id: string | null;
+          soumis_le: string | null;
+          classe_le: string | null;
+          archive_le: string | null;
           supprime_le: string | null;
         };
         Insert: {

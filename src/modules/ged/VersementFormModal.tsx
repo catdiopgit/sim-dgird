@@ -12,12 +12,22 @@ import { useCreerVersement } from '../../hooks/ged/useVersements';
 import { ariaErreur } from '../../lib/form';
 import type { GedVersement } from '../../services/ged/versements';
 
-const schema = z.object({
-  objet: z.string().min(1, 'Requis'),
-  entiteId: z.string().optional(),
-  dossierCibleId: z.string().optional(),
-  description: z.string().optional(),
-});
+const aujourdhui = () => new Date().toISOString().slice(0, 10);
+
+// v8.6.4 : dates extrêmes obligatoires (plus ancien et plus récent document).
+const schema = z
+  .object({
+    objet: z.string().min(1, 'Requis'),
+    entiteId: z.string().optional(),
+    dossierCibleId: z.string().optional(),
+    description: z.string().optional(),
+    dateDebutExtreme: z.string().min(1, 'Requis').refine((d) => d <= aujourdhui(), 'Pas de date future'),
+    dateFinExtreme: z.string().min(1, 'Requis').refine((d) => d <= aujourdhui(), 'Pas de date future'),
+  })
+  .refine((v) => !v.dateDebutExtreme || !v.dateFinExtreme || v.dateFinExtreme >= v.dateDebutExtreme, {
+    message: 'La date de fin ne peut pas précéder la date de début',
+    path: ['dateFinExtreme'],
+  });
 type FormValues = z.infer<typeof schema>;
 
 interface Props {
@@ -27,7 +37,7 @@ interface Props {
   onCree: (versement: GedVersement) => void;
 }
 
-const VIDE: FormValues = { objet: '', entiteId: '', dossierCibleId: '', description: '' };
+const VIDE: FormValues = { objet: '', entiteId: '', dossierCibleId: '', description: '', dateDebutExtreme: '', dateFinExtreme: '' };
 
 // Première étape du dépôt (GED V2) : constituer le brouillon (objet du lot,
 // entité, dossier de classement cible — un seul dossier par versement). Les
@@ -58,6 +68,8 @@ export function VersementFormModal({ open, organisationId, onClose, onCree }: Pr
         p_entite_id: values.entiteId || null,
         p_dossier_cible_id: values.dossierCibleId || null,
         p_description: values.description || null,
+        p_date_debut_extreme: values.dateDebutExtreme,
+        p_date_fin_extreme: values.dateFinExtreme,
       },
       { onSuccess: (versement) => onCree(versement) },
     );
@@ -76,6 +88,26 @@ export function VersementFormModal({ open, organisationId, onClose, onCree }: Pr
       <Champ label="Objet du versement" htmlFor="versement-objet" requis erreur={errors.objet?.message}>
         <Input autoFocus placeholder="Ex. Rapports de recettes — 3e trimestre 2026" {...ariaErreur('versement-objet', errors.objet)} {...register('objet')} />
       </Champ>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Champ
+          label="Date de début extrême"
+          htmlFor="versement-debut"
+          requis
+          aide="Date du document le plus ancien."
+          erreur={errors.dateDebutExtreme?.message}
+        >
+          <Input id="versement-debut" type="date" max={aujourdhui()} {...register('dateDebutExtreme')} />
+        </Champ>
+        <Champ
+          label="Date de fin extrême"
+          htmlFor="versement-fin"
+          requis
+          aide="Date du document le plus récent."
+          erreur={errors.dateFinExtreme?.message}
+        >
+          <Input id="versement-fin" type="date" max={aujourdhui()} {...register('dateFinExtreme')} />
+        </Champ>
+      </div>
       <Champ label="Entité" htmlFor="versement-entite" aide="Par défaut, votre entité.">
         <NativeSelect id="versement-entite" {...register('entiteId')}>
           <option value="">Mon entité</option>

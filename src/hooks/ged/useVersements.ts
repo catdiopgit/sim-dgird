@@ -8,6 +8,7 @@ import {
   modifierVersement,
   soumettreVersement,
   annulerVersement,
+  classerVersement,
   listDoublonsVersement,
   retirerDocumentVersement,
   type CreerVersementPayload,
@@ -111,5 +112,20 @@ export function useDoublonsVersement(versementId: string | undefined, actif = tr
     queryKey: ['ged-doublons', versementId],
     queryFn: () => listDoublonsVersement(versementId!),
     enabled: Boolean(versementId) && actif,
+  });
+}
+
+export function useClasserVersement(versementId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { codeArchivage: string; dossierParentId: string }) => classerVersement(versementId!, payload),
+    onSuccess: () => {
+      message.success('Versement classé : ses documents sont rangés dans son dossier.');
+      void queryClient.invalidateQueries({ queryKey: ['ged-versement', versementId] });
+      void queryClient.invalidateQueries({ queryKey: ['ged-documents-versement', versementId] });
+      void queryClient.invalidateQueries({ queryKey: ['ged-dossiers'] });
+      void queryClient.invalidateQueries({ queryKey: ['ged-workflow-transitions', versementId] });
+    },
+    onError: (error: Error) => message.error(error.message),
   });
 }

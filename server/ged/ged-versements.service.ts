@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, IsNull, Repository } from 'typeorm';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
@@ -20,6 +20,8 @@ export interface CreerVersementData {
   entiteId?: string | null;
   dossierCibleId?: string | null;
   description?: string | null;
+  dateDebutExtreme?: string | null;
+  dateFinExtreme?: string | null;
 }
 
 export interface ModifierVersementData {
@@ -27,6 +29,24 @@ export interface ModifierVersementData {
   description?: string | null;
   entiteId?: string | null;
   dossierCibleId?: string | null;
+  dateDebutExtreme?: string | null;
+  dateFinExtreme?: string | null;
+}
+
+export interface ClasserVersementData {
+  codeArchivage: string;
+  dossierParentId: string;
+}
+
+// v8.6.4 : dates extrêmes = date du plus ancien et du plus récent document
+// versé ; aucune date future, et la fin ne précède pas le début.
+function controlerDatesExtremes(debut: string | null | undefined, fin: string | null | undefined): void {
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  if (debut && debut.slice(0, 10) > aujourdhui) throw new BadRequestException('La date de début extrême ne peut pas être dans le futur');
+  if (fin && fin.slice(0, 10) > aujourdhui) throw new BadRequestException('La date de fin extrême ne peut pas être dans le futur');
+  if (debut && fin && fin.slice(0, 10) < debut.slice(0, 10)) {
+    throw new BadRequestException('La date de fin extrême ne peut pas précéder la date de début');
+  }
 }
 
 // Portage de app.fn_creer_versement, app.fn_soumettre_versement,
@@ -112,6 +132,7 @@ export class GedVersementsService {
       throw new ForbiddenException("Vous n'êtes pas autorisé à créer un versement pour cette entité");
     }
     await this.assertDossierCible(data.dossierCibleId, user);
+    controlerDatesExtremes(data.dateDebutExtreme, data.dateFinExtreme);
     return this.versements.save(
       this.versements.create({
         organisationId: user.organisationId,
@@ -119,6 +140,8 @@ export class GedVersementsService {
         dossierCibleId: data.dossierCibleId ?? null,
         objet: data.objet,
         description: data.description ?? null,
+        dateDebutExtreme: data.dateDebutExtreme ?? null,
+        dateFinExtreme: data.dateFinExtreme ?? null,
         brouillon: true,
         redacteurId: user.id,
       }),
@@ -138,7 +161,13 @@ export class GedVersementsService {
       await this.assertDossierCible(data.dossierCibleId, user);
     }
 
+    const debut = data.dateDebutExtreme !== undefined ? data.dateDebutExtreme : versement.dateDebutExtreme;
+    const fin = data.dateFinExtreme !== undefined ? data.dateFinExtreme : versement.dateFinExtreme;
+    controlerDatesExtremes(debut, fin);
+
     await this.versements.update(id, {
+      dateDebutExtreme: debut ?? null,
+      dateFinExtreme: fin ?? null,
       objet: data.objet ?? versement.objet,
       description: data.description !== undefined ? data.description : versement.description,
       entiteId: data.entiteId !== undefined ? data.entiteId : versement.entiteId,
@@ -172,6 +201,13 @@ export class GedVersementsService {
 
       const nbDocuments = await manager.count(Document, { where: { versementId: id, supprimeLe: IsNull() } });
       if (nbDocuments === 0) throw new BadRequestException('Ce versement ne contient aucun document');
+      const dates: Array<{ date_debut_extreme: string | null; date_fin_extreme: string | null }> = await manager.query(
+        'select date_debut_extreme, date_fin_extreme from ged_versements where id = $1',
+        [id],
+      );
+      if (!dates[0]?.date_debut_extreme || !dates[0]?.date_fin_extreme) {
+        throw new BadRequestException('Renseignez les dates extrêmes (début et fin) avant de soumettre');
+      }
 
       const workflowInstanceId = await this.workflowEngineService.demarrerWorkflow(
         'ged',
@@ -185,6 +221,7 @@ export class GedVersementsService {
 
       await manager.update(GedVersement, id, {
         brouillon: false,
+        soumisLe: new Date(),
         workflowInstanceId: instance.id,
         etapeCode: etape.code,
         etapeLibelle: etape.libelle,
@@ -200,6 +237,94 @@ export class GedVersementsService {
       });
       return versement;
     });
+  }
+
+  // v8.6.4 — classement d'un versement par l'archiviste, à l'étape « En
+  // classement » : il saisit le code d'archivage (unique) et choisit
+  // l'emplacement dans le plan ; le SIM crée sous cet emplacement le dossier
+  // du versement (code = code d'archivage, intitulé = objet) et y range tous
+  // ses documents. Un reclassement avant l'archivage met à jour ce dossier.
+  async classer(id: string, data: ClasserVersementData, user: AuthenticatedUser): Promise<GedVersement> {
+    const versement = await this.findOne(id, user);
+    if (!(await this.acces.estArchiviste(user.id))) {
+      throw new ForbiddenException("Seul l'archiviste peut classer un versement");
+    }
+    if (versement.etapeCode !== 'classement') {
+      throw new BadRequestException("Le classement se fait à l'étape « En classement » du versement");
+    }
+    const code = data.codeArchivage?.trim().replace(/\s+/g, ' ');
+    if (!code) throw new BadRequestException("Le code d'archivage est obligatoire");
+    if (code.length > 40) throw new BadRequestException("Code d'archivage trop long (40 caractères au maximum)");
+
+    const parent: Array<{ id: string; actif: boolean; organisation_id: string; supprime_le: Date | null }> =
+      await this.dataSource.query('select id, actif, organisation_id, supprime_le from ged_dossiers where id = $1', [
+        data.dossierParentId,
+      ]);
+    if (!parent[0] || parent[0].organisation_id !== user.organisationId || parent[0].supprime_le) {
+      throw new NotFoundException('Emplacement du plan de classement introuvable');
+    }
+    if (!parent[0].actif) throw new BadRequestException('Cet emplacement du plan de classement est désactivé');
+    if (data.dossierParentId === versement.dossierVersementId) {
+      throw new BadRequestException("Choisissez l'emplacement du plan, pas le dossier du versement lui-même");
+    }
+
+    const dejaVersement: Array<{ objet: string }> = await this.dataSource.query(
+      `select objet from ged_versements
+       where organisation_id = $1 and lower(code_archivage) = lower($2) and id <> $3 and supprime_le is null limit 1`,
+      [user.organisationId, code, id],
+    );
+    if (dejaVersement[0]) {
+      throw new ConflictException(`Le code d'archivage « ${code} » est déjà attribué (versement « ${dejaVersement[0].objet} »)`);
+    }
+    const dejaDossier: Array<{ libelle: string }> = await this.dataSource.query(
+      `select libelle from ged_dossiers
+       where organisation_id = $1 and lower(code) = lower($2) and ($3::uuid is null or id <> $3::uuid) limit 1`,
+      [user.organisationId, code, versement.dossierVersementId],
+    );
+    if (dejaDossier[0]) {
+      throw new ConflictException(`Le code « ${code} » est déjà utilisé dans le plan de classement (« ${dejaDossier[0].libelle} »)`);
+    }
+
+    await this.dataSource.transaction(async (m) => {
+      let dossierId = versement.dossierVersementId;
+      const existe = dossierId
+        ? (await m.query('select 1 from ged_dossiers where id = $1 and supprime_le is null', [dossierId])).length > 0
+        : false;
+      if (existe) {
+        await m.query(
+          'update ged_dossiers set code = $2, libelle = $3, parent_dossier_id = $4, updated_at = now() where id = $1',
+          [dossierId, code, versement.objet, data.dossierParentId],
+        );
+      } else {
+        const ordre: Array<{ max: number | null }> = await m.query(
+          'select max(ordre) as max from ged_dossiers where parent_dossier_id = $1 and supprime_le is null',
+          [data.dossierParentId],
+        );
+        dossierId = (
+          await m.query(
+            `insert into ged_dossiers (organisation_id, parent_dossier_id, code, libelle, entite_id, ordre, description, created_by)
+             values ($1, $2, $3, $4, $5, $6, $7, $8) returning id`,
+            [
+              user.organisationId,
+              data.dossierParentId,
+              code,
+              versement.objet,
+              versement.entiteId,
+              (ordre[0]?.max ?? 0) + 10,
+              'Dossier du versement ' + code,
+              user.id,
+            ],
+          )
+        )[0].id;
+      }
+      await m.query('update documents set dossier_id = $2 where versement_id = $1 and supprime_le is null', [id, dossierId]);
+      await m.query(
+        `update ged_versements set code_archivage = $2, dossier_versement_id = $3, dossier_cible_id = $4,
+                classe_le = now(), updated_at = now() where id = $1`,
+        [id, code, dossierId, data.dossierParentId],
+      );
+    });
+    return this.findOne(id, user);
   }
 
   // v8.6 : retirer un document d'un brouillon (fichiers compris).

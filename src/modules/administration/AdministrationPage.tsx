@@ -1,6 +1,8 @@
 import { Building2, GitBranch, History, KeyRound, SlidersHorizontal, UserRoundCog, Users, type LucideIcon } from 'lucide-react';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { useAccesAdministration } from '../../hooks/administration/useAccesAdministration';
 import { PageHeader } from '../../components/ui/page-header';
+import { Skeleton } from '../../components/ui/skeleton';
 import { TabBar } from '../../components/ui/tab-bar';
 import { cn } from '../../lib/utils';
 
@@ -22,8 +24,15 @@ const SECTIONS: { cle: Section; libelle: string; description: string; icone: Luc
 export function AdministrationPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const acces = useAccesAdministration();
+  // v8.6.4 : seules les rubriques ouvertes à l'utilisateur sont listées.
+  const visibles = SECTIONS.filter((s) => acces.sections[s.cle]);
 
-  const actif: Section = SECTIONS.find((s) => location.pathname.endsWith(`/${s.cle}`))?.cle ?? 'organisation';
+  const demande = SECTIONS.find((s) => location.pathname.endsWith(`/${s.cle}`))?.cle ?? null;
+  if (acces.chargement) return <Skeleton className="h-64 w-full" />;
+  if (!acces.visible) return <Navigate to="/" replace />;
+  if (!demande || !acces.sections[demande]) return <Navigate to={`/administration/${visibles[0].cle}`} replace />;
+  const actif: Section = demande;
   const section = SECTIONS.find((s) => s.cle === actif)!;
 
   return (
@@ -31,12 +40,12 @@ export function AdministrationPage() {
       <PageHeader titre="Administration" description="Organisation, accès, circuits et paramètres de l'application" />
 
       <div className="lg:hidden">
-        <TabBar label="Sections" onglets={SECTIONS} actif={actif} onChange={(cle) => navigate(cle)} />
+        <TabBar label="Sections" onglets={visibles} actif={actif} onChange={(cle) => navigate(cle)} />
       </div>
 
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[240px_1fr]">
         <nav aria-label="Sections de l'administration" className="hidden space-y-1 lg:sticky lg:top-24 lg:block">
-          {SECTIONS.map(({ cle, libelle, description, icone: Icone }) => {
+          {visibles.map(({ cle, libelle, description, icone: Icone }) => {
             const estActif = cle === actif;
             return (
               <Link

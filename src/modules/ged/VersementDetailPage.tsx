@@ -1,4 +1,4 @@
-import { ChevronRight, Copy, FilePlus, FileSearch, FileText, Info, Send, Trash2, XCircle } from 'lucide-react';
+import { ChevronRight, Copy, FilePlus, FileSearch, FileText, Info, Printer, Send, Trash2, XCircle } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Confirmation } from '../../components/form/confirm-dialog';
@@ -8,7 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { NativeSelect } from '../../components/ui/native-select';
 import { EtatVide, PageHeader } from '../../components/ui/page-header';
 import { Skeleton } from '../../components/ui/skeleton';
+import { useEntites, useUtilisateursOptions } from '../../hooks/administration/useEntites';
 import { useDocumentsVersement } from '../../hooks/ged/useDocuments';
+import { Input } from '../../components/ui/input';
 import { useDossiers, useOptionsDossiersGed } from '../../hooks/ged/useDossiers';
 import {
   useAnnulerVersement,
@@ -21,6 +23,7 @@ import {
 import { libelleDossier } from '../../services/ged/dossiers';
 import { useProfile } from '../../hooks/useProfile';
 import { fr } from '../../utils/dateFr';
+import { BordereauVersementModal } from './BordereauVersementModal';
 import { ClassementPanel } from './ClassementPanel';
 import { DocumentAjouterModal } from './DocumentAjouterModal';
 import { StatutVersement } from './gedAffichage';
@@ -44,6 +47,9 @@ export function VersementDetailPage() {
   const annuler = useAnnulerVersement(id);
   const { data: doublons } = useDoublonsVersement(id, Boolean(versement) && (!versement?.brouillon || estArchiviste));
   const [ajouterOuvert, setAjouterOuvert] = useState(false);
+  const [bordereauOuvert, setBordereauOuvert] = useState(false);
+  const { data: entites } = useEntites(organisationId);
+  const { data: utilisateurs } = useUtilisateursOptions(organisationId);
 
   const dossierParId = useMemo(() => new Map((dossiers ?? []).map((d) => [d.id, libelleDossier(d)])), [dossiers]);
 
@@ -73,7 +79,11 @@ export function VersementDetailPage() {
     (versement.redacteur_id === profile?.id || canEtendu('ged', 'modifier', versement.entite_id) || estArchiviste);
   const peutClasser = estArchiviste && versement.etape_code === 'classement';
   const dossierCibleLibelle = versement.dossier_cible_id ? (dossierParId.get(versement.dossier_cible_id) ?? null) : null;
-  const peutChoisirDossier = (versement.brouillon && peutModifier) || peutClasser;
+  const peutChoisirDossier = versement.brouillon && peutModifier;
+  const entite = (entites ?? []).find((e) => e.id === versement.entite_id);
+  const deposant = (utilisateurs ?? []).find((u) => u.id === versement.redacteur_id);
+  const dateFr = (d: string | null | undefined) => (d ? fr(d).format('D MMMM YYYY') : '—');
+  const aujourdhui = new Date().toISOString().slice(0, 10);
   const nbDocuments = (documents ?? []).length;
   const peutSoumettre = versement.brouillon && peutModifier;
 
@@ -91,6 +101,10 @@ export function VersementDetailPage() {
         description={`Créé le ${fr(versement.created_at).format('D MMMM YYYY')} · mis à jour le ${fr(versement.updated_at).format('D MMMM YYYY')}`}
         actions={
           <>
+            <Button variant="outline" onClick={() => setBordereauOuvert(true)}>
+              <Printer className="text-muted-foreground" />
+              Bordereau de versement
+            </Button>
             {versement.brouillon && peutModifier && (
               <Button variant="outline" onClick={() => setAjouterOuvert(true)}>
                 <FilePlus className="text-muted-foreground" />
@@ -150,40 +164,91 @@ export function VersementDetailPage() {
 
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[1fr_380px]">
         <div className="order-2 min-w-0 space-y-5 xl:order-1">
+          {/* v8.6.4 : à l'étape de classement, le classement passe en tête. */}
+          {peutClasser && (
+            <ClassementPanel organisationId={organisationId} versement={versement} nbDocuments={nbDocuments} />
+          )}
           <Card>
             <CardHeader>
               <CardTitle>Informations</CardTitle>
             </CardHeader>
             <CardContent>
               <dl className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
-                <div>
-                  <dt className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-                    <label htmlFor="dossier-cible">Dossier de classement cible</label>
-                  </dt>
-                  <dd className="mt-1 text-[14px]">
-                    {peutChoisirDossier ? (
-                      <NativeSelect
-                        id="dossier-cible"
-                        value={versement.dossier_cible_id ?? ''}
-                        disabled={modifier.isPending}
-                        onChange={(e) => modifier.mutate({ dossier_cible_id: e.target.value || null })}
-                      >
-                        <option value="">Aucun</option>
-                        {optionsDossiers.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </NativeSelect>
-                    ) : (
-                      (dossierCibleLibelle ?? '—')
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">Documents</dt>
-                  <dd className="mt-1 text-[14px] tabular-nums">{nbDocuments}</dd>
-                </div>
+                <Info2 libelle="Code d'archivage">
+                  {versement.code_archivage ? (
+                    <span className="font-mono font-semibold">{versement.code_archivage}</span>
+                  ) : (
+                    <span className="text-muted-foreground">Attribué par l'archiviste au classement</span>
+                  )}
+                </Info2>
+                <Info2 libelle="Entité versante">
+                  {entite ? `${entite.libelle}${entite.sigle ? ` (${entite.sigle})` : ''}` : '—'}
+                </Info2>
+                <Info2 libelle="Déposant">{deposant ? `${deposant.prenom} ${deposant.nom}` : '—'}</Info2>
+                <Info2 libelle="Documents">
+                  <span className="tabular-nums">{nbDocuments}</span>
+                </Info2>
+                <Info2 libelle="Date de début extrême" htmlFor={peutModifier ? 'date-debut' : undefined}>
+                  {peutModifier ? (
+                    <Input
+                      id="date-debut"
+                      type="date"
+                      max={aujourdhui}
+                      defaultValue={versement.date_debut_extreme ?? ''}
+                      onBlur={(e) =>
+                        e.target.value !== (versement.date_debut_extreme ?? '') &&
+                        modifier.mutate({ date_debut_extreme: e.target.value || null })
+                      }
+                    />
+                  ) : (
+                    dateFr(versement.date_debut_extreme)
+                  )}
+                </Info2>
+                <Info2 libelle="Date de fin extrême" htmlFor={peutModifier ? 'date-fin' : undefined}>
+                  {peutModifier ? (
+                    <Input
+                      id="date-fin"
+                      type="date"
+                      max={aujourdhui}
+                      defaultValue={versement.date_fin_extreme ?? ''}
+                      onBlur={(e) =>
+                        e.target.value !== (versement.date_fin_extreme ?? '') &&
+                        modifier.mutate({ date_fin_extreme: e.target.value || null })
+                      }
+                    />
+                  ) : (
+                    dateFr(versement.date_fin_extreme)
+                  )}
+                </Info2>
+                <Info2
+                  libelle={versement.dossier_versement_id ? 'Emplacement dans le plan' : 'Dossier de classement proposé'}
+                  htmlFor={peutChoisirDossier ? 'dossier-cible' : undefined}
+                >
+                  {peutChoisirDossier ? (
+                    <NativeSelect
+                      id="dossier-cible"
+                      value={versement.dossier_cible_id ?? ''}
+                      disabled={modifier.isPending}
+                      onChange={(e) => modifier.mutate({ dossier_cible_id: e.target.value || null })}
+                    >
+                      <option value="">Aucun</option>
+                      {optionsDossiers.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </NativeSelect>
+                  ) : (
+                    (dossierCibleLibelle ?? '—')
+                  )}
+                </Info2>
+                <Info2 libelle="Dossier du versement">
+                  {versement.dossier_versement_id ? (dossierParId.get(versement.dossier_versement_id) ?? '—') : '—'}
+                </Info2>
+                <Info2 libelle="Créé le">{dateFr(versement.created_at)}</Info2>
+                <Info2 libelle="Soumis le">{dateFr(versement.soumis_le)}</Info2>
+                <Info2 libelle="Classé le">{dateFr(versement.classe_le)}</Info2>
+                <Info2 libelle="Archivé le">{dateFr(versement.archive_le)}</Info2>
                 <div className="sm:col-span-2">
                   <dt className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">Description</dt>
                   <dd className="mt-1 whitespace-pre-line text-[14px]">{versement.description || '—'}</dd>
@@ -292,14 +357,6 @@ export function VersementDetailPage() {
             </CardContent>
           </Card>
 
-          {peutClasser && (
-            <ClassementPanel
-              organisationId={organisationId}
-              documents={documents ?? []}
-              dossierCibleId={versement.dossier_cible_id}
-              dossierCibleLibelle={dossierCibleLibelle}
-            />
-          )}
         </div>
 
         {/* Circuit : en tête sur écran étroit, colonne latérale collante sur grand écran. */}
@@ -325,6 +382,14 @@ export function VersementDetailPage() {
         </div>
       </div>
 
+      <BordereauVersementModal
+        open={bordereauOuvert}
+        onClose={() => setBordereauOuvert(false)}
+        organisationId={organisationId}
+        versement={versement}
+        documents={documents ?? []}
+      />
+
       <DocumentAjouterModal
         open={ajouterOuvert}
         organisationId={organisationId}
@@ -332,6 +397,17 @@ export function VersementDetailPage() {
         onClose={() => setAjouterOuvert(false)}
         onAjoute={() => setAjouterOuvert(false)}
       />
+    </div>
+  );
+}
+
+function Info2({ libelle, htmlFor, children }: { libelle: string; htmlFor?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <dt className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
+        {htmlFor ? <label htmlFor={htmlFor}>{libelle}</label> : libelle}
+      </dt>
+      <dd className="mt-1 text-[14px]">{children}</dd>
     </div>
   );
 }

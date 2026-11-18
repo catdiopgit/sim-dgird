@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, Delete } from '@nestjs/common';
-import { IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsDateString, IsOptional, IsString, IsUUID } from 'class-validator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import {
@@ -13,6 +13,8 @@ class CreerVersementDto implements CreerVersementData {
   @IsOptional() @IsUUID() entiteId?: string | null;
   @IsOptional() @IsUUID() dossierCibleId?: string | null;
   @IsOptional() @IsString() description?: string | null;
+  @IsOptional() @IsDateString() dateDebutExtreme?: string | null;
+  @IsOptional() @IsDateString() dateFinExtreme?: string | null;
 }
 
 class ModifierVersementDto implements ModifierVersementData {
@@ -20,6 +22,13 @@ class ModifierVersementDto implements ModifierVersementData {
   @IsOptional() @IsString() description?: string | null;
   @IsOptional() @IsUUID() entiteId?: string | null;
   @IsOptional() @IsUUID() dossierCibleId?: string | null;
+  @IsOptional() @IsDateString() dateDebutExtreme?: string | null;
+  @IsOptional() @IsDateString() dateFinExtreme?: string | null;
+}
+
+class ClasserVersementDto {
+  @IsString() codeArchivage: string;
+  @IsUUID() dossierParentId: string;
 }
 
 @Controller('ged/versements')
@@ -54,6 +63,11 @@ export class GedVersementsController {
   @Post(':id/soumettre')
   soumettre(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.versementsService.soumettre(id, user);
+  }
+
+  @Post(':id/classer')
+  classer(@Param('id') id: string, @Body() dto: ClasserVersementDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.versementsService.classer(id, dto, user);
   }
 
   @Post(':id/annuler')

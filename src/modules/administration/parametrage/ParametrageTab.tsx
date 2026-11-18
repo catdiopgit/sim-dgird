@@ -10,36 +10,46 @@ import { PlanClassementManager } from './PlanClassementManager';
 import { ReglesNumerotationManager } from './ReglesNumerotationManager';
 import { SmtpParametresManager } from './SmtpParametresManager';
 import { TypesMarcheManager } from '../../marches/administration/TypesMarcheManager';
-import { useAccesMarches } from '../../../hooks/marches/useMarches';
+import { useAccesAdministration } from '../../../hooks/administration/useAccesAdministration';
 
 type SousSection = 'listes' | 'numerotation' | 'parametres' | 'courrier' | 'entete' | 'smtp' | 'plan-classement' | 'marches';
 
 export function ParametrageTab() {
-  const { profile, can, canEtendu } = useProfile();
+  const { profile, can } = useProfile();
   const organisationId = profile?.organisation_id;
   const peutModifier = can('administration', 'modifier');
   // Le plan de classement (catégories GED) suit les droits GED, pas
   // administration : réservé à l'administrateur et à l'archiviste, invisible
   // pour les autres rôles (même en lecture seule).
-  const peutGererPlanClassement = canEtendu('ged', 'archiver') || canEtendu('administration', 'modifier');
+  const acces = useAccesAdministration();
+  const peutGererPlanClassement = acces.parametrage.planClassement;
   // Recette 2026-11 : types de marché et phases → cellule de passation et
   // administrateurs (MarchesAccesService.peutParametrer).
-  const { data: accesMarches } = useAccesMarches();
-  const peutGererMarches = !!accesMarches?.parametrage;
-  const [actif, setActif] = useState<SousSection>('listes');
+  const peutGererMarches = acces.parametrage.marches;
+  const [choix, setChoix] = useState<SousSection | null>(null);
 
   if (!organisationId) return <Skeleton className="h-64 w-full" />;
 
+  // v8.6.4 : seules les sous-rubriques ouvertes à l'utilisateur s'affichent
+  // (l'archiviste ne voit que le plan de classement, la cellule de passation
+  // que les marchés).
+  const general = acces.parametrage.general;
   const sections: { cle: SousSection; libelle: string }[] = [
-    { cle: 'listes', libelle: 'Listes de valeurs' },
-    { cle: 'numerotation', libelle: 'Numérotation' },
-    { cle: 'parametres', libelle: 'Paramètres' },
-    { cle: 'courrier', libelle: 'Courrier' },
-    { cle: 'entete', libelle: 'En-tête document' },
-    { cle: 'smtp', libelle: 'Notifications (SMTP)' },
+    ...(general
+      ? ([
+          { cle: 'listes', libelle: 'Listes de valeurs' },
+          { cle: 'numerotation', libelle: 'Numérotation' },
+          { cle: 'parametres', libelle: 'Paramètres' },
+          { cle: 'courrier', libelle: 'Courrier' },
+          { cle: 'entete', libelle: 'En-tête document' },
+          { cle: 'smtp', libelle: 'Notifications (SMTP)' },
+        ] as const)
+      : []),
     ...(peutGererPlanClassement ? [{ cle: 'plan-classement' as const, libelle: 'Plan de classement' }] : []),
-    { cle: 'marches', libelle: 'Marchés' },
+    ...(peutGererMarches || general ? [{ cle: 'marches' as const, libelle: 'Marchés' }] : []),
   ];
+  const actif: SousSection | undefined = sections.find((s) => s.cle === choix)?.cle ?? sections[0]?.cle;
+  const setActif = setChoix;
 
   return (
     <div className="space-y-5">
@@ -64,7 +74,7 @@ export function ParametrageTab() {
       </div>
 
       <div>
-        {actif === 'listes' && <ListesValeursManager organisationId={organisationId} peutModifier={peutModifier} />}
+        {actif === 'listes' && general && <ListesValeursManager organisationId={organisationId} peutModifier={peutModifier} />}
         {actif === 'numerotation' && <ReglesNumerotationManager organisationId={organisationId} peutModifier={peutModifier} />}
         {actif === 'parametres' && <ParametresOrganisationManager organisationId={organisationId} peutModifier={peutModifier} />}
         {actif === 'courrier' && <CourrierParametresManager organisationId={organisationId} peutModifier={peutModifier} />}

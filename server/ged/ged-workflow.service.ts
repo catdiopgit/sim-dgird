@@ -63,6 +63,11 @@ export class GedWorkflowService {
       ? await this.dataSource.manager.findOneBy(WorkflowEtape, { id: transition.etapeCibleId })
       : null;
 
+    if (cible?.code === 'archivage' && (!versement.codeArchivage || !versement.dossierVersementId)) {
+      throw new BadRequestException(
+        "Classez d'abord le versement : saisissez son code d'archivage et choisissez son emplacement dans le plan",
+      );
+    }
     if (cible?.code === 'archivage') {
       const nonClasses: Array<{ titre: string }> = await this.dataSource.query(
         `select d.titre from documents d
@@ -98,6 +103,7 @@ export class GedWorkflowService {
         'update documents set date_archivage = now() where versement_id = $1 and supprime_le is null and date_archivage is null',
         [versementId],
       );
+      await this.dataSource.query('update ged_versements set archive_le = now() where id = $1', [versementId]);
       await this.gedNotifications.notifier([versement.redacteurId], {
         titre: 'Versement archivé',
         message: `« ${versement.objet} » a été classé et archivé.`,

@@ -26,6 +26,8 @@ export interface CreerVersementPayload {
   p_entite_id?: string | null;
   p_dossier_cible_id?: string | null;
   p_description?: string | null;
+  p_date_debut_extreme?: string | null;
+  p_date_fin_extreme?: string | null;
 }
 
 export async function creerVersement(payload: CreerVersementPayload): Promise<GedVersement> {
@@ -34,6 +36,8 @@ export async function creerVersement(payload: CreerVersementPayload): Promise<Ge
     entiteId: payload.p_entite_id ?? null,
     dossierCibleId: payload.p_dossier_cible_id ?? null,
     description: payload.p_description ?? null,
+    dateDebutExtreme: payload.p_date_debut_extreme || null,
+    dateFinExtreme: payload.p_date_fin_extreme || null,
   });
   return toSnakeCase<GedVersement>(data);
 }
@@ -48,6 +52,8 @@ export interface ModifierVersementPayload {
   description?: string | null;
   entite_id?: string | null;
   dossier_cible_id?: string | null;
+  date_debut_extreme?: string | null;
+  date_fin_extreme?: string | null;
 }
 
 // Édition directe du brouillon par son rédacteur.
@@ -76,4 +82,15 @@ export interface DoublonDocument {
 // Doublons (même fichier, empreinte SHA-256) de chaque document du versement.
 export async function listDoublonsVersement(versementId: string): Promise<Record<string, DoublonDocument[]>> {
   return api.get<Record<string, DoublonDocument[]>>(`/ged/versements/${versementId}/doublons`);
+}
+
+// v8.6.4 : classement du versement par l'archiviste — code d'archivage saisi
+// + emplacement dans le plan ; le serveur crée le dossier du versement et y
+// range tous ses documents.
+export async function classerVersement(
+  versementId: string,
+  payload: { codeArchivage: string; dossierParentId: string },
+): Promise<GedVersement> {
+  const data = await api.post<unknown>(`/ged/versements/${versementId}/classer`, payload);
+  return toSnakeCase<GedVersement>(data);
 }

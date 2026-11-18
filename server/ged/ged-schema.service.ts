@@ -46,6 +46,19 @@ export class GedSchemaService implements OnModuleInit {
        )`,
     );
     await q('create index if not exists idx_document_versions_hash on document_versions (hash_sha256)');
+    // v8.6.4 : versements — dates extrêmes, code d'archivage, dossier du versement.
+    await q('alter table ged_versements add column if not exists date_debut_extreme date');
+    await q('alter table ged_versements add column if not exists date_fin_extreme date');
+    await q('alter table ged_versements add column if not exists code_archivage text');
+    await q('alter table ged_versements add column if not exists dossier_versement_id uuid references ged_dossiers(id) on delete set null');
+    await q('alter table ged_versements add column if not exists soumis_le timestamptz');
+    await q('alter table ged_versements add column if not exists classe_le timestamptz');
+    await q('alter table ged_versements add column if not exists archive_le timestamptz');
+    await q(
+      `create unique index if not exists ux_ged_versements_code_archivage
+       on ged_versements (organisation_id, lower(code_archivage))
+       where code_archivage is not null and supprime_le is null`,
+    );
     await q(
       `insert into modules (code, libelle)
        select 'ged', 'GED' where not exists (select 1 from modules where code = 'ged')`,

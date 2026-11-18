@@ -44,6 +44,29 @@ export class GedVersement {
   @Column({ type: 'uuid', name: 'redacteur_id', nullable: true })
   redacteurId: string | null;
 
+  // v8.6.4 : dates extrêmes des documents versés, code d'archivage saisi par
+  // l'archiviste au classement, dossier créé pour le versement, jalons.
+  @Column({ type: 'date', name: 'date_debut_extreme', nullable: true })
+  dateDebutExtreme: string | null;
+
+  @Column({ type: 'date', name: 'date_fin_extreme', nullable: true })
+  dateFinExtreme: string | null;
+
+  @Column({ type: 'text', name: 'code_archivage', nullable: true })
+  codeArchivage: string | null;
+
+  @Column({ type: 'uuid', name: 'dossier_versement_id', nullable: true })
+  dossierVersementId: string | null;
+
+  @Column({ type: 'timestamptz', name: 'soumis_le', nullable: true })
+  soumisLe: Date | null;
+
+  @Column({ type: 'timestamptz', name: 'classe_le', nullable: true })
+  classeLe: Date | null;
+
+  @Column({ type: 'timestamptz', name: 'archive_le', nullable: true })
+  archiveLe: Date | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

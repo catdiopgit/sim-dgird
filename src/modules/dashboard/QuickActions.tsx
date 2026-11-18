@@ -9,11 +9,11 @@ import { useProfile } from '../../hooks/useProfile';
 // de création ici, chaque page conserve sa seule source de vérité pour ça.
 export function QuickActions() {
   const navigate = useNavigate();
-  const { can } = useProfile();
+  const { can, profile } = useProfile();
 
   const actions = [
     { cle: 'courrier', libelle: 'Nouveau courrier', icone: <Plus />, cible: '/courriers', visible: can('courrier', 'creer'), principal: true },
-    { cle: 'ged', libelle: 'Document', titre: 'Ajouter un document', icone: <FilePlus />, cible: '/ged', visible: can('ged', 'creer') },
+    { cle: 'ged', libelle: 'Document', titre: 'Ajouter un document', icone: <FilePlus />, cible: '/ged', visible: can('ged', 'creer', profile?.entite_id ?? null) },
     { cle: 'projet', libelle: 'Projet', titre: 'Nouveau projet', icone: <KanbanSquare />, cible: '/projets', visible: can('projets', 'creer') },
     { cle: 'mission', libelle: 'Mission', titre: 'Nouvelle mission', icone: <Compass />, cible: '/missions', visible: env.missionsEnabled && can('missions', 'creer') },
     { cle: 'recherche', libelle: 'Rechercher', titre: 'Rechercher un document', icone: <FileSearch />, cible: '/ged/archives', visible: true },

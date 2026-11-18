@@ -60,7 +60,9 @@ export function GedPage() {
   const pageCourante = Math.min(page, nbPages);
   const lignesPage = lignes.slice((pageCourante - 1) * TAILLE_PAGE, pageCourante * TAILLE_PAGE);
 
-  const peutCreer = can('ged', 'creer');
+  // Le versement est rattaché par défaut à l'entité du déposant : la permission
+  // s'évalue donc sur son entité (portées Entité / Entité + descendants).
+  const peutCreer = can('ged', 'creer', profile?.entite_id ?? null);
   // v8.6 : l'archiviste (ou un administrateur) gère le plan de classement.
   const peutGererPlan = canEtendu('ged', 'archiver') || canEtendu('administration', 'modifier');
 

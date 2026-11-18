@@ -1,4 +1,7 @@
-import { KeyRound, Pencil, Plus, Search, Users, X } from 'lucide-react';
+import { KeyRound, Lock, LockKeyholeOpen, Pencil, Plus, Search, Users, X } from 'lucide-react';
+import { Confirmation } from '../../../components/form/confirm-dialog';
+import { message } from '../../../lib/notifications';
+import { reinitialiserMotDePasse } from '../../../services/administration/utilisateurs';
 import { useMemo, useState } from 'react';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
@@ -12,7 +15,7 @@ import { useProfile } from '../../../hooks/useProfile';
 import { champBase } from '../../../lib/styles';
 import { cn } from '../../../lib/utils';
 import type { Utilisateur } from '../../../services/administration/utilisateurs';
-import { UtilisateurFormModal } from './UtilisateurFormModal';
+import { ResultatCreation, UtilisateurFormModal } from './UtilisateurFormModal';
 import { UtilisateurRolesDrawer } from './UtilisateurRolesDrawer';
 
 const STATUTS: { valeur: string; libelle: string; variante: 'success' | 'muted' | 'critical' }[] = [
@@ -34,6 +37,8 @@ export function UtilisateursTab() {
   const [entitesFiltre, setEntitesFiltre] = useState<string[]>([]);
   const [utilisateurEnEdition, setUtilisateurEnEdition] = useState<Utilisateur | 'nouveau' | null>(null);
   const [utilisateurRoles, setUtilisateurRoles] = useState<Utilisateur | null>(null);
+  const [reinitialisation, setReinitialisation] = useState<{ email: string; motDePasseTemporaire: string } | null>(null);
+  const [reinitEnCours, setReinitEnCours] = useState(false);
 
   const peutCreer = can('utilisateurs', 'creer');
   const peutModifier = can('utilisateurs', 'modifier');
@@ -180,6 +185,49 @@ export function UtilisateursTab() {
                             <Pencil />
                           </Button>
                         )}
+                        {peutModifier && (
+                          <Confirmation
+                            titre={`Réinitialiser le mot de passe de ${u.prenom} ${u.nom} ?`}
+                            libelleConfirmer="Réinitialiser"
+                            enCours={reinitEnCours}
+                            onConfirmer={async (fermer) => {
+                              setReinitEnCours(true);
+                              try {
+                                setReinitialisation(await reinitialiserMotDePasse(u.id));
+                                fermer();
+                              } catch (e) {
+                                message.error((e as Error).message);
+                              } finally {
+                                setReinitEnCours(false);
+                              }
+                            }}
+                            declencheur={(ouvrir) => (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8"
+                                onClick={ouvrir}
+                                aria-label={`Réinitialiser le mot de passe de ${u.prenom} ${u.nom}`}
+                                title={
+                                  u.verrouille_jusqua && new Date(u.verrouille_jusqua) > new Date()
+                                    ? 'Compte verrouillé — réinitialiser le mot de passe'
+                                    : 'Réinitialiser le mot de passe'
+                                }
+                              >
+                                {u.verrouille_jusqua && new Date(u.verrouille_jusqua) > new Date() ? (
+                                  <Lock className="text-crit-text" />
+                                ) : (
+                                  <LockKeyholeOpen />
+                                )}
+                              </Button>
+                            )}
+                          >
+                            <p>
+                              Un nouveau mot de passe temporaire sera généré et le compte déverrouillé. L'utilisateur devra le
+                              changer à sa prochaine connexion.
+                            </p>
+                          </Confirmation>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -201,6 +249,15 @@ export function UtilisateursTab() {
         fonctions={fonctions ?? []}
         onClose={() => setUtilisateurEnEdition(null)}
       />
+
+      {reinitialisation && (
+        <ResultatCreation
+          resultat={reinitialisation}
+          titre="Mot de passe réinitialisé"
+          confirmation="Nouveau mot de passe temporaire généré"
+          onClose={() => setReinitialisation(null)}
+        />
+      )}
 
       <UtilisateurRolesDrawer
         open={utilisateurRoles !== null}

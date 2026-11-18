@@ -18,6 +18,7 @@ import { ArchivagePage } from '../modules/ged/archivage/ArchivagePage';
 import { DocumentDetailPage } from '../modules/ged/DocumentDetailPage';
 import { GedPage } from '../modules/ged/GedPage';
 import { PlanClassementPage } from '../modules/ged/PlanClassementPage';
+import { MotDePassePage } from '../pages/MotDePassePage';
 import { VersementDetailPage } from '../modules/ged/VersementDetailPage';
 import { MissionDetailPage } from '../modules/missions/MissionDetailPage';
 import { MissionStatistiquesPage } from '../modules/missions/MissionStatistiquesPage';
@@ -94,6 +95,7 @@ export const router = createBrowserRouter([
                 ]
               : [{ path: '*', element: <Navigate to="/" replace /> }],
           },
+          { path: 'mon-compte/mot-de-passe', element: <MotDePassePage /> },
           {
             path: 'administration',
             element: <AdministrationPage />,

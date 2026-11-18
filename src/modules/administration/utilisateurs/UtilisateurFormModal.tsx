@@ -36,7 +36,17 @@ interface Props {
   onClose: () => void;
 }
 
-function ResultatCreation({ resultat, onClose }: { resultat: CreerUtilisateurResultat; onClose: () => void }) {
+export function ResultatCreation({
+  resultat,
+  onClose,
+  titre = 'Utilisateur créé',
+  confirmation = 'Compte créé avec succès',
+}: {
+  resultat: Pick<CreerUtilisateurResultat, 'email' | 'motDePasseTemporaire'>;
+  onClose: () => void;
+  titre?: string;
+  confirmation?: string;
+}) {
   const [copie, setCopie] = useState(false);
   const copier = async () => {
     try {
@@ -51,13 +61,16 @@ function ResultatCreation({ resultat, onClose }: { resultat: CreerUtilisateurRes
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Utilisateur créé</DialogTitle>
-          <DialogDescription>Communiquez ces identifiants à l'utilisateur : le mot de passe ne sera plus affiché ensuite.</DialogDescription>
+          <DialogTitle>{titre}</DialogTitle>
+          <DialogDescription>
+            Communiquez ces identifiants à l'utilisateur : le mot de passe ne sera plus affiché ensuite. Il devra le changer à sa
+            première connexion.
+          </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-4">
           <div className="flex items-center gap-2.5 rounded-lg bg-good/10 p-3 text-[13px] font-medium text-good-text">
             <CircleCheck className="size-4 shrink-0" />
-            Compte créé avec succès
+            {confirmation}
           </div>
           <dl className="space-y-3 text-[14px]">
             <div>

@@ -16,6 +16,7 @@ import {
   Sun,
   X,
   type LucideIcon,
+  KeyRound,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -296,6 +297,10 @@ export function AppShell() {
                   <div className="truncate text-[12px] text-muted-foreground">{user?.email}</div>
                 </div>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => navigate('/mon-compte/mot-de-passe')}>
+                  <KeyRound />
+                  Changer mon mot de passe
+                </DropdownMenuItem>
                 <DropdownMenuItem variant="destructive" onSelect={seDeconnecter}>
                   <LogOut />
                   Se déconnecter

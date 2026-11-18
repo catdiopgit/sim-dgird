@@ -55,3 +55,17 @@ export async function assignerRole(insert: UtilisateurRoleInsert): Promise<Utili
 export async function revoquerRole(id: string): Promise<void> {
   await api.delete(`/administration/roles/attributions/${id}`);
 }
+
+// v8.6.5 : réinitialisation du mot de passe par l'administrateur (nouveau mot
+// de passe temporaire, à changer à la prochaine connexion).
+export async function reinitialiserMotDePasse(utilisateurId: string): Promise<{ email: string; motDePasseTemporaire: string }> {
+  return api.post<{ email: string; motDePasseTemporaire: string }>(
+    `/administration/utilisateurs/${utilisateurId}/reinitialiser-mot-de-passe`,
+    {},
+  );
+}
+
+// v8.6.5 : changement de son propre mot de passe.
+export async function changerMonMotDePasse(actuel: string, nouveau: string): Promise<void> {
+  await api.post('/auth/mot-de-passe', { actuel, nouveau });
+}

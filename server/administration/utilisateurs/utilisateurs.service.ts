@@ -43,7 +43,8 @@ export class UtilisateursService {
     return this.utilisateurs
       .createQueryBuilder('u')
       .addSelect('u.passwordHash')
-      .where('u.email = :email', { email })
+      .addSelect('u.echecsConnexion')
+      .where('lower(u.email) = lower(:email)', { email: email.trim() })
       .andWhere('u.statut = :statut', { statut: 'actif' })
       .getOne();
   }
@@ -93,9 +94,67 @@ export class UtilisateursService {
       prenom: input.prenom,
       email: input.email,
       passwordHash,
+      doitChangerMotDePasse: true,
     });
     const cree = await this.utilisateurs.save(utilisateur);
 
     return { id: cree.id, email: cree.email, motDePasseTemporaire };
+  }
+
+  // v8.6.5 : réinitialisation par l'administrateur — nouveau mot de passe
+  // temporaire (affiché une seule fois), à changer à la prochaine connexion ;
+  // le verrouillage éventuel est levé.
+  async reinitialiserMotDePasse(id: string, organisationId: string): Promise<{ email: string; motDePasseTemporaire: string }> {
+    const utilisateur = await this.findOne(id);
+    if (utilisateur.organisationId !== organisationId) throw new NotFoundException('Utilisateur introuvable');
+    const motDePasseTemporaire = genererMotDePasseTemporaire();
+    await this.utilisateurs.update(id, {
+      passwordHash: await bcrypt.hash(motDePasseTemporaire, 12),
+      doitChangerMotDePasse: true,
+      echecsConnexion: 0,
+      verrouilleJusqua: null,
+    });
+    return { email: utilisateur.email, motDePasseTemporaire };
+  }
+
+  findAvecMotDePasse(id: string): Promise<Utilisateur | null> {
+    return this.utilisateurs
+      .createQueryBuilder('u')
+      .addSelect('u.passwordHash')
+      .addSelect('u.echecsConnexion')
+      .where('u.id = :id', { id })
+      .getOne();
+  }
+
+  async enregistrerEchecConnexion(id: string, seuil: number, dureeMinutes: number): Promise<boolean> {
+    // Avec PostgreSQL, TypeORM renvoie [lignes, nombre] pour un UPDATE … RETURNING.
+    const resultat: unknown = await this.utilisateurs.query(
+      'update utilisateurs set echecs_connexion = echecs_connexion + 1 where id = $1 returning echecs_connexion',
+      [id],
+    );
+    const lignes = (Array.isArray(resultat) && Array.isArray(resultat[0]) ? resultat[0] : resultat) as Array<{
+      echecs_connexion: number;
+    }>;
+    const echecs = lignes[0]?.echecs_connexion ?? 0;
+    if (echecs >= seuil) {
+      await this.utilisateurs.query(
+        `update utilisateurs set echecs_connexion = 0, verrouille_jusqua = now() + ($2 || ' minutes')::interval where id = $1`,
+        [id, String(dureeMinutes)],
+      );
+      return true;
+    }
+    return false;
+  }
+
+  async connexionReussie(id: string): Promise<void> {
+    await this.utilisateurs.query('update utilisateurs set echecs_connexion = 0, verrouille_jusqua = null where id = $1', [id]);
+  }
+
+  async definirMotDePasse(id: string, motDePasse: string): Promise<void> {
+    await this.utilisateurs.update(id, {
+      passwordHash: await bcrypt.hash(motDePasse, 12),
+      doitChangerMotDePasse: false,
+      motDePasseModifieLe: new Date(),
+    });
   }
 }

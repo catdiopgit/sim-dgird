@@ -2,6 +2,8 @@ import { LoaderCircle } from 'lucide-react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { ProfileProvider } from '../contexts/ProfileContext';
 import { useAuth } from '../hooks/useAuth';
+import { useProfile } from '../hooks/useProfile';
+import { MotDePassePage } from '../pages/MotDePassePage';
 
 export function ProtectedRoute() {
   const { session, loading } = useAuth();
@@ -22,7 +24,15 @@ export function ProtectedRoute() {
 
   return (
     <ProfileProvider>
-      <Outlet />
+      <GardeMotDePasse />
     </ProfileProvider>
   );
+}
+
+// v8.6.5 : tant que le mot de passe temporaire n'est pas changé, seule la
+// page de changement est affichée (le serveur refuse aussi les autres appels).
+function GardeMotDePasse() {
+  const { profile } = useProfile();
+  if (profile?.doit_changer_mot_de_passe) return <MotDePassePage obligatoire />;
+  return <Outlet />;
 }

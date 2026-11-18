@@ -63,6 +63,12 @@ export class UtilisateursController {
     return this.utilisateursService.creerUtilisateur(user.organisationId, dto);
   }
 
+  @Post(':id/reinitialiser-mot-de-passe')
+  @RequirePermission('utilisateurs', 'modifier')
+  reinitialiserMotDePasse(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.utilisateursService.reinitialiserMotDePasse(id, user.organisationId);
+  }
+
   @Patch(':id')
   @RequirePermission('utilisateurs', 'modifier')
   update(@Param('id') id: string, @Body() dto: UpdateUtilisateurDto) {

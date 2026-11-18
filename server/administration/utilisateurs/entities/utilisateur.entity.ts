@@ -52,6 +52,20 @@ export class Utilisateur {
   @Column({ type: 'text', default: 'actif' })
   statut: string;
 
+  // v8.6.5 — sécurité des comptes : changement obligatoire du mot de passe
+  // (création, réinitialisation), verrouillage après échecs répétés.
+  @Column({ type: 'boolean', name: 'doit_changer_mot_de_passe', default: false })
+  doitChangerMotDePasse: boolean;
+
+  @Column({ type: 'int', name: 'echecs_connexion', default: 0, select: false })
+  echecsConnexion: number;
+
+  @Column({ type: 'timestamptz', name: 'verrouille_jusqua', nullable: true })
+  verrouilleJusqua: Date | null;
+
+  @Column({ type: 'timestamptz', name: 'mot_de_passe_modifie_le', nullable: true })
+  motDePasseModifieLe: Date | null;
+
   @Column({ type: 'date', name: 'date_entree', nullable: true })
   dateEntree: string | null;
 

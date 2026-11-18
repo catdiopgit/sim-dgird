@@ -2270,6 +2270,9 @@ export type Database = {
           photo_url: string | null;
           statut: string;
           date_entree: string | null;
+          doit_changer_mot_de_passe?: boolean;
+          verrouille_jusqua?: string | null;
+          mot_de_passe_modifie_le?: string | null;
           created_at: string;
           updated_at: string;
         };

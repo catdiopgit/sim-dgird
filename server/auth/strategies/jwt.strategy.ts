@@ -17,6 +17,7 @@ export interface AuthenticatedUser {
   prenom: string;
   organisationId: string;
   entiteId: string | null;
+  doitChangerMotDePasse?: boolean;
 }
 
 @Injectable()
@@ -44,6 +45,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       prenom: utilisateur.prenom,
       organisationId: utilisateur.organisationId,
       entiteId: utilisateur.entiteId,
+      doitChangerMotDePasse: utilisateur.doitChangerMotDePasse,
     };
   }
 }

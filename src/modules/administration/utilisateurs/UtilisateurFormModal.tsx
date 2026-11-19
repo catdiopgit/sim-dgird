@@ -143,6 +143,7 @@ export function UtilisateurFormModal({ open, utilisateur, organisationId, entite
         {
           id: utilisateur.id,
           patch: {
+            email: values.email.trim().toLowerCase(),
             nom: values.nom,
             prenom: values.prenom,
             entite_id: values.entiteId || null,
@@ -183,8 +184,8 @@ export function UtilisateurFormModal({ open, utilisateur, organisationId, entite
       libelleValider={estModification ? 'Enregistrer' : "Créer l'utilisateur"}
       largeur="lg"
     >
-      <Champ label="Email" htmlFor="utilisateur-email" requis={!estModification} erreur={errors.email?.message} aide={estModification ? "L'email de connexion n'est pas modifiable." : undefined}>
-        <Input type="email" autoFocus={!estModification} disabled={estModification} {...ariaErreur('utilisateur-email', errors.email)} {...register('email')} />
+      <Champ label="Email" htmlFor="utilisateur-email" requis={!estModification} erreur={errors.email?.message} aide={estModification ? "C'est l'identifiant de connexion : prévenez l'agent si vous le changez." : undefined}>
+        <Input type="email" autoFocus={!estModification} {...ariaErreur('utilisateur-email', errors.email)} {...register('email')} />
       </Champ>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Champ label="Prénom" htmlFor="utilisateur-prenom" requis erreur={errors.prenom?.message}>

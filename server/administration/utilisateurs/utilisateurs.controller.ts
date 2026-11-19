@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards, Req } from '@nestjs/common';
 import type { Request } from 'express';
-import { IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../auth/strategies/jwt.strategy';
 import { PermissionsGuard } from '../permissions/permissions.guard';
@@ -19,6 +19,8 @@ class CreerUtilisateurDto implements CreerUtilisateurInput {
 }
 
 class UpdateUtilisateurDto {
+  // v8.6.8 : l'adresse de connexion peut être corrigée par l'administrateur.
+  @IsOptional() @IsEmail() email?: string;
   @IsOptional() @IsUUID() entiteId?: string | null;
   @IsOptional() @IsUUID() fonctionId?: string | null;
   @IsOptional() @IsString() matricule?: string | null;
@@ -72,7 +74,7 @@ export class UtilisateursController {
 
   @Patch(':id')
   @RequirePermission('utilisateurs', 'modifier')
-  update(@Param('id') id: string, @Body() dto: UpdateUtilisateurDto) {
-    return this.utilisateursService.update(id, dto as Partial<Utilisateur>);
+  update(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: UpdateUtilisateurDto) {
+    return this.utilisateursService.update(id, dto as Partial<Utilisateur>, user.organisationId);
   }
 }

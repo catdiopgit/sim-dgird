@@ -65,8 +65,21 @@ export class UtilisateursService {
     return utilisateur;
   }
 
-  async update(id: string, data: Partial<Utilisateur>): Promise<Utilisateur> {
-    await this.findOne(id);
+  async update(id: string, data: Partial<Utilisateur>, organisationId?: string): Promise<Utilisateur> {
+    const actuel = await this.findOne(id);
+    // v8.6.8 : un administrateur ne modifie que les comptes de son organisation.
+    if (organisationId && actuel.organisationId !== organisationId) throw new NotFoundException('Utilisateur introuvable');
+    if (data.email !== undefined) {
+      const email = data.email.trim().toLowerCase();
+      if (email !== actuel.email.toLowerCase()) {
+        const existant = await this.utilisateurs
+          .createQueryBuilder('u')
+          .where('lower(u.email) = :email and u.id <> :id', { email, id })
+          .getOne();
+        if (existant) throw new ConflictException('Un utilisateur avec cet email existe déjà');
+      }
+      data = { ...data, email };
+    }
     await this.utilisateurs.update(id, data);
     return this.findOne(id);
   }

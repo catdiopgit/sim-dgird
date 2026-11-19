@@ -13,15 +13,15 @@ import type { GedVersement } from '../../services/ged/versements';
 
 const aujourdhui = () => new Date().toISOString().slice(0, 10);
 
-// v8.6.4 : dates extrêmes obligatoires (plus ancien et plus récent document).
+// Dates extrêmes facultatives (v8.7.1) : plus ancien et plus récent document.
 const schema = z
   .object({
     objet: z.string().min(1, 'Requis'),
     entiteId: z.string().optional(),
     dossierCibleId: z.string().optional(),
     description: z.string().optional(),
-    dateDebutExtreme: z.string().min(1, 'Requis').refine((d) => d <= aujourdhui(), 'Pas de date future'),
-    dateFinExtreme: z.string().min(1, 'Requis').refine((d) => d <= aujourdhui(), 'Pas de date future'),
+    dateDebutExtreme: z.string().refine((d) => !d || d <= aujourdhui(), 'Pas de date future'),
+    dateFinExtreme: z.string().refine((d) => !d || d <= aujourdhui(), 'Pas de date future'),
   })
   .refine((v) => !v.dateDebutExtreme || !v.dateFinExtreme || v.dateFinExtreme >= v.dateDebutExtreme, {
     message: 'La date de fin ne peut pas précéder la date de début',
@@ -69,8 +69,8 @@ export function VersementFormModal({ open, organisationId, onClose, onCree }: Pr
         p_entite_id: options?.archiviste ? values.entiteId || null : null,
         p_dossier_cible_id: values.dossierCibleId || null,
         p_description: values.description || null,
-        p_date_debut_extreme: values.dateDebutExtreme,
-        p_date_fin_extreme: values.dateFinExtreme,
+        p_date_debut_extreme: values.dateDebutExtreme || null,
+        p_date_fin_extreme: values.dateFinExtreme || null,
       },
       { onSuccess: (versement) => onCree(versement) },
     );
@@ -93,8 +93,7 @@ export function VersementFormModal({ open, organisationId, onClose, onCree }: Pr
         <Champ
           label="Date de début extrême"
           htmlFor="versement-debut"
-          requis
-          aide="Date du document le plus ancien."
+                    aide="Date du document le plus ancien."
           erreur={errors.dateDebutExtreme?.message}
         >
           <Input id="versement-debut" type="date" max={aujourdhui()} {...register('dateDebutExtreme')} />
@@ -102,8 +101,7 @@ export function VersementFormModal({ open, organisationId, onClose, onCree }: Pr
         <Champ
           label="Date de fin extrême"
           htmlFor="versement-fin"
-          requis
-          aide="Date du document le plus récent."
+                    aide="Date du document le plus récent."
           erreur={errors.dateFinExtreme?.message}
         >
           <Input id="versement-fin" type="date" max={aujourdhui()} {...register('dateFinExtreme')} />

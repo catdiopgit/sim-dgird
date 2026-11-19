@@ -234,13 +234,7 @@ export class GedVersementsService {
 
       const nbDocuments = await manager.count(Document, { where: { versementId: id, supprimeLe: IsNull() } });
       if (nbDocuments === 0) throw new BadRequestException('Ce versement ne contient aucun document');
-      const dates: Array<{ date_debut_extreme: string | null; date_fin_extreme: string | null }> = await manager.query(
-        'select date_debut_extreme, date_fin_extreme from ged_versements where id = $1',
-        [id],
-      );
-      if (!dates[0]?.date_debut_extreme || !dates[0]?.date_fin_extreme) {
-        throw new BadRequestException('Renseignez les dates extrêmes (début et fin) avant de soumettre');
-      }
+      // v8.7.1 : les dates extrêmes sont facultatives.
 
       const workflowInstanceId = await this.workflowEngineService.demarrerWorkflow(
         'ged',

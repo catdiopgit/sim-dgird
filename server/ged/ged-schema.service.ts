@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager } from 'typeorm';
+import { enregistrerVersionSchema } from '../common/schema-versions';
 
 // v8.6 GED : évolutions de schéma et de paramétrage appliquées au démarrage,
 // de façon idempotente (même principe que MarchesSchemaService) :
@@ -63,6 +64,8 @@ export class GedSchemaService implements OnModuleInit {
       `insert into modules (code, libelle)
        select 'ged', 'GED' where not exists (select 1 from modules where code = 'ged')`,
     );
+    await enregistrerVersionSchema(this.dataSource, 'v8.6-ged', 'GED : plan de classement, entités productrices, doublons');
+    await enregistrerVersionSchema(this.dataSource, 'v8.6.4-ged-versements', 'GED : dates extrêmes, code d\'archivage, dossier du versement');
   }
 
   private async parametrerOrganisation(m: EntityManager, organisationId: string): Promise<void> {

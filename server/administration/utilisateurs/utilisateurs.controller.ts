@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../auth/strategies/jwt.strategy';
@@ -65,8 +66,8 @@ export class UtilisateursController {
 
   @Post(':id/reinitialiser-mot-de-passe')
   @RequirePermission('utilisateurs', 'modifier')
-  reinitialiserMotDePasse(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.utilisateursService.reinitialiserMotDePasse(id, user.organisationId);
+  reinitialiserMotDePasse(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser, @Req() req: Request) {
+    return this.utilisateursService.reinitialiserMotDePasse(id, user.organisationId, { id: user.id, ip: req.ip });
   }
 
   @Patch(':id')

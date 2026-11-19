@@ -1,4 +1,4 @@
-import { api } from '../../config/apiClient';
+import { api, setToken } from '../../config/apiClient';
 import { toCamelCase, toSnakeCase } from '../../utils/caseMapping';
 import type { Database } from '../../types/database';
 
@@ -67,5 +67,7 @@ export async function reinitialiserMotDePasse(utilisateurId: string): Promise<{ 
 
 // v8.6.5 : changement de son propre mot de passe.
 export async function changerMonMotDePasse(actuel: string, nouveau: string): Promise<void> {
-  await api.post('/auth/mot-de-passe', { actuel, nouveau });
+  // v8.6.6 : les anciens jetons sont révoqués ; le serveur en remet un nouveau.
+  const r = await api.post<{ accessToken?: string }>('/auth/mot-de-passe', { actuel, nouveau });
+  if (r?.accessToken) setToken(r.accessToken);
 }

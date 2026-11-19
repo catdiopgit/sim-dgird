@@ -69,6 +69,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // v8.6.6 : le serveur révoque le jeton (au mieux : on se déconnecte
+    // localement même si l'appel échoue).
+    if (getToken()) {
+      await api.post('/auth/deconnexion', {}).catch(() => undefined);
+    }
     clearToken();
     setTokenState(null);
     setUser(null);

@@ -5,6 +5,7 @@ import { IsIn, IsOptional, IsString, IsUUID } from 'class-validator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { MissionsDocumentsService, type RoleDocumentMission } from './missions-documents.service';
+import { validerFichier } from '../common/fichiers/valider-fichier';
 
 const TAILLE_MAX_OCTETS = 25 * 1024 * 1024; // 25 Mo — même limite que GedStorageController/ProjetsDocumentsController
 const ROLES: RoleDocumentMission[] = ['ordre_mission', 'compte_rendu', 'pv', 'depense'];
@@ -33,6 +34,7 @@ export class MissionsDocumentsController {
     @Body() dto: AjouterDocumentMissionDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    validerFichier(file);
     if (!file) throw new BadRequestException('Fichier requis');
     return this.documentsService.ajouterDocumentAvecFichier({ missionId, ...dto }, file, user);
   }

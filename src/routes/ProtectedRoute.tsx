@@ -4,10 +4,12 @@ import { ProfileProvider } from '../contexts/ProfileContext';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../hooks/useProfile';
 import { MotDePassePage } from '../pages/MotDePassePage';
+import { useDeconnexionInactivite } from '../hooks/useDeconnexionInactivite';
 
 export function ProtectedRoute() {
   const { session, loading } = useAuth();
   const location = useLocation();
+  useDeconnexionInactivite(Boolean(session));
 
   if (loading) {
     return (

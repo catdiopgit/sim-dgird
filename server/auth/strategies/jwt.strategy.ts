@@ -8,6 +8,8 @@ export interface JwtPayload {
   sub: string;
   email: string;
   organisationId: string;
+  // v8.6.6 : version du jeton (révocation à la déconnexion / changement de mot de passe).
+  ver?: number;
 }
 
 export interface AuthenticatedUser {
@@ -37,6 +39,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const utilisateur = await this.utilisateursService.findById(payload.sub);
     if (!utilisateur || utilisateur.statut !== 'actif') {
       throw new UnauthorizedException('Utilisateur introuvable ou inactif');
+    }
+    if ((payload.ver ?? 0) !== (await this.utilisateursService.versionJeton(utilisateur.id))) {
+      throw new UnauthorizedException('Session expirée : veuillez vous reconnecter');
     }
     return {
       id: utilisateur.id,

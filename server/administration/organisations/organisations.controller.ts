@@ -27,6 +27,7 @@ import { OrganisationsService } from './organisations.service';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { EmailNotificationsService } from '../../notifications/email-notifications.service';
+import { validerFichier } from '../../common/fichiers/valider-fichier';
 
 const TAILLE_MAX_LOGO_OCTETS = 5 * 1024 * 1024; // 5 Mo
 
@@ -66,6 +67,11 @@ class DefinirParametresSmtpDto {
   @IsString() adresseExpediteur: string;
   @IsOptional() @IsString() nomExpediteur?: string | null;
   @IsOptional() @IsBoolean() actif?: boolean;
+}
+
+// v8.6.6 : une organisation ne peut être modifiée que par ses propres membres.
+function memeOrganisation(id: string, user: AuthenticatedUser): void {
+  if (id !== user.organisationId) throw new ForbiddenException('Action non autorisée sur une autre organisation');
 }
 
 @Controller('administration/organisations')
@@ -108,7 +114,8 @@ export class OrganisationsController {
 
   @Patch(':id')
   @RequirePermission('administration', 'modifier')
-  update(@Param('id') id: string, @Body() dto: UpsertOrganisationDto) {
+  update(@Param('id') id: string, @Body() dto: UpsertOrganisationDto, @CurrentUser() user: AuthenticatedUser) {
+    memeOrganisation(id, user);
     return this.organisationsService.update(id, dto);
   }
 
@@ -123,20 +130,28 @@ export class OrganisationsController {
 
   @Post(':id/parametres')
   @RequirePermission('administration', 'modifier')
-  definirParametre(@Param('id') id: string, @Body() dto: DefinirParametreDto) {
+  definirParametre(@Param('id') id: string, @Body() dto: DefinirParametreDto, @CurrentUser() user: AuthenticatedUser) {
+    memeOrganisation(id, user);
     return this.organisationsService.definirParametre(id, dto.cle, dto.valeur, dto.description);
   }
 
   @Delete('parametres/:id')
   @RequirePermission('administration', 'modifier')
-  deleteParametre(@Param('id') id: string) {
+  async deleteParametre(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    const rows: Array<{ organisation_id: string }> = await this.dataSource.query(
+      'select organisation_id from parametres_organisation where id = $1',
+      [id],
+    );
+    if (rows[0]) memeOrganisation(rows[0].organisation_id, user);
     return this.organisationsService.deleteParametre(id);
   }
 
   @Post(':id/logo')
   @RequirePermission('administration', 'modifier')
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: TAILLE_MAX_LOGO_OCTETS } }))
-  async uploadLogo(@Param('id') id: string, @UploadedFile() file: Express.Multer.File | undefined) {
+  async uploadLogo(@Param('id') id: string, @UploadedFile() file: Express.Multer.File | undefined, @CurrentUser() user: AuthenticatedUser) {
+    memeOrganisation(id, user);
+    validerFichier(file, { imagesSeulement: true });
     if (!file) throw new BadRequestException('Fichier requis');
     const url = await this.organisationsService.uploadLogo(id, file);
     return { url };
@@ -157,7 +172,14 @@ export class OrganisationsController {
   @Post(':id/images/:nom')
   @RequirePermission('administration', 'modifier')
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage(), limits: { fileSize: TAILLE_MAX_LOGO_OCTETS } }))
-  async uploadImage(@Param('id') id: string, @Param('nom') nom: string, @UploadedFile() file: Express.Multer.File | undefined) {
+  async uploadImage(
+    @Param('id') id: string,
+    @Param('nom') nom: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    memeOrganisation(id, user);
+    validerFichier(file, { imagesSeulement: true });
     if (!file) throw new BadRequestException('Fichier requis');
     const url = await this.organisationsService.uploadImage(id, nom, file);
     return { url };
@@ -183,7 +205,8 @@ export class OrganisationsController {
 
   @Post(':id/smtp')
   @RequirePermission('administration', 'modifier')
-  definirParametresSmtp(@Param('id') id: string, @Body() dto: DefinirParametresSmtpDto) {
+  definirParametresSmtp(@Param('id') id: string, @Body() dto: DefinirParametresSmtpDto, @CurrentUser() user: AuthenticatedUser) {
+    memeOrganisation(id, user);
     return this.organisationsService.definirParametresSmtp(id, dto);
   }
 
@@ -192,6 +215,7 @@ export class OrganisationsController {
   @Post(':id/smtp/test')
   @RequirePermission('administration', 'modifier')
   async testerSmtp(@Param('id') id: string, @Body() dto: TesterSmtpDto, @CurrentUser() user: AuthenticatedUser) {
+    memeOrganisation(id, user);
     const rows: Array<{ email: string | null; nom: string }> = await this.dataSource.query(
       `select email, trim(coalesce(prenom, '') || ' ' || nom) as nom from utilisateurs where id = $1`,
       [user.id],

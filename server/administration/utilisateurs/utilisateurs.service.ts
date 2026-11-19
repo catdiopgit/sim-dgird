@@ -44,6 +44,7 @@ export class UtilisateursService {
       .createQueryBuilder('u')
       .addSelect('u.passwordHash')
       .addSelect('u.echecsConnexion')
+      .addSelect('u.jetonVersion')
       .where('lower(u.email) = lower(:email)', { email: email.trim() })
       .andWhere('u.statut = :statut', { statut: 'actif' })
       .getOne();
@@ -104,7 +105,11 @@ export class UtilisateursService {
   // v8.6.5 : réinitialisation par l'administrateur — nouveau mot de passe
   // temporaire (affiché une seule fois), à changer à la prochaine connexion ;
   // le verrouillage éventuel est levé.
-  async reinitialiserMotDePasse(id: string, organisationId: string): Promise<{ email: string; motDePasseTemporaire: string }> {
+  async reinitialiserMotDePasse(
+    id: string,
+    organisationId: string,
+    auteur?: { id: string; ip?: string | null },
+  ): Promise<{ email: string; motDePasseTemporaire: string }> {
     const utilisateur = await this.findOne(id);
     if (utilisateur.organisationId !== organisationId) throw new NotFoundException('Utilisateur introuvable');
     const motDePasseTemporaire = genererMotDePasseTemporaire();
@@ -114,6 +119,21 @@ export class UtilisateursService {
       echecsConnexion: 0,
       verrouilleJusqua: null,
     });
+    await this.revoquerJetons(id);
+    // v8.6.6 : trace dans le journal de sécurité (auteur = administrateur).
+    await this.utilisateurs
+      .query(
+        `insert into journal_audit (utilisateur_id, organisation_id, objet_type, objet_id, nouvelle_valeur, adresse_ip)
+         values ($1, $2, 'securite', $3, $4, $5)`,
+        [
+          auteur?.id ?? null,
+          organisationId,
+          id,
+          JSON.stringify({ evenement: 'mot_de_passe_reinitialise', email: utilisateur.email }),
+          auteur?.ip && /^[0-9a-f.:]+$/i.test(auteur.ip.replace(/^::ffff:/, '')) ? auteur.ip.replace(/^::ffff:/, '') : null,
+        ],
+      )
+      .catch(() => undefined);
     return { email: utilisateur.email, motDePasseTemporaire };
   }
 
@@ -122,6 +142,7 @@ export class UtilisateursService {
       .createQueryBuilder('u')
       .addSelect('u.passwordHash')
       .addSelect('u.echecsConnexion')
+      .addSelect('u.jetonVersion')
       .where('u.id = :id', { id })
       .getOne();
   }
@@ -156,5 +177,19 @@ export class UtilisateursService {
       doitChangerMotDePasse: false,
       motDePasseModifieLe: new Date(),
     });
+    await this.revoquerJetons(id);
+  }
+
+  // v8.6.6 : invalide tous les jetons déjà émis pour ce compte.
+  async revoquerJetons(id: string): Promise<void> {
+    await this.utilisateurs.query('update utilisateurs set jeton_version = jeton_version + 1 where id = $1', [id]);
+  }
+
+  async versionJeton(id: string): Promise<number> {
+    const rows: Array<{ jeton_version: number }> = await this.utilisateurs.query(
+      'select jeton_version from utilisateurs where id = $1',
+      [id],
+    );
+    return rows[0]?.jeton_version ?? 0;
   }
 }

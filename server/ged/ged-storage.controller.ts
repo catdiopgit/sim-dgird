@@ -6,6 +6,7 @@ import { IsInt, IsOptional, IsString, IsUUID } from 'class-validator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { GedStorageService } from './ged-storage.service';
+import { validerFichier } from '../common/fichiers/valider-fichier';
 
 const TAILLE_MAX_OCTETS = 25 * 1024 * 1024; // 25 Mo
 
@@ -33,6 +34,7 @@ export class GedStorageController {
     @Body() dto: AjouterDocumentDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    validerFichier(file);
     if (!file) throw new BadRequestException('Fichier requis');
     return this.storageService.creerDocumentAvecFichier(versementId, dto, file, user);
   }
@@ -45,6 +47,7 @@ export class GedStorageController {
     @Body() dto: VerserVersionDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    validerFichier(file);
     if (!file) throw new BadRequestException('Fichier requis');
     return this.storageService.verserVersion(documentId, file, dto.commentaire ?? null, user);
   }

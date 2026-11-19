@@ -12,6 +12,7 @@ import { cn } from '../../../lib/utils';
 import { fr } from '../../../utils/dateFr';
 
 const LABEL_OBJET: Record<string, string> = {
+  securite: 'Sécurité (connexions, mots de passe)',
   courriers: 'Courrier',
   documents: 'Document',
   missions: 'Mission',

@@ -5,6 +5,7 @@ import { IsOptional, IsString, IsUUID } from 'class-validator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { MarchesDocumentsService } from './marches-documents.service';
+import { validerFichier } from '../common/fichiers/valider-fichier';
 
 const TAILLE_MAX_OCTETS = 25 * 1024 * 1024; // même limite que GedStorageController
 
@@ -43,6 +44,7 @@ export class MarchesDocumentsController {
     @Body() dto: AjouterDocumentMarcheDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    validerFichier(file);
     if (!file) throw new BadRequestException('Fichier requis');
     return this.documentsService.ajouterDocumentAvecFichier({ marcheId, ...dto }, file, user);
   }

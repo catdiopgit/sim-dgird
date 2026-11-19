@@ -17,6 +17,7 @@ import { IsOptional, IsString } from 'class-validator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { CourrierStorageService } from './courrier-storage.service';
+import { validerFichier } from '../common/fichiers/valider-fichier';
 
 const TAILLE_MAX_OCTETS = 25 * 1024 * 1024; // 25 Mo
 
@@ -45,6 +46,7 @@ export class CourrierStorageController {
     @Body() dto: AjouterPieceJointeDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    validerFichier(file);
     if (!file) throw new BadRequestException('Fichier requis');
     return this.storageService.ajouterPieceJointe(courrierId, file, dto.estScan === 'true', user);
   }
@@ -67,6 +69,7 @@ export class CourrierStorageController {
     @UploadedFile() file: Express.Multer.File | undefined,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    validerFichier(file);
     if (!file) throw new BadRequestException('Fichier requis');
     return this.storageService.ajouterDecharge(courrierId, file, user);
   }

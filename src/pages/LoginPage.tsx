@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { DrapeauSenegal } from '../components/branding/DrapeauSenegal';
 import { useOrganisationBranding } from '../hooks/administration/useOrganisationBranding';
 import { useAuth } from '../hooks/useAuth';
+import { CLE_MOTIF_DECONNEXION } from '../hooks/useDeconnexionInactivite';
 import { cn } from '../lib/utils';
 
 const loginSchema = z.object({
@@ -32,6 +33,16 @@ export function LoginPage() {
   const location = useLocation();
   const { data: branding } = useOrganisationBranding();
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // v8.6.6 : motif d'une déconnexion automatique (inactivité), affiché une fois.
+  const [motifDeconnexion] = useState<string | null>(() => {
+    try {
+      const m = sessionStorage.getItem(CLE_MOTIF_DECONNEXION);
+      sessionStorage.removeItem(CLE_MOTIF_DECONNEXION);
+      return m;
+    } catch {
+      return null;
+    }
+  });
   const [submitting, setSubmitting] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [capsLock, setCapsLock] = useState(false);
@@ -120,6 +131,11 @@ export function LoginPage() {
             <hr className="my-6 border-border" />
 
             <h2 className="text-[17px] font-semibold">Connexion</h2>
+            {motifDeconnexion && !submitError && (
+              <p role="status" className="mt-2 rounded-md border border-border bg-muted px-3 py-2 text-[13px] text-muted-foreground">
+                {motifDeconnexion}
+              </p>
+            )}
 
             <form onSubmit={handleSubmit(onSubmit)} noValidate className="mt-4 space-y-4">
               <div>

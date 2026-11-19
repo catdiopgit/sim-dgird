@@ -17,6 +17,7 @@ import { IsNumber, IsOptional, IsString, IsUUID } from 'class-validator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { DecaissementsService, type CreerDecaissementData, type UpdateDecaissementData } from './decaissements.service';
+import { validerFichier } from '../common/fichiers/valider-fichier';
 
 const TAILLE_MAX_OCTETS = 25 * 1024 * 1024; // 25 Mo — même limite que GedStorageController
 
@@ -56,6 +57,7 @@ export class DecaissementsController {
     @Body() dto: CreerDecaissementDto,
     @CurrentUser() user: AuthenticatedUser,
   ) {
+    validerFichier(file);
     if (!file) throw new BadRequestException('Justificatif requis');
     const { titreDocument, ...data } = dto;
     return this.decaissementsService.creerAvecJustificatif({ projetId, ...data }, titreDocument, file, user);

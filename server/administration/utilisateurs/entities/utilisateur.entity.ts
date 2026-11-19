@@ -63,6 +63,11 @@ export class Utilisateur {
   @Column({ type: 'timestamptz', name: 'verrouille_jusqua', nullable: true })
   verrouilleJusqua: Date | null;
 
+  // v8.6.6 : incrémenté à la déconnexion, au changement ou à la
+  // réinitialisation du mot de passe — invalide les jetons déjà émis.
+  @Column({ type: 'int', name: 'jeton_version', default: 0, select: false })
+  jetonVersion: number;
+
   @Column({ type: 'timestamptz', name: 'mot_de_passe_modifie_le', nullable: true })
   motDePasseModifieLe: Date | null;
 

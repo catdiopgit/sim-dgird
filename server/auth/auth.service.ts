@@ -3,6 +3,12 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { UtilisateursService } from '../administration/utilisateurs/utilisateurs.service';
 import type { JwtPayload } from './strategies/jwt.strategy';
+import { JournalSecuriteService } from './journal-securite.service';
+
+export interface ContexteConnexion {
+  ip?: string | null;
+  userAgent?: string | null;
+}
 
 // v8.6.5 — protection contre les essais de mots de passe :
 //  - par poste (adresse IP) : 10 tentatives par tranche de 5 minutes ;
@@ -33,13 +39,28 @@ export class AuthService {
   constructor(
     private readonly utilisateursService: UtilisateursService,
     private readonly jwtService: JwtService,
+    private readonly journal: JournalSecuriteService,
   ) {}
 
-  private limiterIp(ip: string): void {
+  private async emettreJeton(u: { id: string; email: string; organisationId: string }): Promise<string> {
+    const payload: JwtPayload = {
+      sub: u.id,
+      email: u.email,
+      organisationId: u.organisationId,
+      ver: await this.utilisateursService.versionJeton(u.id),
+    };
+    return this.jwtService.signAsync(payload);
+  }
+
+  private limiterIp(ip: string, ctx: ContexteConnexion, email: string): void {
     const maintenant = Date.now();
     const recents = (this.essaisParIp.get(ip) ?? []).filter((t) => maintenant - t < FENETRE_IP_MS);
     if (recents.length >= ESSAIS_PAR_IP) {
       this.essaisParIp.set(ip, recents);
+      if (recents.length === ESSAIS_PAR_IP) {
+        recents.push(maintenant);
+        void this.journal.enregistrer('tentatives_excessives', { email, ip: ctx.ip, userAgent: ctx.userAgent });
+      }
       throw new HttpException(
         'Trop de tentatives de connexion depuis ce poste. Réessayez dans quelques minutes.',
         HttpStatus.TOO_MANY_REQUESTS,
@@ -58,17 +79,25 @@ export class AuthService {
   async login(
     email: string,
     password: string,
-    ip = 'inconnue',
+    ctx: ContexteConnexion = {},
   ): Promise<{ accessToken: string; doitChangerMotDePasse: boolean }> {
-    this.limiterIp(ip);
+    this.limiterIp(ctx.ip ?? 'inconnue', ctx, email);
     const utilisateur = await this.utilisateursService.findByEmailForAuth(email);
+    const trace = { email, ip: ctx.ip, userAgent: ctx.userAgent };
 
     // Message volontairement identique (email inconnu / mdp faux / hash absent)
     // pour ne pas révéler quels comptes existent.
     if (!utilisateur || !utilisateur.passwordHash) {
+      await this.journal.enregistrer('connexion_echouee', { ...trace, details: { motif: 'compte inconnu' } });
+      throw new UnauthorizedException('Identifiants invalides');
+    }
+    const traceCompte = { ...trace, utilisateurId: utilisateur.id, organisationId: utilisateur.organisationId };
+    if (utilisateur.statut !== 'actif') {
+      await this.journal.enregistrer('connexion_echouee', { ...traceCompte, details: { motif: 'compte inactif' } });
       throw new UnauthorizedException('Identifiants invalides');
     }
     if (utilisateur.verrouilleJusqua && utilisateur.verrouilleJusqua.getTime() > Date.now()) {
+      await this.journal.enregistrer('connexion_echouee', { ...traceCompte, details: { motif: 'compte verrouillé' } });
       throw new UnauthorizedException(
         `Trop d'échecs sur ce compte : réessayez dans ${DUREE_VERROU_MIN} minutes ou demandez une réinitialisation à l'administrateur.`,
       );
@@ -81,6 +110,10 @@ export class AuthService {
         ECHECS_AVANT_VERROU,
         DUREE_VERROU_MIN,
       );
+      await this.journal.enregistrer(verrouille ? 'compte_verrouille' : 'connexion_echouee', {
+        ...traceCompte,
+        details: { motif: 'mot de passe incorrect' },
+      });
       throw new UnauthorizedException(
         verrouille
           ? `Trop d'échecs sur ce compte : réessayez dans ${DUREE_VERROU_MIN} minutes ou demandez une réinitialisation à l'administrateur.`
@@ -88,19 +121,33 @@ export class AuthService {
       );
     }
     await this.utilisateursService.connexionReussie(utilisateur.id);
-
-    const payload: JwtPayload = {
-      sub: utilisateur.id,
-      email: utilisateur.email,
-      organisationId: utilisateur.organisationId,
-    };
+    await this.journal.enregistrer('connexion_reussie', traceCompte);
     return {
-      accessToken: await this.jwtService.signAsync(payload),
+      accessToken: await this.emettreJeton(utilisateur),
       doitChangerMotDePasse: utilisateur.doitChangerMotDePasse,
     };
   }
 
-  async changerMotDePasse(userId: string, actuel: string, nouveau: string): Promise<{ ok: true }> {
+  // v8.6.6 : déconnexion = le jeton en cours (et tous les autres jetons du
+  // compte) ne sont plus acceptés.
+  async deconnexion(user: { id: string; email: string; organisationId: string }, ctx: ContexteConnexion = {}): Promise<{ ok: true }> {
+    await this.utilisateursService.revoquerJetons(user.id);
+    await this.journal.enregistrer('deconnexion', {
+      utilisateurId: user.id,
+      organisationId: user.organisationId,
+      email: user.email,
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
+    return { ok: true };
+  }
+
+  async changerMotDePasse(
+    userId: string,
+    actuel: string,
+    nouveau: string,
+    ctx: ContexteConnexion = {},
+  ): Promise<{ ok: true; accessToken: string }> {
     const utilisateur = await this.utilisateursService.findAvecMotDePasse(userId);
     if (!utilisateur?.passwordHash || !(await bcrypt.compare(actuel, utilisateur.passwordHash))) {
       throw new BadRequestException('Le mot de passe actuel est incorrect');
@@ -110,6 +157,14 @@ export class AuthService {
       throw new BadRequestException(`Mot de passe trop faible. ${REGLE_MOT_DE_PASSE}`);
     }
     await this.utilisateursService.definirMotDePasse(userId, nouveau);
-    return { ok: true };
+    await this.journal.enregistrer('mot_de_passe_change', {
+      utilisateurId: userId,
+      organisationId: utilisateur.organisationId,
+      email: utilisateur.email,
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+    });
+    // Les anciens jetons sont révoqués : un nouveau jeton est remis.
+    return { ok: true, accessToken: await this.emettreJeton(utilisateur) };
   }
 }

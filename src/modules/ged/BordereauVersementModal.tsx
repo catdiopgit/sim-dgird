@@ -71,7 +71,7 @@ export function BordereauVersementModal({ open, onClose, organisationId, verseme
                     </td>
                   </tr>
                   <tr>
-                    <th style={libelle}>Entité versante</th>
+                    <th style={libelle}>Direction versante</th>
                     <td style={cellule} colSpan={3}>
                       {entite ? `${entite.libelle}${entite.sigle ? ` (${entite.sigle})` : ''}` : '—'}
                     </td>
@@ -149,7 +149,7 @@ export function BordereauVersementModal({ open, onClose, organisationId, verseme
                 <thead>
                   <tr>
                     <th style={{ ...entetes, textAlign: 'center' }}>Le déposant</th>
-                    <th style={{ ...entetes, textAlign: 'center' }}>Le responsable de l'entité versante</th>
+                    <th style={{ ...entetes, textAlign: 'center' }}>Le directeur de la direction versante</th>
                     <th style={{ ...entetes, textAlign: 'center' }}>L'archiviste</th>
                   </tr>
                 </thead>

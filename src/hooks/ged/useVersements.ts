@@ -13,6 +13,7 @@ import {
   retirerDocumentVersement,
   type CreerVersementPayload,
   type ModifierVersementPayload,
+  optionsCreationVersement,
 } from '../../services/ged/versements';
 
 export function useVersements(organisationId: string | undefined) {
@@ -127,5 +128,14 @@ export function useClasserVersement(versementId: string | undefined) {
       void queryClient.invalidateQueries({ queryKey: ['ged-workflow-transitions', versementId] });
     },
     onError: (error: Error) => message.error(error.message),
+  });
+}
+
+export function useOptionsCreationVersement(actif: boolean) {
+  return useQuery({
+    queryKey: ['ged-versements-options'],
+    queryFn: optionsCreationVersement,
+    enabled: actif,
+    staleTime: 60_000,
   });
 }

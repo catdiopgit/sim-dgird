@@ -67,21 +67,54 @@ export class GedVersementsService {
   // v8.6 : le déposant, l'archiviste, le responsable de l'entité (ou d'une
   // entité parente), et les rôles ayant « GED / consulter » sur une portée
   // étendue. La portée « personnel » ne couvre plus que ses propres versements.
+  // v8.6.11 : le versement est rattaché à la DIRECTION du déposant. Le voient :
+  // le déposant, l'archiviste, les responsables hiérarchiques du déposant
+  // (chef de division…) et le directeur de la direction versante. Pas les
+  // autres agents de la direction : une fois archivés, les documents suivent
+  // les règles d'accès aux archives.
   async canView(versement: GedVersement, user: AuthenticatedUser): Promise<boolean> {
     if (versement.organisationId !== user.organisationId) return false;
     if (versement.redacteurId === user.id) return true;
     if (await this.acces.estArchiviste(user.id)) return true;
     if (await this.acces.estResponsableHierarchique(versement.entiteId, user.id)) return true;
-    return this.authorizationService.hasPermissionEtendue(user.id, 'ged', 'consulter', versement.entiteId);
+    const entiteDeposant = await this.entiteDeposant(versement.redacteurId);
+    return this.acces.estResponsableHierarchique(entiteDeposant, user.id);
   }
 
-  // Brouillon : le déposant (ou « GED / modifier » étendu sur l'entité).
-  // Une fois soumis : l'archiviste seul.
+  private async entiteDeposant(redacteurId: string | null): Promise<string | null> {
+    if (!redacteurId) return null;
+    const rows: Array<{ entite_id: string | null }> = await this.dataSource.query(
+      'select entite_id from utilisateurs where id = $1',
+      [redacteurId],
+    );
+    return rows[0]?.entite_id ?? null;
+  }
+
+  // Brouillon : le déposant. Une fois soumis : l'archiviste seul.
   async peutModifier(versement: GedVersement, user: AuthenticatedUser): Promise<boolean> {
     if (await this.acces.estArchiviste(user.id)) return true;
     if (!versement.brouillon) return false;
-    if (versement.redacteurId === user.id) return true;
-    return this.authorizationService.hasPermissionEtendue(user.id, 'ged', 'modifier', versement.entiteId);
+    return versement.redacteurId === user.id;
+  }
+
+  // Direction versante : imposée (direction de l'agent), au choix pour l'archiviste.
+  private async directionVersante(demandee: string | null | undefined, user: AuthenticatedUser): Promise<string | null> {
+    if (await this.acces.estArchiviste(user.id)) {
+      if (demandee) {
+        if (!(await this.acces.estDirection(demandee, user.organisationId))) {
+          throw new BadRequestException('Choisissez une direction comme entité versante');
+        }
+        return demandee;
+      }
+    }
+    return this.acces.directionDe(user.entiteId);
+  }
+
+  async optionsVersement(user: AuthenticatedUser) {
+    const archiviste = await this.acces.estArchiviste(user.id);
+    const directionId = await this.acces.directionDe(user.entiteId);
+    const directions = await this.acces.directions(user.organisationId);
+    return { archiviste, directionParDefaut: directions.find((d) => d.id === directionId) ?? null, directions: archiviste ? directions : [] };
   }
 
   private async assertDossierCible(dossierCibleId: string | null | undefined, user: AuthenticatedUser): Promise<void> {
@@ -121,16 +154,15 @@ export class GedVersementsService {
   }
 
   async create(data: CreerVersementData, user: AuthenticatedUser): Promise<GedVersement> {
-    // v8.6 : par défaut le versement est rattaché à l'entité du déposant ; la
-    // portée « personnel » ne permet de verser que pour sa propre entité.
-    const entiteId = data.entiteId ?? user.entiteId ?? null;
+    // v8.6.11 : tout agent ayant « GED / créer » verse pour sa direction ;
+    // l'archiviste peut verser pour n'importe quelle direction.
     const autorise =
-      (await this.authorizationService.hasPermissionEtendue(user.id, 'ged', 'creer', entiteId)) ||
-      (entiteId === (user.entiteId ?? null) &&
-        (await this.authorizationService.hasPermission(user.id, 'ged', 'creer', entiteId)));
+      (await this.acces.estArchiviste(user.id)) ||
+      (await this.authorizationService.hasPermission(user.id, 'ged', 'creer', user.entiteId ?? null));
     if (!autorise) {
-      throw new ForbiddenException("Vous n'êtes pas autorisé à créer un versement pour cette entité");
+      throw new ForbiddenException("Vous n'êtes pas autorisé à créer un versement");
     }
+    const entiteId = await this.directionVersante(data.entiteId, user);
     await this.assertDossierCible(data.dossierCibleId, user);
     controlerDatesExtremes(data.dateDebutExtreme, data.dateFinExtreme);
     return this.versements.save(
@@ -170,7 +202,10 @@ export class GedVersementsService {
       dateFinExtreme: fin ?? null,
       objet: data.objet ?? versement.objet,
       description: data.description !== undefined ? data.description : versement.description,
-      entiteId: data.entiteId !== undefined ? data.entiteId : versement.entiteId,
+      entiteId:
+        data.entiteId !== undefined && data.entiteId !== versement.entiteId && (await this.acces.estArchiviste(user.id))
+          ? await this.directionVersante(data.entiteId, user)
+          : versement.entiteId,
       dossierCibleId: data.dossierCibleId !== undefined ? data.dossierCibleId : versement.dossierCibleId,
     });
     return this.findOne(id, user);
@@ -194,9 +229,7 @@ export class GedVersementsService {
       }
       if (!versement.brouillon) throw new BadRequestException('Ce versement est déjà soumis');
 
-      const autorise =
-        versement.redacteur_id === user.id ||
-        (await this.authorizationService.hasPermissionEtendue(user.id, 'ged', 'modifier', versement.entite_id));
+      const autorise = versement.redacteur_id === user.id || (await this.acces.estArchiviste(user.id));
       if (!autorise) throw new ForbiddenException("Vous n'êtes pas autorisé à soumettre ce versement");
 
       const nbDocuments = await manager.count(Document, { where: { versementId: id, supprimeLe: IsNull() } });

@@ -94,3 +94,18 @@ export async function classerVersement(
   const data = await api.post<unknown>(`/ged/versements/${versementId}/classer`, payload);
   return toSnakeCase<GedVersement>(data);
 }
+
+// v8.6.11 : direction versante proposée (direction de l'agent) et, pour
+// l'archiviste, liste des directions au choix.
+export interface DirectionVersante {
+  id: string;
+  sigle: string | null;
+  libelle: string;
+}
+export async function optionsCreationVersement(): Promise<{
+  archiviste: boolean;
+  directionParDefaut: DirectionVersante | null;
+  directions: DirectionVersante[];
+}> {
+  return api.get('/ged/versements/options/creation');
+}

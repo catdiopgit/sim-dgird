@@ -35,6 +35,46 @@ export class GedAccesService {
     return this.marchesAcces.estResponsableHierarchique(entiteId, userId);
   }
 
+  // v8.6.11 — direction d'une entité : la première entité de type
+  // « direction » en remontant l'organigramme (elle-même comprise). Les
+  // bureaux et cellules rattachés directement à la DG relèvent de la DG.
+  async directionDe(entiteId: string | null | undefined): Promise<string | null> {
+    if (!entiteId) return null;
+    const rows: Array<{ id: string }> = await this.dataSource.query(
+      `with recursive chaine as (
+         select e.id, e.parent_entite_id, 0 as niveau from entites e where e.id = $1
+         union all
+         select p.id, p.parent_entite_id, c.niveau + 1
+         from entites p join chaine c on p.id = c.parent_entite_id where c.niveau < 20
+       )
+       select c.id from chaine c
+       join entites e on e.id = c.id
+       join type_entites t on t.id = e.type_entite_id
+       where t.code = 'direction'
+       order by c.niveau limit 1`,
+      [entiteId],
+    );
+    return rows[0]?.id ?? entiteId;
+  }
+
+  async estDirection(entiteId: string, organisationId: string): Promise<boolean> {
+    const rows: unknown[] = await this.dataSource.query(
+      `select 1 from entites e join type_entites t on t.id = e.type_entite_id
+        where e.id = $1 and e.organisation_id = $2 and t.code = 'direction' and e.actif`,
+      [entiteId, organisationId],
+    );
+    return rows.length > 0;
+  }
+
+  async directions(organisationId: string): Promise<Array<{ id: string; sigle: string | null; libelle: string }>> {
+    return this.dataSource.query(
+      `select e.id, e.sigle, e.libelle from entites e join type_entites t on t.id = e.type_entite_id
+        where e.organisation_id = $1 and t.code = 'direction' and e.actif
+        order by e.niveau, e.ordre, e.libelle`,
+      [organisationId],
+    );
+  }
+
   // L'utilisateur appartient-il à l'entité (ou à une de ses sous-entités) ?
   async appartientA(entiteId: string | null, user: AuthenticatedUser): Promise<boolean> {
     if (!entiteId || !user.entiteId) return false;

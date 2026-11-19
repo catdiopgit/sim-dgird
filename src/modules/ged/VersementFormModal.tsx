@@ -6,9 +6,8 @@ import { Champ } from '../../components/form/champ';
 import { FormDialog } from '../../components/form/form-dialog';
 import { Input, Textarea } from '../../components/ui/input';
 import { NativeSelect } from '../../components/ui/native-select';
-import { useEntites } from '../../hooks/administration/useEntites';
 import { useOptionsDossiersGed } from '../../hooks/ged/useDossiers';
-import { useCreerVersement } from '../../hooks/ged/useVersements';
+import { useCreerVersement, useOptionsCreationVersement } from '../../hooks/ged/useVersements';
 import { ariaErreur } from '../../lib/form';
 import type { GedVersement } from '../../services/ged/versements';
 
@@ -40,10 +39,12 @@ interface Props {
 const VIDE: FormValues = { objet: '', entiteId: '', dossierCibleId: '', description: '', dateDebutExtreme: '', dateFinExtreme: '' };
 
 // Première étape du dépôt (GED V2) : constituer le brouillon (objet du lot,
-// entité, dossier de classement cible — un seul dossier par versement). Les
+// direction versante, dossier de classement cible — un seul dossier par versement). Les
 // documents eux-mêmes sont ajoutés ensuite sur la fiche du versement.
 export function VersementFormModal({ open, organisationId, onClose, onCree }: Props) {
-  const { data: entites } = useEntites(organisationId);
+  const { data: options } = useOptionsCreationVersement(open);
+  const libelleDirection = (d?: { sigle: string | null; libelle: string } | null) =>
+    d ? (d.sigle ? `${d.sigle} — ${d.libelle}` : d.libelle) : '—';
   const optionsDossiers = useOptionsDossiersGed(organisationId);
   const creer = useCreerVersement(organisationId);
 
@@ -65,7 +66,7 @@ export function VersementFormModal({ open, organisationId, onClose, onCree }: Pr
     creer.mutate(
       {
         p_objet: values.objet,
-        p_entite_id: values.entiteId || null,
+        p_entite_id: options?.archiviste ? values.entiteId || null : null,
         p_dossier_cible_id: values.dossierCibleId || null,
         p_description: values.description || null,
         p_date_debut_extreme: values.dateDebutExtreme,
@@ -108,16 +109,26 @@ export function VersementFormModal({ open, organisationId, onClose, onCree }: Pr
           <Input id="versement-fin" type="date" max={aujourdhui()} {...register('dateFinExtreme')} />
         </Champ>
       </div>
-      <Champ label="Entité" htmlFor="versement-entite" aide="Par défaut, votre entité.">
-        <NativeSelect id="versement-entite" {...register('entiteId')}>
-          <option value="">Mon entité</option>
-          {(entites ?? []).map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.sigle ? `${e.sigle} — ${e.libelle}` : e.libelle}
-            </option>
-          ))}
-        </NativeSelect>
-      </Champ>
+      {options?.archiviste ? (
+        <Champ
+          label="Direction versante"
+          htmlFor="versement-entite"
+          aide="En tant qu'archiviste, vous pouvez enregistrer un versement pour n'importe quelle direction."
+        >
+          <NativeSelect id="versement-entite" {...register('entiteId')}>
+            <option value="">{options.directionParDefaut ? `Ma direction (${options.directionParDefaut.sigle ?? options.directionParDefaut.libelle})` : 'Ma direction'}</option>
+            {options.directions.map((d) => (
+              <option key={d.id} value={d.id}>
+                {libelleDirection(d)}
+              </option>
+            ))}
+          </NativeSelect>
+        </Champ>
+      ) : (
+        <Champ label="Direction versante" htmlFor="versement-entite" aide="Le versement est fait au nom de votre direction.">
+          <Input id="versement-entite" readOnly disabled value={options ? libelleDirection(options.directionParDefaut) : 'Chargement…'} />
+        </Champ>
+      )}
       <Champ label="Dossier de classement cible" htmlFor="versement-dossier" aide="Proposition : l'archiviste pourra la confirmer au classement.">
         <NativeSelect id="versement-dossier" {...register('dossierCibleId')}>
           <option value="">Aucun</option>

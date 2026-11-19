@@ -40,6 +40,12 @@ export class GedVersementsController {
     return this.versementsService.findAll(user, brouillons === 'true');
   }
 
+  // v8.6.11 : direction versante proposée et, pour l'archiviste, liste des directions.
+  @Get('options/creation')
+  options(@CurrentUser() user: AuthenticatedUser) {
+    return this.versementsService.optionsVersement(user);
+  }
+
   @Get('bannette/a-traiter')
   findATraiter(@CurrentUser() user: AuthenticatedUser) {
     return this.versementsService.findATraiter(user);

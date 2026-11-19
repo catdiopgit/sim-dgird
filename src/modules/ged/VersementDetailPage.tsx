@@ -1,4 +1,4 @@
-import { ChevronRight, Copy, FilePlus, FileSearch, FileText, Info, Printer, Send, Trash2, XCircle } from 'lucide-react';
+import { ChevronRight, Copy, FilePlus, FileSearch, FileText, Info, Printer, ScanLine, Send, Trash2, XCircle } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Confirmation } from '../../components/form/confirm-dialog';
@@ -47,6 +47,7 @@ export function VersementDetailPage() {
   const annuler = useAnnulerVersement(id);
   const { data: doublons } = useDoublonsVersement(id, Boolean(versement) && (!versement?.brouillon || estArchiviste));
   const [ajouterOuvert, setAjouterOuvert] = useState(false);
+  const [scanDirect, setScanDirect] = useState(false);
   const [bordereauOuvert, setBordereauOuvert] = useState(false);
   const { data: entites } = useEntites(organisationId);
   const { data: utilisateurs } = useUtilisateursOptions(organisationId);
@@ -109,6 +110,12 @@ export function VersementDetailPage() {
               <Button variant="outline" onClick={() => setAjouterOuvert(true)}>
                 <FilePlus className="text-muted-foreground" />
                 Ajouter un document
+              </Button>
+            )}
+            {versement.brouillon && peutModifier && (
+              <Button variant="outline" onClick={() => { setScanDirect(true); setAjouterOuvert(true); }}>
+                <ScanLine className="text-muted-foreground" />
+                Numériser
               </Button>
             )}
             {versement.brouillon && peutModifier && (
@@ -181,7 +188,7 @@ export function VersementDetailPage() {
                     <span className="text-muted-foreground">Attribué par l'archiviste au classement</span>
                   )}
                 </Info2>
-                <Info2 libelle="Entité versante">
+                <Info2 libelle="Direction versante">
                   {entite ? `${entite.libelle}${entite.sigle ? ` (${entite.sigle})` : ''}` : '—'}
                 </Info2>
                 <Info2 libelle="Déposant">{deposant ? `${deposant.prenom} ${deposant.nom}` : '—'}</Info2>
@@ -275,7 +282,7 @@ export function VersementDetailPage() {
                     description={versement.brouillon ? 'Ajoutez au moins un document avant de soumettre le versement.' : undefined}
                   >
                     {versement.brouillon && peutModifier && (
-                      <Button variant="outline" onClick={() => setAjouterOuvert(true)}>
+                      <Button variant="outline" onClick={() => () => { setScanDirect(false); setAjouterOuvert(true); }}>
                         <FilePlus />
                         Ajouter un document
                       </Button>
@@ -394,8 +401,15 @@ export function VersementDetailPage() {
         open={ajouterOuvert}
         organisationId={organisationId}
         versementId={versement.id}
-        onClose={() => setAjouterOuvert(false)}
-        onAjoute={() => setAjouterOuvert(false)}
+        scanAuDemarrage={scanDirect}
+        onClose={() => {
+          setAjouterOuvert(false);
+          setScanDirect(false);
+        }}
+        onAjoute={() => {
+          setAjouterOuvert(false);
+          setScanDirect(false);
+        }}
       />
     </div>
   );

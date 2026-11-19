@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcryptjs';
 import { randomInt } from 'crypto';
 import { Utilisateur } from './entities/utilisateur.entity';
+import { normaliserIp } from '../../auth/journal-securite.service';
 
 export interface CreerUtilisateurInput {
   email: string;
@@ -130,7 +131,7 @@ export class UtilisateursService {
           organisationId,
           id,
           JSON.stringify({ evenement: 'mot_de_passe_reinitialise', email: utilisateur.email }),
-          auteur?.ip && /^[0-9a-f.:]+$/i.test(auteur.ip.replace(/^::ffff:/, '')) ? auteur.ip.replace(/^::ffff:/, '') : null,
+          normaliserIp(auteur?.ip),
         ],
       )
       .catch(() => undefined);

@@ -22,6 +22,7 @@ import { MarcheFormModal } from './MarcheFormModal';
 import { MarchePhasesTab } from './MarchePhasesTab';
 import { MarcheSituationImprimable } from './MarcheSituationImprimable';
 import { MarcheVueEnsembleTab } from './MarcheVueEnsembleTab';
+import { BadgeVersementGed } from '../../components/ged/BadgeVersementGed';
 
 type Onglet = 'vue-ensemble' | 'phases' | 'documents' | 'candidats' | 'attribution';
 
@@ -111,6 +112,7 @@ export function MarcheDetailPage() {
           <>
             <span className="font-mono text-[12px]">{marche.reference}</span>
             <BadgeStatutMarche statut={marche.statut_cloture} />
+            <BadgeVersementGed type="marche" id={marche.id} />
           </>
         }
         titre={marche.objet}

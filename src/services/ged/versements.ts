@@ -2,7 +2,7 @@ import { api } from '../../config/apiClient';
 import { toCamelCase, toSnakeCase } from '../../utils/caseMapping';
 import type { Database } from '../../types/database';
 
-export type GedVersement = Database['public']['Tables']['ged_versements']['Row'];
+export type GedVersement = Database['public']['Tables']['ged_versements']['Row'] & { origine?: string; lancement_id?: string | null };
 
 // organisationId n'est pas transmis : le backend le déduit de l'utilisateur
 // courant (JWT) — voir server/ged/ged-versements.controller.ts.

@@ -29,6 +29,8 @@ import { GedRechercheController } from './ged-recherche.controller';
 import { GedConsultationsService } from './ged-consultations.service';
 import { GedStorageService } from './ged-storage.service';
 import { GedStorageController } from './ged-storage.controller';
+import { GedVersementsAutoService } from './ged-versements-auto.service';
+import { GedVersementsAutoController } from './ged-versements-auto.controller';
 
 @Module({
   imports: [
@@ -58,8 +60,10 @@ import { GedStorageController } from './ged-storage.controller';
     GedRechercheService,
     GedConsultationsService,
     GedStorageService,
+    GedVersementsAutoService,
   ],
   controllers: [
+    GedVersementsAutoController,
     GedDossiersController,
     GedDocumentsController,
     GedDroitsController,

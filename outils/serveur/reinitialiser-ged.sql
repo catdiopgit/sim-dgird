@@ -24,7 +24,8 @@ select workflow_instance_id as id from ged_versements where workflow_instance_id
 update documents set version_courante_id = null where id in (select id from _docs_ged);
 delete from documents where id in (select id from _docs_ged);              -- versions, droits, consultations : cascade
 update documents set versement_id = null, dossier_id = null where versement_id is not null or dossier_id is not null;
-delete from ged_versements;
+delete from ged_versements;                                               -- éléments versés : cascade
+do $$ begin if to_regclass('ged_lancements_auto') is not null then delete from ged_lancements_auto; end if; end $$;
 delete from workflow_instances where id in (select id from _wf);           -- historique : cascade
 delete from notifications where lien_url like '/ged/%' or objet_module = 'ged';
 update archivage_elements set dossier_ged_id = null where dossier_ged_id is not null;

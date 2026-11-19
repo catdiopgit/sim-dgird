@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, FolderOpen, FolderTree, Inbox, Plus, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FolderOpen, FolderTree, Inbox, Plus, Search, Workflow } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../../components/ui/button';
@@ -96,6 +96,12 @@ export function GedPage() {
               <FolderOpen className="text-muted-foreground" />
               Archives
             </Button>
+            {peutGererPlan && (
+              <Button variant="outline" onClick={() => navigate('/ged/versements-automatiques')}>
+                <Workflow className="text-muted-foreground" />
+                Versements automatiques
+              </Button>
+            )}
             {peutGererPlan && (
               <Button variant="outline" onClick={() => navigate('/ged/plan-classement')}>
                 <FolderTree className="text-muted-foreground" />

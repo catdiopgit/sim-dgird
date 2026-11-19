@@ -8,6 +8,7 @@ import { useOrganisation } from '../../hooks/administration/useOrganisation';
 import { useDossiers } from '../../hooks/ged/useDossiers';
 import type { Document } from '../../services/ged/documents';
 import type { GedVersement } from '../../services/ged/versements';
+import type { ElementVerse } from '../../services/ged/versementsAuto';
 import { imprimerZone } from '../../utils/imprimer';
 import { EnteteDocumentImprime } from '../courrier/EnteteDocumentImprime';
 
@@ -17,6 +18,7 @@ interface Props {
   organisationId: string;
   versement: GedVersement;
   documents: Document[];
+  elements?: ElementVerse[];
 }
 
 const date = (d: string | null | undefined) => (d ? new Date(d).toLocaleDateString('fr-FR') : '—');
@@ -24,7 +26,7 @@ const date = (d: string | null | undefined) => (d ? new Date(d).toLocaleDateStri
 // v8.6.4 — Bordereau de versement imprimable (A4) : toutes les informations
 // saisies au versement, l'entité versante, le classement attribué par
 // l'archiviste, la liste des documents et les cadres de signature.
-export function BordereauVersementModal({ open, onClose, organisationId, versement, documents }: Props) {
+export function BordereauVersementModal({ open, onClose, organisationId, versement, documents, elements = [] }: Props) {
   const { data: organisation } = useOrganisation(organisationId);
   const entete = useEnteteDocument(organisationId);
   const { data: entites } = useEntites(organisationId);
@@ -114,6 +116,32 @@ export function BordereauVersementModal({ open, onClose, organisationId, verseme
                   </tr>
                 </tbody>
               </table>
+
+              {elements.length > 0 && (
+                <>
+                  <div style={{ fontSize: 13, fontWeight: 600, margin: '4px 0 6px' }}>Éléments versés (versement automatique)</div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 16, tableLayout: 'fixed' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ ...entetes, width: 36, textAlign: 'center' }}>N°</th>
+                        <th style={{ ...entetes, width: 130 }}>Référence</th>
+                        <th style={entetes}>Objet</th>
+                        <th style={{ ...entetes, width: 80 }}>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {elements.map((e, i) => (
+                        <tr key={e.element_id}>
+                          <td style={{ ...cellule, textAlign: 'center' }}>{i + 1}</td>
+                          <td style={cellule}>{e.reference}</td>
+                          <td style={cellule}>{e.libelle}</td>
+                          <td style={cellule}>{e.date_element ? e.date_element.slice(0, 10).split('-').reverse().join('/') : ''}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
 
               <div style={{ fontSize: 13, fontWeight: 600, margin: '4px 0 6px' }}>Liste des documents versés</div>
               <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 16, tableLayout: 'fixed' }}>

@@ -1,6 +1,6 @@
 import { ChevronRight, Copy, FilePlus, FileSearch, FileText, Info, Printer, ScanLine, Send, Trash2, XCircle } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Confirmation } from '../../components/form/confirm-dialog';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -19,6 +19,7 @@ import {
   useRetirerDocumentVersement,
   useSoumettreVersement,
   useVersement,
+  useElementsVersement,
 } from '../../hooks/ged/useVersements';
 import { libelleDossier } from '../../services/ged/dossiers';
 import { useProfile } from '../../hooks/useProfile';
@@ -39,6 +40,7 @@ export function VersementDetailPage() {
 
   const { data: versement, isLoading, isError } = useVersement(id);
   const { data: documents, isLoading: chargementDocuments } = useDocumentsVersement(id);
+  const { data: elements } = useElementsVersement(id, versement?.origine === 'automatique');
   const { data: dossiers } = useDossiers(organisationId);
   const optionsDossiers = useOptionsDossiersGed(organisationId, versement?.dossier_cible_id ?? null);
   const soumettre = useSoumettreVersement(id);
@@ -96,6 +98,7 @@ export function VersementDetailPage() {
           <>
             <span className="font-medium">Versement</span>
             <StatutVersement versement={versement} />
+            {versement.origine === 'automatique' && <Badge variant="muted">Automatique</Badge>}
           </>
         }
         titre={versement.objet}
@@ -264,6 +267,37 @@ export function VersementDetailPage() {
             </CardContent>
           </Card>
 
+          {versement.origine === 'automatique' && (
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  Éléments versés
+                  {elements && <span className="ml-2 font-normal text-muted-foreground">{elements.length}</span>}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="mb-3 text-[13px] text-muted-foreground">
+                  Versement préparé automatiquement à partir des éléments clôturés du module. Ils restent consultables dans leur module.
+                </p>
+                <ul className="divide-y divide-border rounded-lg border border-border text-[13px]">
+                  {(elements ?? []).map((e) => (
+                    <li key={e.element_id} className="flex items-center justify-between gap-3 px-3 py-2">
+                      <Link
+                        to={e.type_element === 'courrier' ? `/courriers/${e.element_id}` : e.type_element === 'projet' ? `/projets/${e.element_id}` : `/marches/${e.element_id}`}
+                        className="min-w-0 truncate hover:underline"
+                      >
+                        <span className="font-mono">{e.reference}</span> — {e.libelle}
+                      </Link>
+                      <span className="shrink-0 tabular-nums text-muted-foreground">
+                        {e.date_element ? e.date_element.slice(0, 10).split('-').reverse().join('/') : ''} · {e.nb_documents} doc.
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle>
@@ -395,6 +429,7 @@ export function VersementDetailPage() {
         organisationId={organisationId}
         versement={versement}
         documents={documents ?? []}
+        elements={elements ?? []}
       />
 
       <DocumentAjouterModal

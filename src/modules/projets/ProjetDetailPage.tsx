@@ -23,6 +23,7 @@ import { ProjetInformationsTab } from './ProjetInformationsTab';
 import { ProjetLivrablesTab } from './ProjetLivrablesTab';
 import { ProjetMembresTab } from './ProjetMembresTab';
 import { ProjetVueEnsembleTab } from './ProjetVueEnsembleTab';
+import { BadgeVersementGed } from '../../components/ged/BadgeVersementGed';
 
 type Onglet =
   | 'vue-ensemble'
@@ -131,6 +132,7 @@ export function ProjetDetailPage() {
             />
             {projet.priorite_valeur_id && <BadgeValeur valeur={prioriteParId.get(projet.priorite_valeur_id)} />}
             <BadgeCloture statut={projet.cloture_statut} />
+            <BadgeVersementGed type="projet" id={projet.id} />
           </>
         }
         titre={projet.nom}

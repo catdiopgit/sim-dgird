@@ -65,6 +65,42 @@ export class GedSchemaService implements OnModuleInit {
        select 'ged', 'GED' where not exists (select 1 from modules where code = 'ged')`,
     );
     await enregistrerVersionSchema(this.dataSource, 'v8.6-ged', 'GED : plan de classement, entités productrices, doublons');
+    // v8.7 : versements automatiques depuis les modules Courrier, Projets, Marchés.
+    await q("alter table ged_versements add column if not exists origine text not null default 'manuel'");
+    await q('alter table ged_versements add column if not exists lancement_id uuid');
+    await q(
+      `create table if not exists ged_lancements_auto (
+         id uuid primary key default gen_random_uuid(),
+         organisation_id uuid not null references organisations(id) on delete cascade,
+         date_debut date not null,
+         date_fin date not null,
+         modules text[] not null,
+         programme boolean not null default false,
+         lance_par uuid references utilisateurs(id) on delete set null,
+         lance_le timestamptz not null default now(),
+         nb_versements integer not null default 0,
+         nb_elements integer not null default 0,
+         nb_documents integer not null default 0,
+         ecartes jsonb not null default '[]'::jsonb
+       )`,
+    );
+    await q(
+      `create table if not exists ged_versement_elements (
+         id uuid primary key default gen_random_uuid(),
+         organisation_id uuid not null references organisations(id) on delete cascade,
+         versement_id uuid not null references ged_versements(id) on delete cascade,
+         type_element text not null check (type_element in ('courrier', 'projet', 'marche')),
+         element_id uuid not null,
+         reference text,
+         libelle text,
+         date_element date,
+         nb_documents integer not null default 0,
+         created_at timestamptz not null default now()
+       )`,
+    );
+    await q('create unique index if not exists ux_ged_versement_elements on ged_versement_elements (type_element, element_id)');
+    await q('create index if not exists idx_ged_versement_elements_versement on ged_versement_elements (versement_id)');
+    await enregistrerVersionSchema(this.dataSource, 'v8.7-versements-auto', 'GED : versements automatiques depuis les modules');
     await enregistrerVersionSchema(this.dataSource, 'v8.6.4-ged-versements', 'GED : dates extrêmes, code d\'archivage, dossier du versement');
   }
 

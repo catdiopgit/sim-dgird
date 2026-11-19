@@ -73,6 +73,13 @@ export class GedVersement {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
+  // v8.7 : « manuel » ou « automatique » (créé par un lancement de versements automatiques).
+  @Column({ type: 'text', default: 'manuel' })
+  origine: string;
+
+  @Column({ type: 'uuid', name: 'lancement_id', nullable: true })
+  lancementId: string | null;
+
   @Column({ type: 'timestamptz', name: 'supprime_le', nullable: true })
   supprimeLe: Date | null;
 }

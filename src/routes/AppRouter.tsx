@@ -14,7 +14,7 @@ import { CourrierListePage } from '../modules/courrier/CourrierListePage';
 import { CourrierNouveauPage } from '../modules/courrier/CourrierNouveauPage';
 import { CourrierStatistiquesPage } from '../modules/courrier/CourrierStatistiquesPage';
 import { ArchivesPage } from '../modules/ged/ArchivesPage';
-import { ArchivagePage } from '../modules/ged/archivage/ArchivagePage';
+import { VersementsAutoPage } from '../modules/ged/VersementsAutoPage';
 import { DocumentDetailPage } from '../modules/ged/DocumentDetailPage';
 import { GedPage } from '../modules/ged/GedPage';
 import { PlanClassementPage } from '../modules/ged/PlanClassementPage';
@@ -65,7 +65,8 @@ export const router = createBrowserRouter([
             children: [
               { index: true, element: <GedPage /> },
               { path: 'archives', element: <ArchivesPage /> },
-              { path: 'archivage', element: <ArchivagePage /> },
+              { path: 'archivage', element: <VersementsAutoPage /> },
+              { path: 'versements-automatiques', element: <VersementsAutoPage /> },
               { path: 'plan-classement', element: <PlanClassementPage /> },
               { path: 'versements/:id', element: <VersementDetailPage /> },
               { path: 'documents/:id', element: <DocumentDetailPage /> },

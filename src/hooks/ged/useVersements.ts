@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { message } from '../../lib/notifications';
+import { elementsDuVersement } from '../../services/ged/versementsAuto';
 import {
   creerVersement,
   getVersement,
@@ -137,5 +138,13 @@ export function useOptionsCreationVersement(actif: boolean) {
     queryFn: optionsCreationVersement,
     enabled: actif,
     staleTime: 60_000,
+  });
+}
+
+export function useElementsVersement(versementId: string | undefined, actif: boolean) {
+  return useQuery({
+    queryKey: ['ged-versement-elements', versementId],
+    queryFn: () => elementsDuVersement(versementId as string),
+    enabled: Boolean(versementId) && actif,
   });
 }

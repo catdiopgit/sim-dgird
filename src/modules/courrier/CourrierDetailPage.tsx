@@ -24,6 +24,7 @@ import { CourrierPiecesJointes } from './CourrierPiecesJointes';
 import { CourrierWorkflowPanel } from './CourrierWorkflowPanel';
 import { estConfidentiel, ICONE_SENS, LABEL_SENS } from './courrierAffichage';
 import { FicheExploitationModal } from './FicheExploitationModal';
+import { BadgeVersementGed } from '../../components/ged/BadgeVersementGed';
 
 export function CourrierDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -159,6 +160,7 @@ export function CourrierDetailPage() {
             </span>
             <span className="text-muted-foreground">·</span>
             <span className="font-mono text-[12px]">{courrier.numero}</span>
+            <BadgeVersementGed type="courrier" id={courrier.id} />
             {estAnnule && (
               <Badge variant="critical" shape="pill">
                 Annulé

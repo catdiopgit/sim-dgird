@@ -1,9 +1,9 @@
-// Plan de classement de la Direction des Routes (DGIRD), importé du document
-// « PLAN DE CLASSEMENT DE LA DIRECTION DES ROUTES » (v8.6). Trois corrections
-// par rapport au fichier source, modifiables ensuite par l'archiviste :
-//  - A-III : titre ajouté (« Textes législatifs et réglementaires ») ;
-//  - CA-VI : « PV autres réunions » était numérotée III dans le document ;
-//  - O : série « Généralités » vide dans le document, créée sans sous-série.
+// Plan de classement de la DGIRD, version 6 (document « PLAN DE CLASSEMENT
+// DE LA DGIRD », novembre 2026) : 10 séries, 31 sous-séries, 182 rubriques.
+// Codes : série (A, PM…) → sous-série en chiffres romains (A-I) → rubrique
+// sur deux chiffres (A-I-01). Les rubriques sans subdivision du document
+// (O Généralités, E-II, INFRA-IV, RH-II, RH-III, RH-VII) sont conservées.
+// Modifiable ensuite par l'archiviste tant qu'aucun document n'y est classé.
 export interface NoeudPlan {
   code: string;
   libelle: string;
@@ -31,105 +31,63 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
             "code": "A-I-02",
             "libelle": "Courrier Départ",
             "ordre": 20
-          },
-          {
-            "code": "A-I-03",
-            "libelle": "Courrier interne",
-            "ordre": 30
-          },
-          {
-            "code": "A-I-04",
-            "libelle": "Courrier Ministre",
-            "ordre": 40
-          },
-          {
-            "code": "A-I-05",
-            "libelle": "Notes",
-            "ordre": 50
-          },
-          {
-            "code": "A-I-06",
-            "libelle": "Rapport d’activités",
-            "ordre": 60
-          },
-          {
-            "code": "A-I-07",
-            "libelle": "Rapport de mission",
-            "ordre": 70
-          },
-          {
-            "code": "A-I-08",
-            "libelle": "Rapport passation de service",
-            "ordre": 80
-          },
-          {
-            "code": "A-I-09",
-            "libelle": "Compte rendu de réunion",
-            "ordre": 90
           }
         ]
       },
       {
         "code": "A-II",
-        "libelle": "AUDIT",
+        "libelle": "TEXTES REGLEMENTAIRES",
         "ordre": 20,
         "enfants": [
           {
             "code": "A-II-01",
-            "libelle": "Audit interne",
-            "ordre": 10
-          },
-          {
-            "code": "A-II-02",
-            "libelle": "Audit administratif et financier",
-            "ordre": 20
-          },
-          {
-            "code": "A-II-03",
-            "libelle": "Audit externe",
-            "ordre": 30
-          }
-        ]
-      },
-      {
-        "code": "A-III",
-        "libelle": "TEXTES LÉGISLATIFS ET RÉGLEMENTAIRES",
-        "ordre": 30,
-        "enfants": [
-          {
-            "code": "A-III-01",
             "libelle": "Arrêtés",
             "ordre": 10
           },
           {
-            "code": "A-III-02",
+            "code": "A-II-02",
             "libelle": "Décrets",
             "ordre": 20
           },
           {
-            "code": "A-III-03",
+            "code": "A-II-03",
             "libelle": "Lois",
             "ordre": 30
           },
           {
-            "code": "A-III-04",
+            "code": "A-II-04",
             "libelle": "Circulaire",
             "ordre": 40
           },
           {
-            "code": "A-III-05",
-            "libelle": "Convention",
+            "code": "A-II-05",
+            "libelle": "Note de service",
             "ordre": 50
           },
           {
-            "code": "A-III-06",
-            "libelle": "Journal officiel",
+            "code": "A-II-06",
+            "libelle": "Règlement",
             "ordre": 60
           },
           {
-            "code": "A-III-07",
-            "libelle": "Autres",
+            "code": "A-II-07",
+            "libelle": "Décision",
             "ordre": 70
+          },
+          {
+            "code": "A-II-08",
+            "libelle": "Directive",
+            "ordre": 80
+          },
+          {
+            "code": "A-II-09",
+            "libelle": "Norme",
+            "ordre": 90
+          },
+          {
+            "code": "A-II-10",
+            "libelle": "Code",
+            "ordre": 100
           }
         ]
       }
@@ -137,7 +95,7 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
   },
   {
     "code": "B",
-    "libelle": "BUDGET - FINANCEMENT/FONCTIONNEMENT",
+    "libelle": "BUDGET",
     "ordre": 20,
     "enfants": [
       {
@@ -161,33 +119,6 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
             "ordre": 30
           }
         ]
-      },
-      {
-        "code": "B-II",
-        "libelle": "FONCTIONNEMENT",
-        "ordre": 20,
-        "enfants": [
-          {
-            "code": "B-II-01",
-            "libelle": "Gestion parc automobile",
-            "ordre": 10
-          },
-          {
-            "code": "B-II-02",
-            "libelle": "Carburant",
-            "ordre": 20
-          },
-          {
-            "code": "B-II-03",
-            "libelle": "Réforme véhicule",
-            "ordre": 30
-          },
-          {
-            "code": "B-II-04",
-            "libelle": "Matériels de bureau et mobilier",
-            "ordre": 40
-          }
-        ]
       }
     ]
   },
@@ -203,33 +134,73 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
         "enfants": [
           {
             "code": "C-I-01",
-            "libelle": "Gestion stock (fourniture matériel et mobilier)",
+            "libelle": "Gestion stock (fournitures de bureau et consommables)",
             "ordre": 10
           },
           {
             "code": "C-I-02",
-            "libelle": "Déplacement intérieur/extérieur",
+            "libelle": "Gestion du Carburant",
             "ordre": 20
           },
           {
             "code": "C-I-03",
-            "libelle": "Gestion Ordre de mission",
+            "libelle": "Gestion Ordre de mission & Déplacement",
             "ordre": 30
           },
           {
             "code": "C-I-04",
-            "libelle": "Gestion frais médicaux",
+            "libelle": "Colloques/séminaires/conférences",
             "ordre": 40
           },
           {
             "code": "C-I-05",
-            "libelle": "Etat des salaires et charges",
+            "libelle": "Gestion frais médicaux",
             "ordre": 50
           },
           {
             "code": "C-I-06",
-            "libelle": "Autres (justificatifs)",
+            "libelle": "Etat des salaires et charges",
             "ordre": 60
+          },
+          {
+            "code": "C-I-07",
+            "libelle": "Situation des créances DTP",
+            "ordre": 70
+          },
+          {
+            "code": "C-I-08",
+            "libelle": "Annonces/Insertion publicitaire",
+            "ordre": 80
+          },
+          {
+            "code": "C-I-09",
+            "libelle": "Gestion parc automobile",
+            "ordre": 90
+          },
+          {
+            "code": "C-I-10",
+            "libelle": "Renforcement de capacité",
+            "ordre": 100
+          },
+          {
+            "code": "C-I-11",
+            "libelle": "Entretien et réparation de maintenance informatiques",
+            "ordre": 110
+          },
+          {
+            "code": "C-I-12",
+            "libelle": "Vente de DAO",
+            "ordre": 120
+          },
+          {
+            "code": "C-I-13",
+            "libelle": "Cotisations des organismes",
+            "ordre": 130
+          },
+          {
+            "code": "C-I-14",
+            "libelle": "Autres charges diverses",
+            "ordre": 140
           }
         ]
       }
@@ -257,35 +228,10 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
           },
           {
             "code": "CA-I-03",
-            "libelle": "Conseil Présidentielle",
+            "libelle": "Conseil Présidentiel",
             "ordre": 30
           }
         ]
-      },
-      {
-        "code": "CA-II",
-        "libelle": "CONFERENCE",
-        "ordre": 20
-      },
-      {
-        "code": "CA-III",
-        "libelle": "CONGRES",
-        "ordre": 30
-      },
-      {
-        "code": "CA-IV",
-        "libelle": "ATELIERS",
-        "ordre": 40
-      },
-      {
-        "code": "CA-V",
-        "libelle": "SEMINAIRES",
-        "ordre": 50
-      },
-      {
-        "code": "CA-VI",
-        "libelle": "PV AUTRES REUNIONS",
-        "ordre": 60
       }
     ]
   },
@@ -308,16 +254,6 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
             "code": "E-I-02",
             "libelle": "SDRAN",
             "ordre": 20
-          },
-          {
-            "code": "E-I-03",
-            "libelle": "Contrat de performance",
-            "ordre": 30
-          },
-          {
-            "code": "E-I-04",
-            "libelle": "Plan stratégique",
-            "ordre": 40
           }
         ]
       },
@@ -328,7 +264,7 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
       },
       {
         "code": "E-III",
-        "libelle": "BCDR",
+        "libelle": "BCDR ET SIR",
         "ordre": 30,
         "enfants": [
           {
@@ -340,67 +276,6 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
             "code": "E-III-02",
             "libelle": "SIR",
             "ordre": 20
-          },
-          {
-            "code": "E-III-03",
-            "libelle": "Inventaire routier",
-            "ordre": 30
-          },
-          {
-            "code": "E-III-04",
-            "libelle": "Actualisation du réseau routier",
-            "ordre": 40
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "code": "I",
-    "libelle": "INFORMATIQUE",
-    "ordre": 60,
-    "enfants": [
-      {
-        "code": "I-I",
-        "libelle": "GESTION PARC INFORMATIQUE",
-        "ordre": 10,
-        "enfants": [
-          {
-            "code": "I-I-01",
-            "libelle": "Acquisition de matériels informatiques",
-            "ordre": 10
-          },
-          {
-            "code": "I-I-02",
-            "libelle": "Maintenance informatique",
-            "ordre": 20
-          }
-        ]
-      },
-      {
-        "code": "I-II",
-        "libelle": "COMMUNICATION",
-        "ordre": 20,
-        "enfants": [
-          {
-            "code": "I-II-01",
-            "libelle": "Communication sociale",
-            "ordre": 10
-          },
-          {
-            "code": "I-II-02",
-            "libelle": "Coupure de presse",
-            "ordre": 20
-          },
-          {
-            "code": "I-II-03",
-            "libelle": "Procédurier Archivage",
-            "ordre": 30
-          },
-          {
-            "code": "I-II-04",
-            "libelle": "Inventaire documents",
-            "ordre": 40
           }
         ]
       }
@@ -409,7 +284,7 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
   {
     "code": "INFRA",
     "libelle": "INFRASTRUCTURES",
-    "ordre": 70,
+    "ordre": 60,
     "enfants": [
       {
         "code": "INFRA-I",
@@ -418,24 +293,19 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
         "enfants": [
           {
             "code": "INFRA-I-01",
-            "libelle": "Ouvrage d’art",
+            "libelle": "Inspection des ponts et ouvrages d’art",
             "ordre": 10
           },
           {
             "code": "INFRA-I-02",
-            "libelle": "Inspection des OA",
+            "libelle": "Suivi travaux de ponts et OA",
             "ordre": 20
-          },
-          {
-            "code": "INFRA-I-03",
-            "libelle": "Suivi travaux OA",
-            "ordre": 30
           }
         ]
       },
       {
         "code": "INFRA-II",
-        "libelle": "BACS",
+        "libelle": "BACS ET DEBARCADERES",
         "ordre": 20,
         "enfants": [
           {
@@ -462,6 +332,11 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
             "code": "INFRA-II-05",
             "libelle": "Stratégie de gestion des bacs",
             "ordre": 50
+          },
+          {
+            "code": "INFRA-II-06",
+            "libelle": "Construction et entretien des débarcadères",
+            "ordre": 60
           }
         ]
       },
@@ -472,43 +347,101 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
         "enfants": [
           {
             "code": "INFRA-III-01",
-            "libelle": "Autoroutes",
+            "libelle": "Inspection des routes et autoroutes",
             "ordre": 10
           },
           {
             "code": "INFRA-III-02",
-            "libelle": "Routes nationales",
+            "libelle": "Suivi des projets routiers et autoroutiers",
+            "ordre": 20
+          }
+        ]
+      },
+      {
+        "code": "INFRA-IV",
+        "libelle": "BATIMENTS",
+        "ordre": 40
+      },
+      {
+        "code": "INFRA-V",
+        "libelle": "SECURITE ROUTIERE",
+        "ordre": 50,
+        "enfants": [
+          {
+            "code": "INFRA-V-01",
+            "libelle": "Audit des infrastructures routières",
+            "ordre": 10
+          },
+          {
+            "code": "INFRA-V-02",
+            "libelle": "Inspection des équipements de signalisation",
             "ordre": 20
           },
           {
-            "code": "INFRA-III-03",
-            "libelle": "Routes régionales",
+            "code": "INFRA-V-03",
+            "libelle": "Sensibilisation des acteurs de la route",
             "ordre": 30
+          }
+        ]
+      },
+      {
+        "code": "INFRA-VI",
+        "libelle": "CHARGE A L’ESSIEU",
+        "ordre": 60,
+        "enfants": [
+          {
+            "code": "INFRA-VI-01",
+            "libelle": "Rapport statistiques pesages",
+            "ordre": 10
           },
           {
-            "code": "INFRA-III-04",
-            "libelle": "Routes départementales",
-            "ordre": 40
+            "code": "INFRA-VI-02",
+            "libelle": "Rapport statistique délestages",
+            "ordre": 20
           },
           {
-            "code": "INFRA-III-05",
-            "libelle": "Routes communautaires",
-            "ordre": 50
+            "code": "INFRA-VI-03",
+            "libelle": "Exécution contrat de suivi de la charge à l’essieu",
+            "ordre": 30
+          }
+        ]
+      },
+      {
+        "code": "INFRA-VII",
+        "libelle": "QUALITE",
+        "ordre": 70,
+        "enfants": [
+          {
+            "code": "INFRA-VII-01",
+            "libelle": "Plan Assurance Qualité",
+            "ordre": 10
           },
           {
-            "code": "INFRA-III-06",
-            "libelle": "Pistes rurales",
-            "ordre": 60
+            "code": "INFRA-VII-02",
+            "libelle": "Système Management Qualité de la Direction des Routes",
+            "ordre": 20
+          }
+        ]
+      },
+      {
+        "code": "INFRA-VIII",
+        "libelle": "ENVIRONNEMENT ET DEVELOPPEMENT DURABLE",
+        "ordre": 80,
+        "enfants": [
+          {
+            "code": "INFRA-VIII-01",
+            "libelle": "CDN",
+            "ordre": 10
           },
           {
-            "code": "INFRA-III-07",
-            "libelle": "Voirie urbaine",
-            "ordre": 70
+            "code": "INFRA-VIII-02",
+            "libelle": "COP",
+            "ordre": 20
           },
           {
-            "code": "INFRA-III-08",
-            "libelle": "Voirie urbaine de grande circulation",
-            "ordre": 80
+            "code": "INFRA-VIII-03",
+            "libelle": "Etudes environnementales réalisées par d’autres structures",
+            "ordre": 30
           }
         ]
       }
@@ -517,12 +450,12 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
   {
     "code": "O",
     "libelle": "GENERALITES",
-    "ordre": 80
+    "ordre": 70
   },
   {
     "code": "PM",
     "libelle": "PASSATION DES MARCHES",
-    "ordre": 90,
+    "ordre": 80,
     "enfants": [
       {
         "code": "PM-I",
@@ -613,132 +546,17 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
       {
         "code": "PM-IV",
         "libelle": "SUIVI – EVALUATION",
-        "ordre": 40
-      }
-    ]
-  },
-  {
-    "code": "Q",
-    "libelle": "QUALITE/REGLEMENTATION/NORMALISATION",
-    "ordre": 100,
-    "enfants": [
-      {
-        "code": "Q-I",
-        "libelle": "REGLEMENTATION",
-        "ordre": 10,
-        "enfants": [
-          {
-            "code": "Q-I-01",
-            "libelle": "Code de la voirie",
-            "ordre": 10
-          },
-          {
-            "code": "Q-I-02",
-            "libelle": "Guide de valorisation des matériaux innovants",
-            "ordre": 20
-          },
-          {
-            "code": "Q-I-03",
-            "libelle": "Etudes sur les matériaux dans la construction routière",
-            "ordre": 30
-          },
-          {
-            "code": "Q-I-04",
-            "libelle": "Série prix travaux routiers",
-            "ordre": 40
-          }
-        ]
-      },
-      {
-        "code": "Q-II",
-        "libelle": "NORMES CONSTRUCTION ROUTIERE",
-        "ordre": 20
-      },
-      {
-        "code": "Q-III",
-        "libelle": "SECURITE ROUTIERE",
-        "ordre": 30,
-        "enfants": [
-          {
-            "code": "Q-III-01",
-            "libelle": "Audit des infrastructures routières",
-            "ordre": 10
-          },
-          {
-            "code": "Q-III-02",
-            "libelle": "Inspection des équipements de signalisation",
-            "ordre": 20
-          },
-          {
-            "code": "Q-III-03",
-            "libelle": "Sensibilisation des acteurs de la route",
-            "ordre": 30
-          }
-        ]
-      },
-      {
-        "code": "Q-IV",
-        "libelle": "CHARGE A L’ESSIEU",
         "ordre": 40,
         "enfants": [
           {
-            "code": "Q-IV-01",
-            "libelle": "Contrôle de la charge à l’essieu",
+            "code": "PM-IV-01",
+            "libelle": "PPM",
             "ordre": 10
           },
           {
-            "code": "Q-IV-02",
-            "libelle": "Normes communautaires",
+            "code": "PM-IV-02",
+            "libelle": "Rapport d’activités DGIRD",
             "ordre": 20
-          },
-          {
-            "code": "Q-IV-03",
-            "libelle": "Normes européennes",
-            "ordre": 30
-          }
-        ]
-      },
-      {
-        "code": "Q-V",
-        "libelle": "QUALITE",
-        "ordre": 50,
-        "enfants": [
-          {
-            "code": "Q-V-01",
-            "libelle": "Plan Assurance Qualité",
-            "ordre": 10
-          },
-          {
-            "code": "Q-V-02",
-            "libelle": "Système Management Qualité de la Direction des Routes",
-            "ordre": 20
-          }
-        ]
-      },
-      {
-        "code": "Q-VI",
-        "libelle": "ENVIRONNEMENT ET DEVELOPPEMENT DURABLE",
-        "ordre": 60,
-        "enfants": [
-          {
-            "code": "Q-VI-01",
-            "libelle": "Evaluation Environnementale",
-            "ordre": 10
-          },
-          {
-            "code": "Q-VI-02",
-            "libelle": "RSE",
-            "ordre": 20
-          },
-          {
-            "code": "Q-VI-03",
-            "libelle": "Changement climatique",
-            "ordre": 30
-          },
-          {
-            "code": "Q-VI-04",
-            "libelle": "Développement durable",
-            "ordre": 40
           }
         ]
       }
@@ -747,7 +565,7 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
   {
     "code": "RH",
     "libelle": "RESSOURCES HUMAINES",
-    "ordre": 110,
+    "ordre": 90,
     "enfants": [
       {
         "code": "RH-I",
@@ -761,12 +579,12 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
           },
           {
             "code": "RH-I-02",
-            "libelle": "Gestion prévisionnelle des emplois et des compétences (GPEC)",
+            "libelle": "Passation de service",
             "ordre": 20
           },
           {
             "code": "RH-I-03",
-            "libelle": "Rotation de l’emploi (Turn-over)",
+            "libelle": "Gestion prévisionnelle des emplois et des compétences (GPEC)",
             "ordre": 30
           }
         ]
@@ -822,18 +640,13 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
         "enfants": [
           {
             "code": "RH-VI-01",
-            "libelle": "Besoins en formation",
+            "libelle": "Plan de formation",
             "ordre": 10
           },
           {
             "code": "RH-VI-02",
-            "libelle": "Plan de formation",
-            "ordre": 20
-          },
-          {
-            "code": "RH-VI-03",
             "libelle": "Evaluation formation",
-            "ordre": 30
+            "ordre": 20
           }
         ]
       },
@@ -847,7 +660,7 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
   {
     "code": "S",
     "libelle": "STRUCTURES",
-    "ordre": 120,
+    "ordre": 100,
     "enfants": [
       {
         "code": "S-I",
@@ -856,12 +669,12 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
         "enfants": [
           {
             "code": "S-I-01",
-            "libelle": "CM",
+            "libelle": "Cabinet Ministre",
             "ordre": 10
           },
           {
             "code": "S-I-02",
-            "libelle": "SG",
+            "libelle": "SG Ministre",
             "ordre": 20
           },
           {
@@ -886,53 +699,73 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
           },
           {
             "code": "S-I-07",
-            "libelle": "CEREEQ",
+            "libelle": "LNR – BTP (CEREEQ)",
             "ordre": 70
           },
           {
             "code": "S-I-08",
-            "libelle": "DTR",
+            "libelle": "DGTT",
             "ordre": 80
           },
           {
             "code": "S-I-09",
-            "libelle": "DSD",
+            "libelle": "ADS",
             "ordre": 90
           },
           {
             "code": "S-I-10",
-            "libelle": "DDD",
+            "libelle": "ANASER",
             "ordre": 100
           },
           {
             "code": "S-I-11",
-            "libelle": "CFPTP",
+            "libelle": "DDD",
             "ordre": 110
           },
           {
             "code": "S-I-12",
-            "libelle": "CFPMR",
+            "libelle": "CFPTP",
             "ordre": 120
           },
           {
             "code": "S-I-13",
-            "libelle": "SGRF",
+            "libelle": "CFPMR",
             "ordre": 130
           },
           {
             "code": "S-I-14",
-            "libelle": "ANCF",
+            "libelle": "SERF",
             "ordre": 140
           },
           {
             "code": "S-I-15",
-            "libelle": "SENTER",
+            "libelle": "ANCF",
             "ordre": 150
           },
           {
             "code": "S-I-16",
-            "libelle": "CCTVA",
+            "libelle": "CFS",
             "ordre": 160
+          },
+          {
+            "code": "S-I-17",
+            "libelle": "GTS",
+            "ordre": 170
+          },
+          {
+            "code": "S-I-18",
+            "libelle": "SENTER",
+            "ordre": 180
+          },
+          {
+            "code": "S-I-19",
+            "libelle": "CCTVA",
+            "ordre": 190
+          },
+          {
+            "code": "S-I-20",
+            "libelle": "FDTT",
+            "ordre": 200
           }
         ]
       },
@@ -978,13 +811,8 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
           },
           {
             "code": "S-II-08",
-            "libelle": "SSATP",
-            "ordre": 80
-          },
-          {
-            "code": "S-II-09",
             "libelle": "Autres Programmes",
-            "ordre": 90
+            "ordre": 80
           }
         ]
       },
@@ -1142,7 +970,7 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
           },
           {
             "code": "S-IV-08",
-            "libelle": "AIPCR",
+            "libelle": "AIPCR/PIARC",
             "ordre": 80
           },
           {
@@ -1152,32 +980,15 @@ export const PLAN_CLASSEMENT_DR: NoeudPlan[] = [
           },
           {
             "code": "S-IV-10",
-            "libelle": "Autres PTF",
+            "libelle": "SSATP",
             "ordre": 100
+          },
+          {
+            "code": "S-IV-11",
+            "libelle": "Autres PTF",
+            "ordre": 110
           }
         ]
-      }
-    ]
-  },
-  {
-    "code": "T",
-    "libelle": "TRAVAUX",
-    "ordre": 130,
-    "enfants": [
-      {
-        "code": "T-I",
-        "libelle": "Réhabilitation/Construction de bâtiment",
-        "ordre": 10
-      },
-      {
-        "code": "T-II",
-        "libelle": "Réhabilitation/Construction de débarcadères",
-        "ordre": 20
-      },
-      {
-        "code": "T-III",
-        "libelle": "Réhabilitation/Construction poste de pesage",
-        "ordre": 30
       }
     ]
   }

@@ -242,12 +242,12 @@ export function PlanClassementManager({ organisationId, peutModifier }: Props) {
           <EtatVide
             icone={FolderTree}
             titre="Aucun dossier pour le moment"
-            description={peutModifier ? 'Importez le plan de classement de la Direction des Routes, ou créez vos séries une à une.' : undefined}
+            description={peutModifier ? 'Importez le plan de classement de la DGIRD (version 6 : 10 séries, 182 rubriques), ou créez vos séries une à une.' : undefined}
           >
             {peutModifier && (
               <Button onClick={() => importer.mutate()} disabled={importer.isPending}>
                 <Download />
-                {importer.isPending ? 'Import…' : 'Importer le plan de la Direction des Routes'}
+                {importer.isPending ? 'Import…' : 'Importer le plan de classement DGIRD'}
               </Button>
             )}
           </EtatVide>

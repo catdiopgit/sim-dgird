@@ -9,10 +9,16 @@ import { ProfileService } from './profile.service';
 import { AuthSchemaService } from './auth-schema.service';
 import { JournalSecuriteService } from './journal-securite.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { ActivationService } from './activation.service';
+import { ActivationController } from './activation.controller';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { PermissionsModule } from '../administration/permissions/permissions.module';
 
 @Module({
   imports: [
     UtilisateursModule,
+    NotificationsModule,
+    PermissionsModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -25,8 +31,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       }),
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, ProfileService, AuthSchemaService, JournalSecuriteService],
+  controllers: [AuthController, ActivationController],
+  providers: [AuthService, ActivationService, JwtStrategy, ProfileService, AuthSchemaService, JournalSecuriteService],
   exports: [JournalSecuriteService],
 })
 export class AuthModule {}

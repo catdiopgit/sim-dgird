@@ -23,7 +23,9 @@ export type EvenementSecurite =
   | 'tentatives_excessives'
   | 'mot_de_passe_change'
   | 'mot_de_passe_reinitialise'
-  | 'deconnexion';
+  | 'deconnexion'
+  | 'lien_activation_envoye'
+  | 'compte_active';
 
 // v8.6.6 — journal des événements de sécurité dans journal_audit (visible
 // dans Administration → Audit, type « securite »). Jamais de mot de passe.

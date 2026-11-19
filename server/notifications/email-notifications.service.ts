@@ -183,4 +183,38 @@ export class EmailNotificationsService {
       transporteur.close();
     }
   }
+
+  // v8.6.9 — envoi immédiat d'un message (lien d'activation…). Renvoie un motif
+  // lisible si l'envoi est impossible (compte SMTP absent, inactif ou réseau).
+  async envoyerMessage(
+    organisationId: string,
+    message: { to: string; subject: string; text: string },
+  ): Promise<{ ok: boolean; message: string }> {
+    const smtp = await this.parametresSmtp
+      .createQueryBuilder('s')
+      .addSelect('s.motDePasse')
+      .where('s.organisationId = :organisationId', { organisationId })
+      .getOne();
+    if (!smtp || !smtp.motDePasse) return { ok: false, message: "L'envoi d'e-mails n'est pas configuré (Administration → Paramétrage → Messagerie)." };
+    if (!smtp.actif) return { ok: false, message: "L'envoi d'e-mails n'est pas encore activé (case « Actif » du paramétrage de messagerie)." };
+    const transporteur = nodemailer.createTransport({
+      host: smtp.hote,
+      port: smtp.port,
+      secure: smtp.securite === 'ssl',
+      auth: { user: smtp.utilisateur, pass: decrypt(smtp.motDePasse) },
+      connectionTimeout: 15000,
+      greetingTimeout: 15000,
+    });
+    try {
+      await transporteur.sendMail({
+        from: smtp.nomExpediteur ? `${smtp.nomExpediteur} <${smtp.adresseExpediteur}>` : smtp.adresseExpediteur,
+        ...message,
+      });
+      return { ok: true, message: `E-mail envoyé à ${message.to}.` };
+    } catch (err) {
+      return { ok: false, message: `Le serveur de messagerie est injoignable ou a refusé l'envoi (${(err as Error).message}).` };
+    } finally {
+      transporteur.close();
+    }
+  }
 }

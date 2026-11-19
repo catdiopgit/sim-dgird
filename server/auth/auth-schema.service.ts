@@ -27,6 +27,9 @@ export class AuthSchemaService implements OnModuleInit {
       await this.dataSource.query('alter table utilisateurs add column if not exists mot_de_passe_modifie_le timestamptz');
       await this.dataSource.query('alter table utilisateurs add column if not exists jeton_version integer not null default 0');
       await enregistrerVersionSchema(this.dataSource, 'v8.6.5-comptes', 'Sécurité des comptes : changement obligatoire, verrouillage');
+      await this.dataSource.query('alter table utilisateurs add column if not exists jeton_activation_hash text');
+      await this.dataSource.query('alter table utilisateurs add column if not exists jeton_activation_expire timestamptz');
+      await enregistrerVersionSchema(this.dataSource, 'v8.6.9-activation', 'Liens d\'activation de compte à usage unique');
       await enregistrerVersionSchema(this.dataSource, 'v8.6.6-jetons', 'Révocation des jetons (jeton_version)');
       if (existe.length === 0) {
         const n: Array<{ count: string }> = await this.dataSource.query(

@@ -1,7 +1,8 @@
-import { KeyRound, Lock, LockKeyholeOpen, Pencil, Plus, Search, Users, X } from 'lucide-react';
+import { KeyRound, Lock, LockKeyholeOpen, Mail, Pencil, Plus, Search, Users, X } from 'lucide-react';
 import { Confirmation } from '../../../components/form/confirm-dialog';
 import { message } from '../../../lib/notifications';
-import { reinitialiserMotDePasse } from '../../../services/administration/utilisateurs';
+import { envoyerLienActivation, reinitialiserMotDePasse } from '../../../services/administration/utilisateurs';
+import type { AgentFiche } from './FicheAcces';
 import { useMemo, useState } from 'react';
 import { Badge } from '../../../components/ui/badge';
 import { Button } from '../../../components/ui/button';
@@ -37,7 +38,8 @@ export function UtilisateursTab() {
   const [entitesFiltre, setEntitesFiltre] = useState<string[]>([]);
   const [utilisateurEnEdition, setUtilisateurEnEdition] = useState<Utilisateur | 'nouveau' | null>(null);
   const [utilisateurRoles, setUtilisateurRoles] = useState<Utilisateur | null>(null);
-  const [reinitialisation, setReinitialisation] = useState<{ email: string; motDePasseTemporaire: string } | null>(null);
+  const [reinitialisation, setReinitialisation] = useState<{ email: string; motDePasseTemporaire: string; agent: AgentFiche } | null>(null);
+  const [envoiEnCours, setEnvoiEnCours] = useState(false);
   const [reinitEnCours, setReinitEnCours] = useState(false);
 
   const peutCreer = can('utilisateurs', 'creer');
@@ -185,6 +187,42 @@ export function UtilisateursTab() {
                             <Pencil />
                           </Button>
                         )}
+                        {peutModifier && u.statut === 'actif' && (
+                          <Confirmation
+                            titre={`Envoyer un lien d'activation à ${u.prenom} ${u.nom} ?`}
+                            libelleConfirmer="Envoyer"
+                            enCours={envoiEnCours}
+                            onConfirmer={async (fermer) => {
+                              setEnvoiEnCours(true);
+                              try {
+                                const r = await envoyerLienActivation(u.id);
+                                message.success(r.message);
+                                fermer();
+                              } catch (e) {
+                                message.error((e as Error).message);
+                              } finally {
+                                setEnvoiEnCours(false);
+                              }
+                            }}
+                            declencheur={(ouvrir) => (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8"
+                                onClick={ouvrir}
+                                aria-label={`Envoyer un lien d'activation à ${u.prenom} ${u.nom}`}
+                                title="Envoyer le lien d'activation par e-mail"
+                              >
+                                <Mail />
+                              </Button>
+                            )}
+                          >
+                            <p>
+                              Un e-mail sera envoyé à <b>{u.email}</b> avec un lien valable 48 heures et utilisable une seule
+                              fois, pour que l'agent choisisse lui-même son mot de passe. Aucun mot de passe n'est envoyé.
+                            </p>
+                          </Confirmation>
+                        )}
                         {peutModifier && (
                           <Confirmation
                             titre={`Réinitialiser le mot de passe de ${u.prenom} ${u.nom} ?`}
@@ -193,7 +231,17 @@ export function UtilisateursTab() {
                             onConfirmer={async (fermer) => {
                               setReinitEnCours(true);
                               try {
-                                setReinitialisation(await reinitialiserMotDePasse(u.id));
+                                const r = await reinitialiserMotDePasse(u.id);
+                                const ent = u.entite_id ? entiteParId.get(u.entite_id) : undefined;
+                                setReinitialisation({
+                                  ...r,
+                                  agent: {
+                                    prenom: u.prenom,
+                                    nom: u.nom,
+                                    entite: ent ? [ent.sigle, ent.libelle].filter(Boolean).join(' — ') : null,
+                                    fonction: u.fonction_id ? (fonctionParId.get(u.fonction_id) ?? null) : null,
+                                  },
+                                });
                                 fermer();
                               } catch (e) {
                                 message.error((e as Error).message);
@@ -255,6 +303,7 @@ export function UtilisateursTab() {
           resultat={reinitialisation}
           titre="Mot de passe réinitialisé"
           confirmation="Nouveau mot de passe temporaire généré"
+          agent={reinitialisation.agent}
           onClose={() => setReinitialisation(null)}
         />
       )}

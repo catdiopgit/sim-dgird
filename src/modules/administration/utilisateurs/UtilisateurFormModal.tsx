@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Check, CircleCheck, Copy } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Check, CircleCheck, Copy, Printer } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Champ } from '../../../components/form/champ';
@@ -11,6 +11,8 @@ import { Input } from '../../../components/ui/input';
 import { NativeSelect } from '../../../components/ui/native-select';
 import { useCreerUtilisateur, useUpdateUtilisateur } from '../../../hooks/administration/useUtilisateurs';
 import { ariaErreur } from '../../../lib/form';
+import { imprimerZone } from '../../../utils/imprimer';
+import { FicheAcces, type AgentFiche } from './FicheAcces';
 import type { Entite } from '../../../services/administration/entites';
 import type { Fonction } from '../../../services/administration/fonctions';
 import type { CreerUtilisateurResultat, Utilisateur } from '../../../services/administration/utilisateurs';
@@ -41,13 +43,16 @@ export function ResultatCreation({
   onClose,
   titre = 'Utilisateur créé',
   confirmation = 'Compte créé avec succès',
+  agent,
 }: {
   resultat: Pick<CreerUtilisateurResultat, 'email' | 'motDePasseTemporaire'>;
   onClose: () => void;
   titre?: string;
   confirmation?: string;
+  agent?: AgentFiche;
 }) {
   const [copie, setCopie] = useState(false);
+  const refFiche = useRef<HTMLDivElement>(null);
   const copier = async () => {
     try {
       await navigator.clipboard.writeText(resultat.motDePasseTemporaire);
@@ -88,7 +93,18 @@ export function ResultatCreation({
             </div>
           </dl>
         </DialogBody>
+        {agent && (
+          <div className="hidden">
+            <FicheAcces ref={refFiche} agent={agent} email={resultat.email} motDePasse={resultat.motDePasseTemporaire} />
+          </div>
+        )}
         <DialogFooter>
+          {agent && (
+            <Button variant="outline" onClick={() => imprimerZone(refFiche.current, `Fiche d'accès — ${agent.prenom} ${agent.nom}`)}>
+              <Printer />
+              Imprimer la fiche d'accès
+            </Button>
+          )}
           <Button onClick={onClose}>Fermer</Button>
         </DialogFooter>
       </DialogContent>
@@ -101,6 +117,7 @@ export function UtilisateurFormModal({ open, utilisateur, organisationId, entite
   const creer = useCreerUtilisateur(organisationId);
   const modifier = useUpdateUtilisateur(organisationId);
   const [resultatCreation, setResultatCreation] = useState<CreerUtilisateurResultat | null>(null);
+  const [agentCree, setAgentCree] = useState<AgentFiche | undefined>(undefined);
 
   const {
     register,
@@ -166,12 +183,23 @@ export function UtilisateurFormModal({ open, utilisateur, organisationId, entite
           matricule: values.matricule || null,
           telephone: values.telephone || null,
         },
-        { onSuccess: (resultat) => setResultatCreation(resultat) },
+        {
+          onSuccess: (resultat) => {
+            const entite = entites.find((e) => e.id === values.entiteId);
+            setAgentCree({
+              prenom: values.prenom,
+              nom: values.nom,
+              entite: entite ? [entite.sigle, entite.libelle].filter(Boolean).join(' — ') : null,
+              fonction: fonctions.find((f) => f.id === values.fonctionId)?.libelle ?? null,
+            });
+            setResultatCreation(resultat);
+          },
+        },
       );
     }
   };
 
-  if (open && resultatCreation) return <ResultatCreation resultat={resultatCreation} onClose={onClose} />;
+  if (open && resultatCreation) return <ResultatCreation resultat={resultatCreation} agent={agentCree} onClose={onClose} />;
 
   return (
     <FormDialog

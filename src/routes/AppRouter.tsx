@@ -32,12 +32,17 @@ import { ProjetStatistiquesPage } from '../modules/projets/ProjetStatistiquesPag
 import { ProjetsPage } from '../modules/projets/ProjetsPage';
 import { DashboardPage } from '../pages/DashboardPage';
 import { LoginPage } from '../pages/LoginPage';
+import { ActivationPage } from '../pages/ActivationPage';
 import { ProtectedRoute } from './ProtectedRoute';
 
 export const router = createBrowserRouter([
   {
     path: '/login',
     element: <LoginPage />,
+  },
+  {
+    path: '/activation',
+    element: <ActivationPage />,
   },
   {
     element: <ProtectedRoute />,

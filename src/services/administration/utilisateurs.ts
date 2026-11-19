@@ -71,3 +71,17 @@ export async function changerMonMotDePasse(actuel: string, nouveau: string): Pro
   const r = await api.post<{ accessToken?: string }>('/auth/mot-de-passe', { actuel, nouveau });
   if (r?.accessToken) setToken(r.accessToken);
 }
+
+// v8.6.9 : lien d'activation à usage unique envoyé par e-mail (l'agent choisit
+// lui-même son mot de passe ; aucun mot de passe ne circule).
+export async function envoyerLienActivation(utilisateurId: string): Promise<{ ok: boolean; message: string }> {
+  return api.post<{ ok: boolean; message: string }>(`/administration/utilisateurs/${utilisateurId}/envoyer-activation`, {});
+}
+
+export async function verifierLienActivation(jeton: string): Promise<{ email: string; prenom: string }> {
+  return api.get<{ email: string; prenom: string }>('/auth/activation', { jeton });
+}
+
+export async function activerCompte(jeton: string, nouveau: string): Promise<{ ok: boolean; email: string }> {
+  return api.post<{ ok: boolean; email: string }>('/auth/activation', { jeton, nouveau });
+}

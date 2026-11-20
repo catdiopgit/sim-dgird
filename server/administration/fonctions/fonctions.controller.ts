@@ -1,8 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { IsBoolean, IsOptional, IsString, IsUUID } from 'class-validator';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequirePermission } from '../permissions/require-permission.decorator';
 import { FonctionsService } from './fonctions.service';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthenticatedUser } from '../../auth/strategies/jwt.strategy';
 
 class UpsertFonctionDto {
   @IsOptional() @IsUUID() organisationId?: string;
@@ -16,10 +18,12 @@ class UpsertFonctionDto {
 export class FonctionsController {
   constructor(private readonly fonctionsService: FonctionsService) {}
 
+  // v8.7.2 : référentiel en lecture pour tous (fiche d'exploitation : fonction
+  // de l'agent qui a enregistré le courrier), limité à l'organisation de
+  // l'utilisateur connecté, comme les entités.
   @Get()
-  @RequirePermission('administration', 'consulter')
-  findByOrganisation(@Query('organisationId') organisationId: string) {
-    return this.fonctionsService.findByOrganisation(organisationId);
+  findByOrganisation(@CurrentUser() user: AuthenticatedUser) {
+    return this.fonctionsService.findByOrganisation(user.organisationId);
   }
 
   @Post()

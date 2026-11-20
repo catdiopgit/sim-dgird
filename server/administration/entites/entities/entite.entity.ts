@@ -43,6 +43,11 @@ export class Entite {
   @Column({ type: 'int', default: 0 })
   ordre: number;
 
+  // v8.7.2 : entité listée dans la grille d'imputation de la fiche
+  // d'exploitation des courriers arrivée (ordre = colonne `ordre`).
+  @Column({ type: 'boolean', name: 'sur_fiche_exploitation', default: false })
+  surFicheExploitation: boolean;
+
   @Column({ type: 'boolean', default: true })
   actif: boolean;
 

@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../../auth/strategies/jwt.strategy';
-import { IsBoolean, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator';
 import { PermissionsGuard } from '../permissions/permissions.guard';
 import { RequirePermission } from '../permissions/require-permission.decorator';
 import { EntitesService } from './entites.service';
@@ -17,6 +17,8 @@ class UpsertEntiteDto {
   @IsOptional() @IsUUID() personneReceptriceId?: string | null;
   @IsOptional() @IsBoolean() receptricePeutAffecter?: boolean;
   @IsOptional() @IsBoolean() actif?: boolean;
+  @IsOptional() @IsInt() @Min(0) ordre?: number;
+  @IsOptional() @IsBoolean() surFicheExploitation?: boolean;
 }
 
 class CreateTypeEntiteDto {

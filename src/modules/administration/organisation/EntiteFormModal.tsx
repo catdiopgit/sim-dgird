@@ -19,6 +19,8 @@ const schema = z.object({
   responsable_utilisateur_id: z.string().optional(),
   personne_receptrice_id: z.string().optional(),
   receptrice_peut_affecter: z.boolean().optional(),
+  ordre: z.number({ message: 'Nombre requis' }).int().min(0, 'Nombre positif').optional(),
+  sur_fiche_exploitation: z.boolean().optional(),
 });
 export type EntiteFormValues = z.infer<typeof schema>;
 
@@ -62,6 +64,8 @@ export function EntiteFormModal({
       responsable_utilisateur_id: '',
       personne_receptrice_id: '',
       receptrice_peut_affecter: false,
+      ordre: 0,
+      sur_fiche_exploitation: false,
     },
   });
 
@@ -75,6 +79,8 @@ export function EntiteFormModal({
         responsable_utilisateur_id: valeursInitiales?.responsable_utilisateur_id ?? '',
         personne_receptrice_id: valeursInitiales?.personne_receptrice_id ?? '',
         receptrice_peut_affecter: valeursInitiales?.receptrice_peut_affecter ?? false,
+        ordre: valeursInitiales?.ordre ?? 0,
+        sur_fiche_exploitation: valeursInitiales?.sur_fiche_exploitation ?? false,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -123,6 +129,14 @@ export function EntiteFormModal({
         <Champ label="Sigle" htmlFor="entite-sigle">
           <Input id="entite-sigle" {...register('sigle')} />
         </Champ>
+        <Champ
+          label="Ordre d'affichage"
+          htmlFor="entite-ordre"
+          aide="Position de l'entité dans les listes et l'organigramme (du plus petit au plus grand)."
+          erreur={errors.ordre?.message}
+        >
+          <Input id="entite-ordre" type="number" min={0} step={1} {...register('ordre', { valueAsNumber: true })} />
+        </Champ>
         <Champ label="Responsable" htmlFor="entite-responsable">
           <NativeSelect id="entite-responsable" {...register('responsable_utilisateur_id')}>
             <option value="">Aucun</option>
@@ -146,6 +160,15 @@ export function EntiteFormModal({
           La personne réceptrice peut affecter les courriers à un agent <strong>au nom du responsable</strong>
           <span className="block text-[12px] text-muted-foreground">
             L'historique indiquera « pour le compte de » le responsable.
+          </span>
+        </span>
+      </label>
+      <label className="flex items-start gap-2 text-[13px]">
+        <input type="checkbox" className="mt-0.5 size-4 accent-primary" {...register('sur_fiche_exploitation')} />
+        <span>
+          Afficher sur la <strong>fiche d'exploitation</strong> des courriers arrivée
+          <span className="block text-[12px] text-muted-foreground">
+            La grille d'imputation liste ces entités, dans l'ordre d'affichage.
           </span>
         </span>
       </label>

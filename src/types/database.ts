@@ -658,6 +658,7 @@ export type Database = {
           responsable_utilisateur_id: string | null;
           personne_receptrice_id: string | null;
           receptrice_peut_affecter: boolean;
+          sur_fiche_exploitation: boolean;
           chemin: unknown | null;
           niveau: number;
           ordre: number;
@@ -676,6 +677,7 @@ export type Database = {
           responsable_utilisateur_id?: string | null;
           personne_receptrice_id?: string | null;
           receptrice_peut_affecter?: boolean;
+          sur_fiche_exploitation?: boolean;
           chemin?: unknown | null;
           niveau?: number;
           ordre?: number;
@@ -694,6 +696,7 @@ export type Database = {
           responsable_utilisateur_id?: string | null;
           personne_receptrice_id?: string | null;
           receptrice_peut_affecter?: boolean;
+          sur_fiche_exploitation?: boolean;
           chemin?: unknown | null;
           niveau?: number;
           ordre?: number;

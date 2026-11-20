@@ -33,6 +33,7 @@ export interface UtilisateurOption {
   // Statut du compte (actif, inactif…) : l'aperçu d'une note diffusée au
   // personnel ne compte que les agents actifs.
   statut: string | null;
+  fonctionId: string | null;
 }
 
 // Sélecteur léger réutilisé par le formulaire d'entité (responsable) et par les
@@ -42,7 +43,14 @@ export interface UtilisateurOption {
 // l'organisation, volumes faibles ~20 utilisateurs).
 export async function listUtilisateursOptions(organisationId: string): Promise<UtilisateurOption[]> {
   const data = await api.get<
-    Array<{ id: string; nom: string; prenom: string; entiteId: string | null; statut?: string | null }>
+    Array<{ id: string; nom: string; prenom: string; entiteId: string | null; statut?: string | null; fonctionId?: string | null }>
   >('/administration/utilisateurs', { organisationId });
-  return data.map((u) => ({ id: u.id, nom: u.nom, prenom: u.prenom, entiteId: u.entiteId, statut: u.statut ?? null }));
+  return data.map((u) => ({
+    id: u.id,
+    nom: u.nom,
+    prenom: u.prenom,
+    entiteId: u.entiteId,
+    statut: u.statut ?? null,
+    fonctionId: u.fonctionId ?? null,
+  }));
 }

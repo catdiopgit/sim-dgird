@@ -78,7 +78,7 @@ export function EntitesTree({ organisationId, peutModifier }: Props) {
       liste.push(e);
       enfantsParParent.set(e.parent_entite_id, liste);
     }
-    for (const liste of enfantsParParent.values()) liste.sort((a, b) => a.ordre - b.ordre);
+    for (const liste of enfantsParParent.values()) liste.sort((a, b) => a.ordre - b.ordre || a.libelle.localeCompare(b.libelle, 'fr'));
 
     const construireNoeuds = (parentId: string | null): NoeudArbre[] =>
       (enfantsParParent.get(parentId) ?? []).map((e) => ({
@@ -89,6 +89,11 @@ export function EntitesTree({ organisationId, peutModifier }: Props) {
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="font-medium">{e.libelle}</span>
             {e.sigle && <span className="font-mono text-[12px] text-muted-foreground">{e.sigle}</span>}
+            {e.sur_fiche_exploitation && (
+              <Badge variant="outline" shape="pill" title="Affichée sur la fiche d'exploitation">
+                fiche
+              </Badge>
+            )}
             <Badge variant="muted" shape="pill">
               {typeParId.get(e.type_entite_id) ?? '—'}
             </Badge>
@@ -116,6 +121,8 @@ export function EntitesTree({ organisationId, peutModifier }: Props) {
       responsable_utilisateur_id: values.responsable_utilisateur_id || null,
       personne_receptrice_id: values.personne_receptrice_id || null,
       receptrice_peut_affecter: values.receptrice_peut_affecter ?? false,
+      ordre: values.ordre ?? 0,
+      sur_fiche_exploitation: values.sur_fiche_exploitation ?? false,
     };
     if (modalState?.mode === 'creer-racine') {
       create.mutate(
@@ -199,6 +206,8 @@ export function EntitesTree({ organisationId, peutModifier }: Props) {
                 responsable_utilisateur_id: modalState.entite.responsable_utilisateur_id ?? '',
                 personne_receptrice_id: modalState.entite.personne_receptrice_id ?? '',
                 receptrice_peut_affecter: modalState.entite.receptrice_peut_affecter ?? false,
+                ordre: modalState.entite.ordre ?? 0,
+                sur_fiche_exploitation: modalState.entite.sur_fiche_exploitation ?? false,
               }
             : undefined
         }

@@ -12,7 +12,8 @@ export class EntitesService {
   ) {}
 
   findByOrganisation(organisationId: string): Promise<Entite[]> {
-    return this.entites.find({ where: { organisationId }, order: { ordre: 'ASC' } });
+    // v8.7.2 : ordre officiel de l'organigramme, puis libellé.
+    return this.entites.find({ where: { organisationId }, order: { ordre: 'ASC', libelle: 'ASC' } });
   }
 
   async findOne(id: string): Promise<Entite> {

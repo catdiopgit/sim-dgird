@@ -234,6 +234,8 @@ export class ParametrageService {
         String(ctx.sequence).padStart(largeur ? Number(largeur) : 1, '0'),
       )
       .replace(/\{ANNEE\}/g, String(ctx.date.getFullYear()))
+      // v8.7.3 : année sur deux chiffres (fiche officielle DGIRD : MI/DGIRD/0000001 - 26).
+      .replace(/\{AA\}/g, String(ctx.date.getFullYear()).slice(-2))
       .replace(/\{MOIS\}/g, String(ctx.date.getMonth() + 1).padStart(2, '0'))
       .replace(/\{ORGANISATION\}/g, ctx.organisationCode)
       .replace(/\{ENTITE\}/g, ctx.entiteLabel)

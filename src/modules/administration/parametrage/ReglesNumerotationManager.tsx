@@ -121,7 +121,7 @@ export function ReglesNumerotationManager({ organisationId, peutModifier }: Prop
       />
       <div className="mb-4 rounded-lg border border-border bg-muted/40 p-4 text-[13px] leading-relaxed text-muted-foreground">
         <p>
-          Gabarit composé de repères : <Code>{'{ANNEE}'}</Code> <Code>{'{MOIS}'}</Code> <Code>{'{SEQ}'}</Code>{' '}
+          Gabarit composé de repères : <Code>{'{ANNEE}'}</Code> <Code>{'{AA}'}</Code> <Code>{'{MOIS}'}</Code> <Code>{'{SEQ}'}</Code>{' '}
           <Code>{'{SEQ:n}'}</Code> (séquence complétée par des zéros sur n chiffres), <Code>{'{ORGANISATION}'}</Code>,{' '}
           <Code>{'{ENTITE}'}</Code> (sigle de l'entité, ou son code à défaut) et <Code>{'{CHEMIN_ENTITE}'}</Code> (sigles
           des entités depuis la racine de l'organigramme, séparés par « / » — laisser « Niveau racine » vide).
@@ -226,7 +226,7 @@ export function ReglesNumerotationManager({ organisationId, peutModifier }: Prop
           htmlFor="regle-format"
           requis
           erreur={errors.format?.message}
-          aide="Repères : {ANNEE}, {MOIS}, {SEQ}, {SEQ:n}, {ORGANISATION}, {ENTITE}, {CHEMIN_ENTITE}"
+          aide="Repères : {ANNEE}, {AA} (année sur 2 chiffres), {MOIS}, {SEQ}, {SEQ:n}, {ORGANISATION}, {ENTITE}, {CHEMIN_ENTITE}"
         >
           <Input className="font-mono" placeholder="{ANNEE}/{ORGANISATION}/{CHEMIN_ENTITE}/{SEQ:5}" {...ariaErreur('regle-format', errors.format)} {...register('format')} />
         </Champ>

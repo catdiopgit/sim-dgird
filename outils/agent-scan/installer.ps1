@@ -15,7 +15,9 @@ $script = Join-Path $dossier 'sim-scan-agent.ps1'
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' `
   -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$script`""
 $declencheur = New-ScheduledTaskTrigger -AtLogOn
-$principal = New-ScheduledTaskPrincipal -GroupId 'BUILTIN\Users' -RunLevel Limited
+# Groupe « Utilisateurs » désigné par son SID (S-1-5-32-545) : le nom
+# change selon la langue de Windows (Users / Utilisateurs).
+$principal = New-ScheduledTaskPrincipal -GroupId 'S-1-5-32-545' -RunLevel Limited
 $reglages = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero)
 Register-ScheduledTask -TaskName 'SIM - Agent de numerisation' -Action $action -Trigger $declencheur `
   -Principal $principal -Settings $reglages -Force | Out-Null

@@ -11,7 +11,8 @@ cet agent tourne sur le poste et fait l'intermédiaire.
 3. Dans NAPS2, créer un profil nommé **SIM** : choisir le scanner, 200–300 dpi,
    niveaux de gris, chargeur ou vitre, recto-verso si besoin.
 4. Copier ce dossier sur le poste (par ex. `C:\SIM\agent-scan`), adapter
-   `config.json` si besoin (adresse du SIM dans `originesAutorisees`).
+   `config.json` si besoin (adresses du SIM dans `originesAutorisees` :
+   `http://10.121.221.141` et, pendant la transition, `http://10.121.221.141:8080`).
 5. Clic droit sur `installer.ps1` → *Exécuter avec PowerShell* (en administrateur).
 
 ## Changer de scanner

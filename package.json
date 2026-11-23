@@ -16,7 +16,8 @@
     "migration:revert": "cross-env TS_NODE_PROJECT=server/tsconfig.json typeorm-ts-node-commonjs migration:revert -d server/config/data-source.ts",
     "migrate:passwords": "cross-env TS_NODE_PROJECT=server/tsconfig.json ts-node server/scripts/migrate-passwords.ts",
     "bootstrap:admin": "cross-env TS_NODE_PROJECT=server/tsconfig.json ts-node server/scripts/bootstrap-admin.ts",
-    "seed:dev": "cross-env TS_NODE_PROJECT=server/tsconfig.json ts-node server/scripts/seed-dev.ts"
+    "seed:dev": "cross-env TS_NODE_PROJECT=server/tsconfig.json ts-node server/scripts/seed-dev.ts",
+    "test:droits": "node --test tests/droits.test.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.3.0",

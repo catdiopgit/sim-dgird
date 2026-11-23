@@ -145,12 +145,24 @@ export class GedVersementsService {
       where: { organisationId: user.organisationId, ...(brouillonsSeulement ? { brouillon: true } : {}) },
       order: { updatedAt: 'DESC' },
     });
-    const resultats: GedVersement[] = [];
-    for (const versement of versements) {
-      if (versement.supprimeLe) continue;
-      if (await this.canView(versement, user)) resultats.push(versement);
-    }
-    return resultats;
+    // v8.8.0 (lot 3) : mêmes règles que canView, évaluées en une requête.
+    const actifs = versements.filter((v) => !v.supprimeLe);
+    if (actifs.length === 0) return [];
+    if (await this.acces.estArchiviste(user.id)) return actifs;
+    const lignes: Array<{ id: string }> = await this.dataSource.query(
+      `select v.id from ged_versements v
+       left join utilisateurs dep on dep.id = v.redacteur_id
+       where v.id = any($1::uuid[]) and (
+         v.redacteur_id = $2
+         or exists (
+           select 1 from entites mien join entites cible
+             on mien.chemin OPERATOR(extensions.@>) cible.chemin
+           where mien.responsable_utilisateur_id = $2
+             and (cible.id = v.entite_id or cible.id = dep.entite_id)))`,
+      [actifs.map((v) => v.id), user.id],
+    );
+    const visibles = new Set(lignes.map((l) => l.id));
+    return actifs.filter((v) => visibles.has(v.id));
   }
 
   async create(data: CreerVersementData, user: AuthenticatedUser): Promise<GedVersement> {

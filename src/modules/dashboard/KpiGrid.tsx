@@ -1,9 +1,7 @@
-import { env } from '../../config/env';
-import { CalendarClock, Compass, KanbanSquare, Mail } from 'lucide-react';
+import { CalendarClock, KanbanSquare, Mail } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { EcheanceProchaine } from '../../services/dashboard/echeances';
 import type { StatistiquesCourrier } from '../../services/courrier/statistiques';
-import type { StatistiquesMissions } from '../../services/missions/statistiques';
 import type { StatistiquesProjets } from '../../services/projets/statistiques';
 import { KpiCard, type KpiEvolution } from './KpiCard';
 import { serieEvolution } from '../../utils/serieEvolution';
@@ -17,7 +15,6 @@ interface BlocDonnees<T> {
 interface Props {
   courrier: BlocDonnees<StatistiquesCourrier> & { dataPrecedente?: StatistiquesCourrier };
   projets: BlocDonnees<StatistiquesProjets> & { dataPrecedente?: StatistiquesProjets };
-  missions: BlocDonnees<StatistiquesMissions> & { dataPrecedente?: StatistiquesMissions };
   echeances: BlocDonnees<EcheanceProchaine[]>;
 }
 
@@ -30,7 +27,7 @@ function evolution(actuel: number | undefined, precedent: number | undefined, se
   return { pourcentage, sensPositif: sensPositif(pourcentage) };
 }
 
-export function KpiGrid({ courrier, projets, missions, echeances }: Props) {
+export function KpiGrid({ courrier, projets, echeances }: Props) {
   const navigate = useNavigate();
   const periode = usePeriodeStore((s) => s.periode);
 
@@ -38,7 +35,7 @@ export function KpiGrid({ courrier, projets, missions, echeances }: Props) {
   const echeancesProches = echeances.data ? echeances.data.length - (echeancesDepassees ?? 0) : undefined;
 
   return (
-    <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${env.missionsEnabled ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`}>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
       <KpiCard
         icone={<Mail />}
         titre="Courriers"
@@ -78,25 +75,6 @@ export function KpiGrid({ courrier, projets, missions, echeances }: Props) {
             : undefined
         }
       />
-      {env.missionsEnabled && (
-        <KpiCard
-          icone={<Compass />}
-          titre="Missions"
-          valeur={missions.data?.totaux.total ?? null}
-          chargement={missions.loading}
-          onClick={() => navigate('/missions')}
-          evolution={evolution(missions.data?.totaux.total, missions.dataPrecedente?.totaux.total, () => null)}
-          sousValeurs={
-            missions.data
-              ? [
-                  { libelle: 'En cours', valeur: missions.data.totaux.enCours },
-                  { libelle: 'Terminées', valeur: missions.data.totaux.clotures, ton: 'succes' },
-                  { libelle: 'En retard', valeur: missions.data.totaux.enRetard, ton: 'critique' },
-                ]
-              : undefined
-          }
-        />
-      )}
       <KpiCard
         icone={<CalendarClock />}
         titre="Échéances à 30 jours"

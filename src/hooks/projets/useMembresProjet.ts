@@ -6,7 +6,7 @@ import {
   retirerMembre,
   type ProjetMembreInsert,
 } from '../../services/projets/membres';
-import { messageErreurSuppression } from '../../utils/supabaseErrors';
+import { messageErreurSuppression } from '../../utils/erreursSuppression';
 
 export function useMembresProjet(projetId: string | undefined) {
   return useQuery({

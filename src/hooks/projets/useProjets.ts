@@ -10,7 +10,7 @@ import {
   type ProjetInsert,
   type ProjetUpdate,
 } from '../../services/projets/projets';
-import { messageErreurSuppression } from '../../utils/supabaseErrors';
+import { messageErreurSuppression } from '../../utils/erreursSuppression';
 
 export function useProjets(organisationId: string | undefined) {
   return useQuery({

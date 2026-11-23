@@ -6,7 +6,7 @@ import {
   supprimerContactExecution,
   type ContactExecutionInsert,
 } from '../../services/projets/contactsExecution';
-import { messageErreurSuppression } from '../../utils/supabaseErrors';
+import { messageErreurSuppression } from '../../utils/erreursSuppression';
 
 export function useContactsExecution(projetId: string | undefined) {
   return useQuery({

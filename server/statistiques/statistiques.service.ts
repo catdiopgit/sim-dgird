@@ -4,7 +4,6 @@ import { DataSource } from 'typeorm';
 import type { AuthenticatedUser } from '../auth/strategies/jwt.strategy';
 import { CourriersService } from '../courrier/courriers.service';
 import { MarchesService } from '../marches/marches.service';
-import { MissionsService } from '../missions/missions.service';
 import { ProjetsService } from '../projets/projets.service';
 
 // Statistiques et tableau de bord (v8.3) : remplace les anciennes RPC Supabase
@@ -20,13 +19,8 @@ export interface FiltresProjets extends FiltresPeriode {
   responsableId?: string;
   organismeExecutionType?: string;
 }
-export interface FiltresMissions extends FiltresPeriode {
-  entiteId?: string;
-  responsableId?: string;
-  etapeCode?: string;
-}
 export interface Echeance {
-  type: 'livrable' | 'action_mission' | 'courrier' | 'phase_marche';
+  type: 'livrable' | 'courrier' | 'phase_marche';
   id: string;
   libelle: string;
   reference: string;
@@ -52,7 +46,6 @@ export class StatistiquesService {
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly courriersService: CourriersService,
     private readonly projetsService: ProjetsService,
-    private readonly missionsService: MissionsService,
     private readonly marchesService: MarchesService,
   ) {}
 
@@ -176,66 +169,10 @@ export class StatistiquesService {
     ]);
     return rows[0]?.r;
     }
-  async missions(filtres: FiltresMissions, user: AuthenticatedUser): Promise<unknown> {
-    const ids = (await this.missionsService.findAll(user)).map((m) => m.id);
-    const rows: Array<{ r: unknown }> = await this.dataSource.query(`with mv as (
-     select m.* from missions m
-     where m.id = any($1::uuid[])
-       and ($2::date is null or m.date_depart >= $2::date)
-       and ($3::date is null or m.date_depart <= $3::date)
-       and ($4::uuid is null or m.entite_id = $4::uuid)
-       and ($5::uuid is null or m.responsable_id = $5::uuid)
-       and ($6::text is null or m.etape_code = $6::text)
-       ),
-       mp as (select p.mission_id from mission_participants p where p.mission_id in (select id from mv))
-       select jsonb_build_object(
-     'totaux', (select jsonb_build_object(
-         'total', count(*),
-         'enCours', count(*) filter (where etape_code = 'en-cours'),
-         'aVenir', count(*) filter (where date_depart > current_date),
-         'enRetard', count(*) filter (where date_retour < current_date and etape_code is distinct from 'cloture'),
-         'clotures', count(*) filter (where etape_code = 'cloture')) from mv),
-     'dureeMoyenneJours', (select round(avg(date_retour - date_depart)::numeric, 1) from mv),
-     'parEtape', (select coalesce(jsonb_agg(jsonb_build_object('code', code, 'libelle', libelle, 'total', total) order by ordre), '[]'::jsonb)
-         from (select mv.etape_code as code, coalesce(mv.etape_libelle, mv.etape_code) as libelle, count(*) as total,
-                      min(coalesce(we.ordre, 0)) as ordre
-               from mv
-               left join workflow_instances wi on wi.id = mv.workflow_instance_id
-               left join workflow_etapes we on we.workflow_definition_id = wi.workflow_definition_id and we.code = mv.etape_code
-               where mv.etape_code is not null
-               group by mv.etape_code, mv.etape_libelle) t),
-     'parEntite', (select coalesce(jsonb_agg(jsonb_build_object('id', e.id, 'libelle', coalesce(e.sigle, e.libelle), 'total', t.total) order by t.total desc), '[]'::jsonb)
-         from (select entite_id, count(*) as total from mv group by entite_id) t join entites e on e.id = t.entite_id),
-     'parResponsable', (select coalesce(jsonb_agg(jsonb_build_object('id', u.id, 'libelle', u.prenom || ' ' || u.nom, 'total', t.total) order by t.total desc), '[]'::jsonb)
-         from (select responsable_id, count(*) as total from mv where responsable_id is not null group by responsable_id) t
-         join utilisateurs u on u.id = t.responsable_id),
-     'financier', (select jsonb_build_object(
-         'budgetPrevu', coalesce(sum(budget_prevu), 0),
-         'budgetReel', coalesce(sum(budget_reel), 0),
-         'ecart', coalesce(sum(budget_reel), 0) - coalesce(sum(budget_prevu), 0),
-         'pourcentageRealise', case when coalesce(sum(budget_prevu), 0) > 0
-           then round(coalesce(sum(budget_reel), 0) / sum(budget_prevu) * 100, 2) else 0 end) from mv),
-     'participants', (select jsonb_build_object(
-         'total', count(*),
-         'moyenneParMission', case when (select count(*) from mv) > 0
-           then round(count(*)::numeric / (select count(*) from mv), 1) else 0 end) from mp),
-     'evolution', (select coalesce(jsonb_agg(jsonb_build_object('date', jour, 'total', total) order by jour), '[]'::jsonb)
-         from (select date_depart::date as jour, count(*) as total from mv where date_depart is not null group by 1) t)
-       ) as r`, [
-        ids,
-        dateOuNull(filtres.dateDebut),
-        dateOuNull(filtres.dateFin),
-        filtres.entiteId || null,
-        filtres.responsableId || null,
-        filtres.etapeCode || null,
-    ]);
-    return rows[0]?.r;
-    }
   async echeances(horizonJours: number, user: AuthenticatedUser): Promise<Echeance[]> {
     const horizon = Number.isFinite(horizonJours) && horizonJours > 0 ? Math.min(horizonJours, 365) : 30;
-    const [projets, missions, courriers, marches] = await Promise.all([
+    const [projets, courriers, marches] = await Promise.all([
         this.projetsService.findAll(user),
-        this.missionsService.findAll(user),
         this.courriersService.findAll(user),
         this.marchesService.findAll(user),
     ]);
@@ -246,31 +183,23 @@ export class StatistiquesService {
      left join valeurs_listes vl on vl.id = l.statut_valeur_id
      where p.id = any($1::uuid[]) and l.date_prevue is not null
        and coalesce(vl.code, '') not in ('realise', 'valide', 'annule')
-       and l.date_prevue <= current_date + make_interval(days => $4::int)
-     union all
-     select 'action_mission', mas.id, mas.description, m.reference, mas.date_echeance, m.id
-     from mission_actions_suivi mas
-     join missions m on m.id = mas.mission_id
-     left join valeurs_listes vl on vl.id = mas.statut_valeur_id
-     where m.id = any($2::uuid[]) and mas.date_echeance is not null
-       and coalesce(vl.code, '') not in ('realise', 'valide', 'termine')
-       and mas.date_echeance <= current_date + make_interval(days => $4::int)
+       and l.date_prevue <= current_date + make_interval(days => $3::int)
      union all
      select 'courrier', c.id, c.objet, coalesce(c.numero, ''), min(cd.echeance), c.id
      from courriers c
      join workflow_instances wi on wi.id = c.workflow_instance_id and wi.statut_instance = 'en_cours'
      join courrier_destinataires cd on cd.courrier_id = c.id and cd.type_diffusion = 'principal' and cd.echeance is not null
-     where c.id = any($3::uuid[]) and c.annule_le is null
-       and cd.echeance <= current_date + make_interval(days => $4::int)
+     where c.id = any($2::uuid[]) and c.annule_le is null
+       and cd.echeance <= current_date + make_interval(days => $3::int)
      group by c.id, c.objet, c.numero
      union all
      -- Évolution C (recette 2026-11) : phases de marché non terminées.
      select 'phase_marche', p.id, p.nom, m.reference, p.date_fin_prevue, m.id
      from phases_marche p
      join marches m on m.id = p.marche_id and m.statut_cloture = 'en_cours'
-     where m.id = any($5::uuid[]) and p.date_fin_reelle is null and p.date_fin_prevue is not null
-       and p.date_fin_prevue <= current_date + make_interval(days => $4::int)
-   ) e order by date_echeance`, [projets.map((p) => p.id), missions.map((m) => m.id), courriers.map((c) => c.id), horizon, marches.map((m) => m.id)]);
+     where m.id = any($4::uuid[]) and p.date_fin_reelle is null and p.date_fin_prevue is not null
+       and p.date_fin_prevue <= current_date + make_interval(days => $3::int)
+   ) e order by date_echeance`, [projets.map((p) => p.id), courriers.map((c) => c.id), horizon, marches.map((m) => m.id)]);
     const aujourdhui = new Date().toISOString().slice(0, 10);
     return rows.map((r) => {
         const date = r.date_echeance instanceof Date ? r.date_echeance.toISOString().slice(0, 10) : String(r.date_echeance).slice(0, 10);

@@ -9,7 +9,7 @@ import {
   type EntiteInsert,
   type EntiteUpdate,
 } from '../../services/administration/entites';
-import { messageErreurSuppression } from '../../utils/supabaseErrors';
+import { messageErreurSuppression } from '../../utils/erreursSuppression';
 
 export function useEntites(organisationId: string | undefined) {
   return useQuery({

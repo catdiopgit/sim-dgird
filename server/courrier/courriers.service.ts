@@ -655,10 +655,52 @@ export class CourriersService {
     return this.chargerEtFiltrer(idsRetenus, user);
   }
 
+  // v8.8.0 (lot 3) : même règle que canView, mais évaluée en lot dans la base
+  // au lieu de plusieurs requêtes par courrier. Portée organisation : tout est
+  // visible. Sinon une seule requête retient les courriers visibles par les
+  // règles 2 à 5 ; seuls les courriers restants en circuit passent par
+  // canView (règle 6 : peut agir sur l'étape en cours).
   private async filtrerVisibles(courriers: Courrier[], user: AuthenticatedUser): Promise<Courrier[]> {
+    const memeOrganisation = courriers.filter((c) => c.organisationId === user.organisationId);
+    if (memeOrganisation.length === 0) return [];
+    if (await this.aConsultationEtendue(user.id, null)) return memeOrganisation;
+
+    const lignes: Array<{ id: string }> = await this.dataSource.query(
+      `select c.id from courriers c
+       where c.id = any($1::uuid[]) and (
+         c.created_by = $2 or c.agent_destinataire_id = $2
+         or exists (
+           select 1 from utilisateur_roles ur
+           join permissions p on p.role_id = ur.role_id
+           join modules m on m.id = p.module_id and m.code = 'courrier'
+           join actions a on a.id = p.action_id and a.code = 'consulter'
+           left join entites ue on ue.id = ur.entite_id
+           where ur.utilisateur_id = $2 and (ur.date_fin is null or ur.date_fin >= current_date)
+             and c.entite_id is not null
+             and ((p.portee = 'entite' and ur.entite_id = c.entite_id)
+               or (p.portee = 'entite_et_descendants' and ue.chemin is not null and exists (
+                     select 1 from entites cible where cible.id = c.entite_id
+                       and ue.chemin OPERATOR(extensions.@>) cible.chemin))))
+         or exists (select 1 from courrier_destinataires cd where cd.courrier_id = c.id and cd.utilisateur_id = $2)
+         or exists (
+           select 1 from entites mien
+           where (mien.responsable_utilisateur_id = $2 or mien.personne_receptrice_id = $2)
+             and exists (
+               select 1 from entites cible
+               where mien.chemin OPERATOR(extensions.@>) cible.chemin
+                 and (cible.id = c.entite_id or cible.id in (
+                   select cd.entite_id from courrier_destinataires cd where cd.courrier_id = c.id and cd.entite_id is not null))))
+         or (c.workflow_instance_id is not null and exists (
+               select 1 from workflow_historique wh
+               where wh.workflow_instance_id = c.workflow_instance_id and wh.utilisateur_id = $2))
+       )`,
+      [memeOrganisation.map((c) => c.id), user.id],
+    );
+    const visibles = new Set(lignes.map((l) => l.id));
     const resultats: Courrier[] = [];
-    for (const courrier of courriers) {
-      if (await this.canView(courrier, user)) resultats.push(courrier);
+    for (const courrier of memeOrganisation) {
+      if (visibles.has(courrier.id)) resultats.push(courrier);
+      else if (courrier.workflowInstanceId && (await this.canView(courrier, user))) resultats.push(courrier);
     }
     return resultats;
   }

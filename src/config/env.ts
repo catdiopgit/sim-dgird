@@ -10,7 +10,6 @@ export const env = {
   // Modules encore en rodage, cachés du menu et des routes sans toucher au
   // backend/aux données : pilotables par environnement via .env (VITE_*),
   // sans code à retoucher pour les ré-activer plus tard.
-  missionsEnabled: import.meta.env.VITE_MISSIONS_ENABLED === 'true',
   marchesEnabled: import.meta.env.VITE_MARCHES_ENABLED !== 'false',
   // Agent de numérisation installé sur le poste (outils/agent-scan) : le
   // navigateur ne peut pas piloter un scanner lui-même.

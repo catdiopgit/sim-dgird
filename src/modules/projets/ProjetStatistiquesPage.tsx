@@ -2,7 +2,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { ChevronLeft, ChevronRight, FileSpreadsheet, Printer } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { utils as xlsxUtils, writeFile as xlsxWriteFile } from 'xlsx';
+import { exporterClasseur } from '../../utils/exportExcel';
 import { EvolutionBarres } from '../../components/stats/EvolutionBarres';
 import { BarresRepartition, ChartCard, PeriodeFiltre, StatTile, StatTiles, type PresetPeriode } from '../../components/stats/stats';
 import { Button } from '../../components/ui/button';
@@ -108,7 +108,7 @@ export function ProjetStatistiquesPage() {
       Échéance: p.date_fin_prevue ?? '',
       Clôturé: p.cloture_statut === 'confirmee' ? 'Oui' : 'Non',
     }));
-    const feuilleProjets = xlsxUtils.json_to_sheet(lignes);
+    const feuilleProjets = lignes;
 
     const resume = statistiques
       ? [
@@ -130,12 +130,9 @@ export function ProjetStatistiquesPage() {
           { Indicateur: 'Taux de réalisation des livrables (%)', Valeur: statistiques.livrables.tauxRealisation },
         ]
       : [];
-    const feuilleResume = xlsxUtils.json_to_sheet(resume);
+    const feuilleResume = resume;
 
-    const classeur = xlsxUtils.book_new();
-    xlsxUtils.book_append_sheet(classeur, feuilleResume, 'Résumé');
-    xlsxUtils.book_append_sheet(classeur, feuilleProjets, 'Projets');
-    xlsxWriteFile(classeur, `statistiques-projets-${dayjs().format('YYYY-MM-DD')}.xlsx`);
+        void exporterClasseur(`statistiques-projets-${dayjs().format('YYYY-MM-DD')}.xlsx`, [{ nom: 'Résumé', lignes: feuilleResume }, { nom: 'Projets', lignes: feuilleProjets }]);
   };
 
   const s = statistiques;

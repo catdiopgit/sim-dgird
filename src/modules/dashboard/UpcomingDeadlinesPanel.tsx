@@ -41,9 +41,7 @@ export function UpcomingDeadlinesPanel({ echeances, chargement }: Props) {
                         ? `/projets/${e.lienId}`
                         : e.type === 'courrier'
                           ? `/courriers/${e.lienId}`
-                          : e.type === 'phase_marche'
-                            ? `/marches/${e.lienId}?onglet=phases`
-                          : `/missions/${e.lienId}`,
+                          : `/marches/${e.lienId}?onglet=phases`,
                     )
                   }
                   className="flex w-full cursor-pointer items-start gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-muted"

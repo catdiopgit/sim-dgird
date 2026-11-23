@@ -8,7 +8,7 @@ import {
   type FonctionInsert,
   type FonctionUpdate,
 } from '../../services/administration/fonctions';
-import { messageErreurSuppression } from '../../utils/supabaseErrors';
+import { messageErreurSuppression } from '../../utils/erreursSuppression';
 
 export function useFonctions(organisationId: string | undefined) {
   return useQuery({

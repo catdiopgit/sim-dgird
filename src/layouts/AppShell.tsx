@@ -1,7 +1,6 @@
 import {
   ChevronDown,
   ChevronRight,
-  Compass,
   FolderOpen,
   Gavel,
   KanbanSquare,
@@ -57,7 +56,6 @@ const navSections: { titre: string; items: NavItem[] }[] = [
       { key: '/courriers', label: 'Courriers', icon: Mail },
       { key: '/ged', label: 'GED', icon: FolderOpen },
       { key: '/projets', label: 'Projets', icon: KanbanSquare },
-      ...(env.missionsEnabled ? [{ key: '/missions', label: 'Missions', icon: Compass }] : []),
       ...(env.marchesEnabled ? [{ key: '/marches', label: 'Marchés', icon: Gavel }] : []),
     ],
   },

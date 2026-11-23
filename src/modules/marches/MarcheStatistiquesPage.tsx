@@ -2,7 +2,7 @@ import dayjs, { type Dayjs } from 'dayjs';
 import { FileSpreadsheet, Printer } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { utils as xlsxUtils, writeFile as xlsxWriteFile } from 'xlsx';
+import { exporterClasseur } from '../../utils/exportExcel';
 import { BarresRepartition, ChartCard, PeriodeFiltre, StatTile, StatTiles, type PresetPeriode } from '../../components/stats/stats';
 import { Button } from '../../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
@@ -141,15 +141,11 @@ export function MarcheStatistiquesPage() {
           { Indicateur: 'Montant total attribué', Valeur: statistiques.attribution.montantTotalAttribue },
         ]
       : [];
-    const feuilleResume = xlsxUtils.json_to_sheet(resume);
-    const feuilleType = xlsxUtils.json_to_sheet(donneesParType);
-    const feuilleCandidats = xlsxUtils.json_to_sheet(donneesParCandidat);
+    const feuilleResume = resume;
+    const feuilleType = donneesParType;
+    const feuilleCandidats = donneesParCandidat;
 
-    const classeur = xlsxUtils.book_new();
-    xlsxUtils.book_append_sheet(classeur, feuilleResume, 'Résumé');
-    xlsxUtils.book_append_sheet(classeur, feuilleType, 'Par type');
-    xlsxUtils.book_append_sheet(classeur, feuilleCandidats, 'Par entreprise-consultant');
-    xlsxWriteFile(classeur, `statistiques-marches-${dayjs().format('YYYY-MM-DD')}.xlsx`);
+        void exporterClasseur(`statistiques-marches-${dayjs().format('YYYY-MM-DD')}.xlsx`, [{ nom: 'Résumé', lignes: feuilleResume }, { nom: 'Par type', lignes: feuilleType }, { nom: 'Par entreprise-consultant', lignes: feuilleCandidats }]);
   };
 
   const s = statistiques;

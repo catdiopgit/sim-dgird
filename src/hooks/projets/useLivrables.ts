@@ -9,7 +9,7 @@ import {
   type LivrableInsert,
   type LivrableUpdate,
 } from '../../services/projets/livrables';
-import { messageErreurSuppression } from '../../utils/supabaseErrors';
+import { messageErreurSuppression } from '../../utils/erreursSuppression';
 
 export function useLivrables(projetId: string | undefined) {
   return useQuery({

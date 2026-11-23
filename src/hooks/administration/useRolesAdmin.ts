@@ -17,7 +17,7 @@ import {
   type PermissionInsert,
   type Portee,
 } from '../../services/administration/permissions';
-import { messageErreurSuppression } from '../../utils/supabaseErrors';
+import { messageErreurSuppression } from '../../utils/erreursSuppression';
 
 export function useRoleMutations(organisationId: string | undefined) {
   const queryClient = useQueryClient();

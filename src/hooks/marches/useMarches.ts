@@ -13,7 +13,7 @@ import {
   type MarcheInsert,
   type MarcheUpdate,
 } from '../../services/marches/marches';
-import { messageErreurSuppression } from '../../utils/supabaseErrors';
+import { messageErreurSuppression } from '../../utils/erreursSuppression';
 
 export function useMarches() {
   return useQuery({ queryKey: ['marches'], queryFn: () => listMarches() });

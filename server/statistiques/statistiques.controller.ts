@@ -28,18 +28,6 @@ export class StatistiquesController {
     return this.service.projets({ dateDebut, dateFin, statutValeurId, responsableId, organismeExecutionType }, user);
   }
 
-  @Get('missions')
-  missions(
-    @Query('dateDebut') dateDebut: string | undefined,
-    @Query('dateFin') dateFin: string | undefined,
-    @Query('entiteId') entiteId: string | undefined,
-    @Query('responsableId') responsableId: string | undefined,
-    @Query('etapeCode') etapeCode: string | undefined,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    return this.service.missions({ dateDebut, dateFin, entiteId, responsableId, etapeCode }, user);
-  }
-
   @Get('echeances')
   echeances(@Query('horizon') horizon: string | undefined, @CurrentUser() user: AuthenticatedUser) {
     return this.service.echeances(Number(horizon ?? 30), user);

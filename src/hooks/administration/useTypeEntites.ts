@@ -8,7 +8,7 @@ import {
   type TypeEntiteInsert,
   type TypeEntiteUpdate,
 } from '../../services/administration/typeEntites';
-import { messageErreurSuppression } from '../../utils/supabaseErrors';
+import { messageErreurSuppression } from '../../utils/erreursSuppression';
 
 export function useTypeEntites(organisationId: string | undefined) {
   return useQuery({

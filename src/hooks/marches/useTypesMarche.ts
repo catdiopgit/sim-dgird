@@ -14,7 +14,7 @@ import {
   type TypeMarcheInsert,
   type TypeMarcheUpdate,
 } from '../../services/marches/typesMarche';
-import { messageErreurSuppression } from '../../utils/supabaseErrors';
+import { messageErreurSuppression } from '../../utils/erreursSuppression';
 
 export function useTypesMarche() {
   return useQuery({ queryKey: ['types-marche'], queryFn: () => listTypesMarche() });

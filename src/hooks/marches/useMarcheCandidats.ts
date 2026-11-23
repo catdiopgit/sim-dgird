@@ -8,7 +8,7 @@ import {
   type MarcheCandidatInsert,
   type MarcheCandidatUpdate,
 } from '../../services/marches/candidats';
-import { messageErreurSuppression } from '../../utils/supabaseErrors';
+import { messageErreurSuppression } from '../../utils/erreursSuppression';
 
 export function useMarcheCandidats(marcheId: string | undefined) {
   return useQuery({

@@ -14,7 +14,7 @@ import {
   type AvenantLivrableInsert,
   type AvenantUpdate,
 } from '../../services/projets/avenants';
-import { messageErreurSuppression } from '../../utils/supabaseErrors';
+import { messageErreurSuppression } from '../../utils/erreursSuppression';
 
 export function useAvenants(projetId: string | undefined) {
   return useQuery({

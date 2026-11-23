@@ -23,7 +23,7 @@ import {
   type ValeurListeInsert,
   type ValeurListeUpdate,
 } from '../../services/administration/parametrage';
-import { messageErreurSuppression } from '../../utils/supabaseErrors';
+import { messageErreurSuppression } from '../../utils/erreursSuppression';
 import type { Json } from '../../types/database';
 
 export function useListesValeurs(organisationId: string | undefined) {

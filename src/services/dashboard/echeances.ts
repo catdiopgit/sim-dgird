@@ -1,6 +1,6 @@
 import { api } from '../../config/apiClient';
 
-export type TypeEcheance = 'livrable' | 'action_mission' | 'courrier' | 'phase_marche';
+export type TypeEcheance = 'livrable' | 'courrier' | 'phase_marche';
 
 export interface EcheanceProchaine {
   type: TypeEcheance;
@@ -12,7 +12,7 @@ export interface EcheanceProchaine {
   lienId: string;
 }
 
-// Échéances à venir (livrables, actions de mission, courriers en cours) :
+// Échéances à venir (livrables, courriers en cours, phases de marché) :
 // GET /statistiques/echeances, portée NestJS.
 export async function fetchEcheancesProchaines(horizonJours = 30): Promise<EcheanceProchaine[]> {
   return api.get<EcheanceProchaine[]>('/statistiques/echeances', { horizon: horizonJours });

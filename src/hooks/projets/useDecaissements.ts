@@ -8,7 +8,7 @@ import {
   type DecaissementInsert,
   type DecaissementUpdate,
 } from '../../services/projets/decaissements';
-import { messageErreurSuppression } from '../../utils/supabaseErrors';
+import { messageErreurSuppression } from '../../utils/erreursSuppression';
 
 export function useDecaissements(projetId: string | undefined) {
   return useQuery({

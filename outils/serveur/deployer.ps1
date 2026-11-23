@@ -46,7 +46,7 @@ Copy-Item "$app\dist", "$app\dist-server" $b -Recurse
 if ($serveur) { Stop-Service SimDgirdApi; Start-Sleep 3 }
 if (Test-Path "$recette\node_modules") { robocopy "$recette\node_modules" "$app\node_modules" /E /NFL /NDL /NJH /NJS /NP | Out-Null }
 if ($serveur) { robocopy "$recette\dist-server" "$app\dist-server" /MIR /NFL /NDL /NJH /NJS /NP | Out-Null }
-robocopy "$recette\dist" "$app\dist" /E /XF web.config /NFL /NDL /NJH /NJS /NP | Out-Null
+robocopy "$recette\dist" "$app\dist" /MIR /XF web.config /NFL /NDL /NJH /NJS /NP | Out-Null
 if (Test-Path "$recette\outils") { robocopy "$recette\outils" "$app\outils" /E /NFL /NDL /NJH /NJS /NP | Out-Null }
 if ($serveur) { Start-Service SimDgirdApi; Start-Sleep 12 }
 
@@ -56,7 +56,7 @@ if (Tester-Api) {
   Write-Output 'ECHEC de la vérification : remise de la version précédente...'
   Stop-Service SimDgirdApi -ErrorAction SilentlyContinue; Start-Sleep 3
   robocopy "$b\dist-server" "$app\dist-server" /MIR /NFL /NDL /NJH /NJS /NP | Out-Null
-  robocopy "$b\dist" "$app\dist" /E /XF web.config /NFL /NDL /NJH /NJS /NP | Out-Null
+  robocopy "$b\dist" "$app\dist" /MIR /XF web.config /NFL /NDL /NJH /NJS /NP | Out-Null
   Start-Service SimDgirdApi; Start-Sleep 10
   Write-Output "Version précédente remise - service : $((Get-Service SimDgirdApi).Status) - sauvegarde : $b"
 }
